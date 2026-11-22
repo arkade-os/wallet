@@ -32,6 +32,7 @@ import { useRemoteSolverCard } from '@/hooks/useRemoteSolverCard'
 import { BackupContext } from '@/providers/backup'
 import { SwapsContext } from '@/providers/swaps'
 import { useTranslation } from '@/providers/language'
+import { readOpenOfferPolicy, saveOpenOfferPolicy, type OpenOfferPolicy } from '@/lib/openOfferPolicy'
 import SolverRouting, { directionLabelOf, feeLabelOf, useMarketTicker, type TickerOf } from './SolverRouting'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer'
 import { Switch } from '@/components/ui/switch'
@@ -509,6 +510,37 @@ function CardLine({
   )
 }
 
+function OpenOfferSettings({ network }: { network: string }) {
+  const { t } = useTranslation()
+  const [error, setError] = useState(false)
+
+  return (
+    <FlexCol gap='0.5rem'>
+      <label className='flex w-full items-center justify-between gap-3 rounded-xl border border-[var(--neutral-200)] p-3'>
+        <span>{t('swap.openOffers')}</span>
+        <select
+          className='min-h-11 max-w-[60%] rounded-lg border border-[var(--neutral-200)] bg-transparent px-2'
+          value={readOpenOfferPolicy(network)}
+          onChange={(event) => {
+            try {
+              saveOpenOfferPolicy(network, event.target.value as OpenOfferPolicy)
+              setError(false)
+            } catch {
+              setError(true)
+            }
+          }}
+        >
+          <option value='ask'>{t('solvers.openOffersAsk')}</option>
+          <option value='when-needed'>{t('solvers.openOffersWhenNeeded')}</option>
+          <option value='off'>{t('solvers.openOffersOff')}</option>
+        </select>
+      </label>
+      <TextSecondary>{t('swap.openOffersPrivacy')}</TextSecondary>
+      <ErrorMessage error={error} text={t('solvers.failedSave')} />
+    </FlexCol>
+  )
+}
+
 export default function Solvers() {
   const { aspInfo } = useContext(AspContext)
   const { allMarkets = [] } = useContext(SwapsContext)
@@ -518,7 +550,7 @@ export default function Solvers() {
   useSyncExternalStore(subscribeSolverRouting, getSolverRoutingVersion, getSolverRoutingVersion)
   const [localCards, setLocalCards] = useState<LocalCardInput[]>()
   const [showEditor, setShowEditor] = useState(false)
-  const [view, setView] = useState('priority')
+  const [view, setView] = useState('routes')
   const addButtonRef = useRef<HTMLButtonElement>(null)
 
   // The card store notifies discovery on write, so this only owes the backup;
@@ -580,29 +612,30 @@ export default function Solvers() {
       <Content>
         <Padded>
           <FlexCol>
-            <FlexRow between>
-              <Text wrap>{title}</Text>
-              <Button
-                buttonRef={addButtonRef}
-                onClick={() => {
-                  setView('cards')
-                  setShowEditor(true)
-                }}
-                text={t('solvers.addNew')}
-              />
-            </FlexRow>
             <SegmentedControl
-              options={['priority', 'cards']}
+              options={['routes', 'providers']}
               selected={view}
               onChange={setView}
-              getLabel={(option) => t(option === 'priority' ? 'solvers.priorityTab' : 'solvers.cardsTab')}
+              getLabel={(option) => t(option === 'routes' ? 'solvers.priorityTab' : 'solvers.cardsTab')}
             />
-            {view === 'cards' ? <TextSecondary>{t('solvers.pauseHint')}</TextSecondary> : null}
-            {view === 'priority' ? <SolverRouting network={aspInfo.network} /> : null}
+            {view === 'providers' ? (
+              <>
+                <FlexRow between>
+                  <Text wrap>{title}</Text>
+                  <Button buttonRef={addButtonRef} onClick={() => setShowEditor(true)} text={t('solvers.addNew')} />
+                </FlexRow>
+                <TextSecondary>{t('solvers.pauseHint')}</TextSecondary>
+              </>
+            ) : (
+              <>
+                <SolverRouting network={aspInfo.network} />
+                {aspInfo.network ? <OpenOfferSettings key={aspInfo.network} network={aspInfo.network} /> : null}
+              </>
+            )}
             {showEditor ? (
               <Editor toClose={() => setShowEditor(false)} onChange={handleChange} fallbackFocus={addButtonRef} />
             ) : null}
-            {view === 'cards' && bundledCards.length + listedCards.length > 0 ? (
+            {view === 'providers' && bundledCards.length + listedCards.length > 0 ? (
               <FlexCol>
                 {bundledCards.map((input) => (
                   <ReadOnlyCardLine key={cardIdentity(input)} input={input} badge={t('solvers.builtIn')} pausable />
@@ -617,7 +650,7 @@ export default function Solvers() {
                 ))}
               </FlexCol>
             ) : null}
-            {view === 'cards' && localCards && localCards.length > 0 ? (
+            {view === 'providers' && localCards && localCards.length > 0 ? (
               <FlexCol>
                 {localCards.map((input) => (
                   <CardLine

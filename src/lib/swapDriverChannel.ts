@@ -59,9 +59,14 @@ export type DriverOp =
   | 'acceptPay'
   | 'receiveLightning'
   | 'openSwapQuotes'
+  | 'openPaymentQuotes'
   | 'cancelOpenSwapQuotes'
   | 'chooseSwapQuote'
   | 'acceptSwapQuote'
+  | 'quoteAssetPayment'
+  | 'quotePaymentRoute'
+  | 'paymentRouteCandidates'
+  | 'acceptPaymentQuote'
 
 /** What the holder runs on a follower's behalf. */
 export type DriverHandler = (op: DriverOp, args: unknown[]) => Promise<unknown>

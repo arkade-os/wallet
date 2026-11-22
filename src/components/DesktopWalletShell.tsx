@@ -11,6 +11,18 @@ import { NavigationContext, Pages } from '../providers/navigation'
 import { WalletContext } from '../providers/wallet'
 import { OptionsContext } from '../providers/options'
 import UsersRound from '../icons/UsersRound'
+import CoinsIcon from '../icons/Coins'
+
+const assetPages = new Set([
+  Pages.AppAssets,
+  Pages.AppAssetDetail,
+  Pages.AppAssetImport,
+  Pages.AppAssetMint,
+  Pages.AppAssetMintSuccess,
+  Pages.AppAssetReissue,
+  Pages.AppAssetBurn,
+  Pages.AppAssetsSettings,
+])
 
 interface DesktopWalletShellProps {
   logoVisible: boolean
@@ -28,7 +40,8 @@ export default function DesktopWalletShell({ logoVisible, page }: DesktopWalletS
 
   const activityActive = page === Pages.Activity || page === Pages.Transaction
   const settingsActive = page === Pages.Settings || page === Pages.Vtxos
-  const homeActive = !activityActive && !settingsActive
+  const assetsActive = assetPages.has(page)
+  const homeActive = !assetsActive && !activityActive && !settingsActive
 
   const goHome = () => {
     hapticLight()
@@ -70,6 +83,22 @@ export default function DesktopWalletShell({ logoVisible, page }: DesktopWalletS
         >
           <HomeIcon />
           <span>{t('common.home')}</span>
+        </button>
+        <button
+          type='button'
+          className={
+            assetsActive ? 'desktop-wallet-nav__item desktop-wallet-nav__item--active' : 'desktop-wallet-nav__item'
+          }
+          aria-current={assetsActive ? 'page' : undefined}
+          data-testid='desktop-nav-assets'
+          disabled={homeBusy}
+          onClick={() => {
+            hapticLight()
+            navigate(Pages.AppAssets)
+          }}
+        >
+          <CoinsIcon />
+          <span>{t('assets.title')}</span>
         </button>
         <button
           type='button'

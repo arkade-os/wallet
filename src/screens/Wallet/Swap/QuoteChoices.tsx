@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import type { OpenRfqAuction, OpenRfqOffer, Quote } from '@arkade-os/swap'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../../../components/ui/drawer'
 import ArrowIcon from '../../../icons/Arrow'
@@ -8,6 +8,7 @@ import { hapticTap } from '../../../lib/haptics'
 import { newRequestId } from '../../../lib/requestId'
 import { SwapsContext } from '../../../providers/swaps'
 import { useTranslation } from '../../../providers/language'
+import type { OpenPaymentRequest } from '../../../lib/paymentQuotes'
 
 interface DisplayAsset {
   assetId: string
@@ -25,7 +26,12 @@ interface QuoteChoicesProps {
   automaticAmount?: bigint
   allowSmartRouting?: boolean
   autoSearch?: boolean
+  autoSearchConsent?: boolean
+  allowOpenOffers?: boolean
+  payment?: OpenPaymentRequest
+  routes?: ReactNode
   destination?: string
+  description?: string
   onOpenChange: (open: boolean) => void
   onSmartRouting: () => void
   onChoose: (quote: Quote, offer: OpenRfqOffer) => void
@@ -40,14 +46,19 @@ export default function QuoteChoices({
   automaticAmount,
   allowSmartRouting = true,
   autoSearch = false,
+  autoSearchConsent = false,
+  allowOpenOffers = true,
+  payment,
+  routes,
   destination,
+  description,
   onOpenChange,
   onSmartRouting,
   onChoose,
 }: QuoteChoicesProps) {
-  const { openSwapQuotes, cancelOpenSwapQuotes, chooseSwapQuote } = useContext(SwapsContext)
-  const api = useRef({ openSwapQuotes, cancelOpenSwapQuotes, chooseSwapQuote })
-  api.current = { openSwapQuotes, cancelOpenSwapQuotes, chooseSwapQuote }
+  const { openSwapQuotes, openPaymentQuotes, cancelOpenSwapQuotes, chooseSwapQuote } = useContext(SwapsContext)
+  const api = useRef({ openSwapQuotes, openPaymentQuotes, cancelOpenSwapQuotes, chooseSwapQuote })
+  api.current = { openSwapQuotes, openPaymentQuotes, cancelOpenSwapQuotes, chooseSwapQuote }
   const { t } = useTranslation()
   const descriptionId = useId()
   const [auction, setAuction] = useState<OpenRfqAuction>()
@@ -60,7 +71,7 @@ export default function QuoteChoices({
   const epoch = useRef(0)
   const searched = useRef(false)
   const openingInput = useRef<string>()
-  const inputKey = `${network}:${from.assetId}:${from.decimals}:${to.assetId}:${to.decimals}:${amount}:${destination ?? ''}`
+  const inputKey = `${network}:${from.assetId}:${from.decimals}:${to.assetId}:${to.decimals}:${amount}:${destination ?? ''}:${payment?.kind === 'lightning' ? payment.invoice : (payment?.address ?? '')}`
   const current = useRef({ inputKey, open })
   current.current = { inputKey, open }
 
@@ -97,31 +108,36 @@ export default function QuoteChoices({
     [inputKey],
   )
 
-  const findOffers = useCallback(async () => {
-    if (loading || selecting || request.current) return
-    searched.current = true
-    const started = ++epoch.current
-    setLoading(true)
-    setAuction(undefined)
-    setError('')
-    try {
-      const requestId = newRequestId()
-      request.current = requestId
-      const result = await api.current.openSwapQuotes(from.assetId, to.assetId, amount, requestId, destination)
-      if (isCurrent(started)) setAuction(result)
-    } catch (cause) {
-      if (isCurrent(started)) setError(extractError(cause))
-    } finally {
-      if (isCurrent(started)) {
-        request.current = undefined
-        setLoading(false)
+  const findOffers = useCallback(
+    async (explicitConsent = false) => {
+      if (!allowOpenOffers || loading || selecting || request.current) return
+      searched.current = true
+      const started = ++epoch.current
+      setLoading(true)
+      setAuction(undefined)
+      setError('')
+      try {
+        const requestId = newRequestId()
+        request.current = requestId
+        const result = payment
+          ? await api.current.openPaymentQuotes(payment, requestId, explicitConsent)
+          : await api.current.openSwapQuotes(from.assetId, to.assetId, amount, requestId, destination)
+        if (isCurrent(started)) setAuction(result)
+      } catch (cause) {
+        if (isCurrent(started)) setError(extractError(cause))
+      } finally {
+        if (isCurrent(started)) {
+          request.current = undefined
+          setLoading(false)
+        }
       }
-    }
-  }, [amount, destination, from.assetId, to.assetId, isCurrent, loading, selecting])
+    },
+    [allowOpenOffers, amount, destination, from.assetId, to.assetId, isCurrent, loading, payment, selecting],
+  )
 
   useEffect(() => {
-    if (open && autoSearch && openingInput.current === inputKey && !searched.current) void findOffers()
-  }, [open, autoSearch, inputKey, findOffers])
+    if (open && autoSearch && openingInput.current === inputKey && !searched.current) void findOffers(autoSearchConsent)
+  }, [open, autoSearch, autoSearchConsent, inputKey, findOffers])
 
   const choose = async (offer: OpenRfqOffer) => {
     if (!auction || loading || selection.current || offer.expiresAt <= Math.floor(Date.now() / 1000)) return
@@ -134,7 +150,7 @@ export default function QuoteChoices({
       if (!isCurrent(started)) return
       if (quote.expiresAt <= Math.floor(Date.now() / 1000)) throw new Error(t('swap.offerExpired'))
       // `quoteBid` refuses this too; the screen still enforces the terms it showed.
-      if (quote.take.amount < offer.toAmount || quote.give.amount > offer.fromAmount)
+      if ((!payment && quote.take.amount < offer.toAmount) || quote.give.amount > offer.fromAmount)
         throw new Error(t('swap.offerTermsChanged'))
       onChoose(quote, offer)
     } catch (cause) {
@@ -151,6 +167,7 @@ export default function QuoteChoices({
   const offers = [...(auction?.bids ?? [])].sort((left, right) => {
     const expiryOrder = Number(left.expiresAt <= now) - Number(right.expiresAt <= now)
     if (expiryOrder) return expiryOrder
+    if (payment && left.fromAmount !== right.fromAmount) return left.fromAmount < right.fromAmount ? -1 : 1
     return left.toAmount === right.toAmount ? left.id.localeCompare(right.id) : left.toAmount > right.toAmount ? -1 : 1
   })
 
@@ -160,9 +177,12 @@ export default function QuoteChoices({
         <DrawerHeader className='block px-5 pt-3 pb-4'>
           <div className='flex items-center justify-between gap-3 text-left'>
             <div className='min-w-0'>
-              <DrawerTitle className='text-lg'>{t('swap.selectQuote')}</DrawerTitle>
+              <DrawerTitle className='text-lg'>{t(routes ? 'send.changeRoute' : 'swap.selectQuote')}</DrawerTitle>
               <DrawerDescription className='mt-1 text-[13px]'>
-                {formatQuoteAmount(amount, from.decimals)} {from.ticker} {t('swap.routeConnector')} {to.ticker}
+                {description ??
+                  (payment
+                    ? `${t('send.recipientGets')} ${formatQuoteAmount(amount, 0)} ${to.ticker}`
+                    : `${formatQuoteAmount(amount, from.decimals)} ${from.ticker} ${t('swap.routeConnector')} ${to.ticker}`)}
                 {to.networkLabel ? ` (${to.networkLabel})` : ''}
               </DrawerDescription>
             </div>
@@ -177,6 +197,7 @@ export default function QuoteChoices({
           </div>
         </DrawerHeader>
         <div className='flex min-h-0 flex-col gap-4 overflow-y-auto px-5 pb-5'>
+          {routes}
           {allowSmartRouting && automaticAmount !== undefined ? (
             <button
               type='button'
@@ -201,105 +222,111 @@ export default function QuoteChoices({
               </span>
             </button>
           ) : null}
-          <section aria-label={t('swap.openOffers')}>
-            <div className='flex min-h-11 items-center justify-between gap-3'>
-              <h3 className='text-sm font-medium'>{t('swap.openOffers')}</h3>
-              <button
-                type='button'
-                aria-label={t(auction ? 'swap.refreshOffers' : 'swap.findOpenOffers')}
-                aria-busy={loading || undefined}
-                className='min-h-11 rounded-lg px-2 text-sm font-medium text-[var(--purpletext)] focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50'
-                disabled={loading || Boolean(selecting)}
-                onClick={() => {
-                  hapticTap()
-                  void findOffers()
-                }}
-              >
-                {t(auction ? 'swap.refreshOffersShort' : 'swap.findOpenOffers')}
-              </button>
-            </div>
-            <div className='flex flex-col gap-3'>
-              <p className='text-xs text-muted-foreground'>{t('swap.openOffersPrivacy')}</p>
-              {loading ? (
-                <p role='status' className='py-4 text-sm text-muted-foreground'>
-                  {t('swap.collectingOffers')}
-                </p>
-              ) : null}
-              {auction && offers.length === 0 ? (
-                <p role='status' className='py-4 text-sm text-muted-foreground'>
-                  {t('swap.noOpenOffers')}
-                </p>
-              ) : null}
-              {offers.length > 0 ? (
-                <div className='divide-y divide-border overflow-hidden rounded-xl border border-border'>
-                  {offers.map((offer, index) => {
-                    const expired = offer.expiresAt <= now
-                    const best = index === 0 && !expired
-                    return (
-                      <article key={offer.id}>
-                        <button
-                          type='button'
-                          aria-label={t('swap.selectProvider', { provider: offer.solverName })}
-                          aria-describedby={`${descriptionId}-${offer.id}-identity ${descriptionId}-${offer.id}-amount${best ? ` ${descriptionId}-${offer.id}-best` : ''}`}
-                          aria-busy={selecting === offer.id || undefined}
-                          disabled={expired || loading || Boolean(selecting)}
-                          className={`grid w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-3 px-3 py-3 text-left hover:bg-muted/50 focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-45 ${best ? 'bg-[var(--purple10)]' : ''}`}
-                          onClick={() => {
-                            hapticTap()
-                            void choose(offer)
-                          }}
-                        >
-                          <span className='min-w-0'>
-                            <span className='flex flex-wrap items-center gap-x-2 gap-y-1'>
-                              <span className='font-medium [overflow-wrap:anywhere]'>{offer.solverName}</span>
-                              {best ? (
-                                <span
-                                  id={`${descriptionId}-${offer.id}-best`}
-                                  className='text-[11px] font-medium text-[var(--purpletext)]'
-                                >
-                                  {t('swap.bestReceiveAmount')}
-                                </span>
-                              ) : null}
+          {allowOpenOffers ? (
+            <section aria-label={t('swap.openOffers')}>
+              <div className='flex min-h-11 items-center justify-between gap-3'>
+                <h3 className='text-sm font-medium'>{t('swap.openOffers')}</h3>
+                <button
+                  type='button'
+                  aria-label={t(auction ? 'swap.refreshOffers' : 'swap.findOpenOffers')}
+                  aria-busy={loading || undefined}
+                  className='min-h-11 rounded-lg px-2 text-sm font-medium text-[var(--purpletext)] focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50'
+                  disabled={loading || Boolean(selecting)}
+                  onClick={() => {
+                    hapticTap()
+                    void findOffers(true)
+                  }}
+                >
+                  {t(auction ? 'swap.refreshOffersShort' : 'swap.findOpenOffers')}
+                </button>
+              </div>
+              <div className='flex flex-col gap-3'>
+                <p className='text-xs text-muted-foreground'>{t('swap.openOffersPrivacy')}</p>
+                {loading ? (
+                  <p role='status' className='py-4 text-sm text-muted-foreground'>
+                    {t('swap.collectingOffers')}
+                  </p>
+                ) : null}
+                {auction && offers.length === 0 ? (
+                  <p role='status' className='py-4 text-sm text-muted-foreground'>
+                    {t('swap.noOpenOffers')}
+                  </p>
+                ) : null}
+                {offers.length > 0 ? (
+                  <div className='divide-y divide-border overflow-hidden rounded-xl border border-border'>
+                    {offers.map((offer, index) => {
+                      const expired = offer.expiresAt <= now
+                      const best = index === 0 && !expired
+                      return (
+                        <article key={offer.id}>
+                          <button
+                            type='button'
+                            aria-label={t('swap.selectProvider', { provider: offer.solverName })}
+                            aria-describedby={`${descriptionId}-${offer.id}-identity ${descriptionId}-${offer.id}-amount${best && !payment ? ` ${descriptionId}-${offer.id}-best` : ''}`}
+                            aria-busy={selecting === offer.id || undefined}
+                            disabled={expired || loading || Boolean(selecting)}
+                            className={`grid w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-3 px-3 py-3 text-left hover:bg-muted/50 focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-45 ${best ? 'bg-[var(--purple10)]' : ''}`}
+                            onClick={() => {
+                              hapticTap()
+                              void choose(offer)
+                            }}
+                          >
+                            <span className='min-w-0'>
+                              <span className='flex flex-wrap items-center gap-x-2 gap-y-1'>
+                                <span className='font-medium [overflow-wrap:anywhere]'>{offer.solverName}</span>
+                                {best && !payment ? (
+                                  <span
+                                    id={`${descriptionId}-${offer.id}-best`}
+                                    className='text-[11px] font-medium text-[var(--purpletext)]'
+                                  >
+                                    {t('swap.bestReceiveAmount')}
+                                  </span>
+                                ) : null}
+                              </span>
+                              <span
+                                id={`${descriptionId}-${offer.id}-identity`}
+                                className='mt-1 block text-[11px] text-muted-foreground'
+                              >
+                                {offer.solverPubkey.slice(0, 6)}…{offer.solverPubkey.slice(-6)}
+                              </span>
+                            </span>
+                            <span id={`${descriptionId}-${offer.id}-amount`} className='min-w-0 text-right'>
+                              <strong className='block text-base font-semibold tabular-nums [overflow-wrap:anywhere]'>
+                                {payment
+                                  ? `${formatQuoteAmount(offer.fromAmount, from.decimals)} ${from.ticker}`
+                                  : `${formatQuoteAmount(offer.toAmount, to.decimals)} ${to.ticker}`}
+                              </strong>
+                              <span className='mt-1 block text-[11px] text-muted-foreground'>
+                                {expired
+                                  ? t('swap.offerExpired')
+                                  : t('swap.offerExpiresIn', { seconds: offer.expiresAt - now })}
+                              </span>
                             </span>
                             <span
-                              id={`${descriptionId}-${offer.id}-identity`}
-                              className='mt-1 block text-[11px] text-muted-foreground'
+                              aria-hidden='true'
+                              className='flex w-4 items-center justify-center text-muted-foreground'
                             >
-                              {offer.solverPubkey.slice(0, 6)}…{offer.solverPubkey.slice(-6)}
+                              {selecting === offer.id ? (
+                                <span className='block size-4 animate-spin rounded-full border-2 border-current border-r-transparent motion-reduce:animate-none' />
+                              ) : (
+                                <ArrowIcon />
+                              )}
                             </span>
-                          </span>
-                          <span id={`${descriptionId}-${offer.id}-amount`} className='min-w-0 text-right'>
-                            <strong className='block text-base font-semibold tabular-nums [overflow-wrap:anywhere]'>
-                              {formatQuoteAmount(offer.toAmount, to.decimals)} {to.ticker}
-                            </strong>
-                            <span className='mt-1 block text-[11px] text-muted-foreground'>
-                              {expired
-                                ? t('swap.offerExpired')
-                                : t('swap.offerExpiresIn', { seconds: offer.expiresAt - now })}
-                            </span>
-                          </span>
-                          <span
-                            aria-hidden='true'
-                            className='flex w-4 items-center justify-center text-muted-foreground'
-                          >
-                            {selecting === offer.id ? (
-                              <span className='block size-4 animate-spin rounded-full border-2 border-current border-r-transparent motion-reduce:animate-none' />
-                            ) : (
-                              <ArrowIcon />
-                            )}
-                          </span>
-                        </button>
-                      </article>
-                    )
-                  })}
-                </div>
-              ) : null}
-              {offers.length > 0 ? <p className='text-xs text-muted-foreground'>{t('swap.offerPricingNote')}</p> : null}
-              {to.networkLabel ? (
-                <p className='text-xs text-muted-foreground'>{t('swap.offerBitcoinFeeNote')}</p>
-              ) : null}
-            </div>
-          </section>
+                          </button>
+                        </article>
+                      )
+                    })}
+                  </div>
+                ) : null}
+                {offers.length > 0 ? (
+                  <p className='text-xs text-muted-foreground'>{t('swap.offerPricingNote')}</p>
+                ) : null}
+                {to.networkLabel ? (
+                  <p className='text-xs text-muted-foreground'>{t('swap.offerBitcoinFeeNote')}</p>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
           {error ? (
             <p role='alert' className='swap-confirm-error'>
               {error}

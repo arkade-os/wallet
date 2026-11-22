@@ -18,6 +18,7 @@ import {
 import { SwapsContext } from '../providers/swaps'
 import type { Outcome } from '@arkade-os/swap'
 import { redirectToCallback } from '../lib/appIntent'
+import { ASSET_SWAP_PAYMENT_RAIL, LIGHTNING_RAIL } from '../lib/sendRouter'
 import { defaultPassword } from '../lib/constants'
 import { detectJSCapabilities } from '../lib/jsCapabilities'
 import { SettingsOptions } from '@/lib/types'
@@ -320,6 +321,60 @@ describe('Escape during an onchain app send', () => {
     await screen.findByTestId('app')
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(redirectToCallback).toHaveBeenCalledWith(appIntent.callback, { status: 'sent', txid: 'funding-txid' })
+    expect(resetFlow).toHaveBeenCalledOnce()
+  })
+
+  it.each([
+    [LIGHTNING_RAIL, 'paid'],
+    [ASSET_SWAP_PAYMENT_RAIL, 'filled'],
+  ] as const)('requires %s delivery for Escape to report the original swap as sent', async (railId, delivery) => {
+    let outcome: Outcome = 'funded'
+    const resetFlow = vi.fn()
+    renderApp({
+      authState: 'authenticated',
+      initialized: true,
+      screen: Pages.Wallet,
+      flow: {
+        appIntent: {
+          ...appIntent,
+          committedSwap: { railId, swapId: 'rfq:owned', fundingTxid: 'funding-txid' },
+        },
+        sendInfo: { arkAddress: 'ark1manual', txid: 'manual-txid' },
+        resetFlow,
+      },
+      outcomeOf: (swapId) => (swapId === 'rfq:owned' ? outcome : 'claimed'),
+    })
+    await screen.findByTestId('app')
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(redirectToCallback).not.toHaveBeenCalled()
+    expect(resetFlow).not.toHaveBeenCalled()
+    outcome = delivery
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(redirectToCallback).toHaveBeenCalledExactlyOnceWith(appIntent.callback, {
+      status: 'sent',
+      txid: 'funding-txid',
+    })
+  })
+
+  it('clears a refunded tracked send on Escape without sending a callback', async () => {
+    const resetFlow = vi.fn()
+    renderApp({
+      authState: 'authenticated',
+      initialized: true,
+      screen: Pages.SendSuccess,
+      flow: {
+        appIntent: {
+          ...appIntent,
+          committedSwap: { railId: LIGHTNING_RAIL, swapId: 'rfq:owned', fundingTxid: 'funding-txid' },
+        },
+        sendInfo: { ...sendInfo, railId: LIGHTNING_RAIL, reviewId: 'review' },
+        resetFlow,
+      },
+      outcomeOf: () => 'refunded',
+    })
+    await screen.findByTestId('app')
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(redirectToCallback).not.toHaveBeenCalled()
     expect(resetFlow).toHaveBeenCalledOnce()
   })
 })

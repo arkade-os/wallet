@@ -49,6 +49,7 @@ import { defaultFee } from './constants'
 export const WALLET_EXIT_RAIL = 'onchain'
 
 export const ASSET_RAIL = 'asset'
+export const ASSET_SWAP_PAYMENT_RAIL = 'asset-swap-payment'
 
 export const ONCHAIN_ROUTE_LOG = 'onchain send:'
 
@@ -123,6 +124,7 @@ export interface SendRouterDeps {
   dust?: () => number
   assets?: Asset[]
   lnurl?: LnurlClient
+  preferExit?: boolean
 }
 
 export const createSendRouter = (deps: SendRouterDeps): PaymentRouter => {
@@ -130,8 +132,7 @@ export const createSendRouter = (deps: SendRouterDeps): PaymentRouter => {
     wallet: deps.wallet,
     prefs: {
       priority: [
-        ONCHAIN_SWAP_RAIL,
-        WALLET_EXIT_RAIL,
+        ...(deps.preferExit ? [WALLET_EXIT_RAIL, ONCHAIN_SWAP_RAIL] : [ONCHAIN_SWAP_RAIL, WALLET_EXIT_RAIL]),
         LNURL_ARKADE_RAIL,
         LNURL_LIGHTNING_RAIL,
         LIGHTNING_RAIL,
@@ -243,11 +244,23 @@ export const previewOnchainCost = async (
   address: string,
   amount: number,
 ): Promise<Pick<RouteQuote, 'amount' | 'fee' | 'total'> | undefined> => {
-  for (const option of await router.options({ raw: address, amount })) {
+  const quote = await prepareOnchainSend(router, address, amount)
+  return quote && { amount: quote.amount, fee: quote.fee, total: quote.total }
+}
+
+export const prepareOnchainSend = async (
+  router: PaymentRouter,
+  address: string,
+  amount: number,
+  railId?: string,
+): Promise<RouteQuote | undefined> => {
+  const options = await router.options({ raw: address, amount })
+  for (const option of options) {
+    if (railId && option.railId !== railId) continue
     try {
       const quote = await option.quote()
       // A rail paying something else is not the one being priced.
-      if (quote.amount === amount) return { amount: quote.amount, fee: quote.fee, total: quote.total }
+      if (quote.amount === amount) return quote
     } catch (err) {
       // Not left to the spend: it can reach a different answer, and then the
       // screen is committed to this pass's price with nobody having logged why.
@@ -317,12 +330,42 @@ export const onchainSendNeedsDriver = (sendInfo: SendInfo, outcomeOf: (id: strin
   Boolean(sendInfo.swapId || sendInfo.txid || sendInfo.railId === ONCHAIN_SWAP_RAIL) &&
   (!sendInfo.swapId || outcomeOf(sendInfo.swapId) !== 'claimed')
 
+const deliveryByRail = {
+  [LIGHTNING_RAIL]: 'paid',
+  [ONCHAIN_SWAP_RAIL]: 'claimed',
+  [ASSET_SWAP_PAYMENT_RAIL]: 'filled',
+} satisfies Record<string, Outcome>
+
+export type TrackedPaymentRail = keyof typeof deliveryByRail
+
+export const trackedPaymentRail = (railId?: string): TrackedPaymentRail | undefined =>
+  railId === LIGHTNING_RAIL || railId === ONCHAIN_SWAP_RAIL || railId === ASSET_SWAP_PAYMENT_RAIL ? railId : undefined
+
+export const trackedSwapPayment = (sendInfo: SendInfo): { railId: TrackedPaymentRail; swapId: string } | undefined => {
+  if (!sendInfo.swapId || !(sendInfo.reviewId || sendInfo.openOffer || sendInfo.assetPayment)) return
+  const railId = trackedPaymentRail(sendInfo.railId)
+  if (railId) return { railId, swapId: sendInfo.swapId }
+}
+
+export const paymentWasDelivered = (railId: TrackedPaymentRail, outcome: Outcome | undefined): boolean =>
+  outcome === deliveryByRail[railId]
+
+export const paymentEndedWithoutDelivery = (outcome: Outcome | undefined): boolean =>
+  outcome === 'refunded' || outcome === 'cancelled' || outcome === 'lapsed'
+
+export const trackedAppSwapPayment = (intent: AppIntentState | undefined, sendInfo: SendInfo) => {
+  if (intent?.status !== 'send') return
+  return intent.committedSwap ?? (intent.committedOnchain ? undefined : trackedSwapPayment(sendInfo))
+}
+
 export const appSendNeedsDriver = (
   intent: AppIntentState | undefined,
   sendInfo: SendInfo,
   outcomeOf: (id: string) => Outcome | undefined,
 ): boolean => {
   if (intent?.status !== 'send' || !intent.callback) return false
+  const tracked = trackedAppSwapPayment(intent, sendInfo)
+  if (tracked) return !paymentWasDelivered(tracked.railId, outcomeOf(tracked.swapId))
   const committed = intent.committedOnchain
   return (
     Boolean(committed && (!committed.swapId || outcomeOf(committed.swapId) !== 'claimed')) ||

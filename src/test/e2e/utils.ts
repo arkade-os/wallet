@@ -82,10 +82,10 @@ export async function navigateToActivity(page: Page): Promise<void> {
 }
 
 export async function navigateToAssets(page: Page): Promise<void> {
-  await navigateToSettings(page)
-  await page.getByText(tr.settings.advanced, { exact: true }).click()
-  await page.getByText(tr.settings.arkadeMint, { exact: true }).click()
-  await page.waitForSelector(`text=${tr.settings.arkadeMint}`, { state: 'visible' })
+  if (await page.getByTestId('header-title-assets').isVisible()) return
+  if (!isDesktop(page)) await navigateHome(page)
+  await navLocator(page, 'assets').click()
+  await page.getByTestId('header-title-assets').waitFor({ state: 'visible' })
 }
 
 export async function navigateHome(page: Page): Promise<void> {
@@ -109,13 +109,15 @@ export async function enableAssets(page: Page): Promise<void> {
   await navigateToAssets(page)
   await page.getByTestId('header-aux-btn').click()
   await page.waitForSelector(`text=${tr.mint.settingsTitle}`, { state: 'visible' })
-  await page.getByTestId('assets-toggle').click()
+  const mintEnabled = page.getByTestId('assets-toggle')
+  if ((await mintEnabled.getAttribute('aria-checked')) !== 'true') await mintEnabled.click()
   await page.getByLabel(tr.common.back).click()
 }
 
 export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<void> {
   await sleep(3000)
   await navigateToAssets(page)
+  await page.getByText(tr.assets.advanced, { exact: true }).click()
   await page.getByText(tr.mint.mint, { exact: true }).click()
   await page.waitForSelector(`text=${tr.mint.title}`, { state: 'visible' })
 
@@ -180,7 +182,7 @@ export async function createWalletAndGetBIP21(page: Page, isMobile?: boolean, sa
   await page.getByText(tr.wallet.receive, { exact: true }).click()
 
   if (sats) {
-    await page.getByText(tr.receive.editAmount).click()
+    await page.getByText(tr.receive.addAmount).click()
     if (isMobile) {
       await handleKeyboardInput(page, sats)
     } else {

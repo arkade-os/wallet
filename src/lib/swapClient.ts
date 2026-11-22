@@ -92,6 +92,7 @@ const onchainClaim = (wallet: SwapClientConfig['wallet'], network: NetworkName):
       preimage,
       payoutPkScript,
       feeRateSatVb,
+      ...(swap.exactPayoutAmount === undefined ? {} : { payoutAmount: BigInt(swap.exactPayoutAmount) }),
       // A BIP-341 sighash the package builds, never caller-supplied.
       sign: (sighash: Uint8Array) => wallet.identity.signMessage(sighash, 'schnorr'),
     })

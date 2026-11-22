@@ -16,6 +16,7 @@ export type Config = {
   currency: Currencies
   delegate: boolean
   importedAssets: string[]
+  homeAssetVisibility?: Record<string, boolean>
   language?: Language
   haptics: boolean
   nostrBackup: boolean

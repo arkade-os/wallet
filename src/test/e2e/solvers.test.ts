@@ -10,6 +10,7 @@ test('should add and remove a solver card from settings', async ({ page }) => {
   await navigateToSettings(page)
   await page.getByText(tr.settings.advanced, { exact: true }).click()
   await page.getByText(tr.settings.solvers, { exact: true }).click()
+  await page.getByRole('tab', { name: tr.solvers.cardsTab, exact: true }).click()
 
   const noSolverCardsMessage = tr.solvers.storedPlural.replace('{count}', 'no')
   await expect(page.getByText(noSolverCardsMessage)).toBeVisible()
@@ -46,6 +47,7 @@ test('should show an error when adding an invalid solver card', async ({ page })
   await navigateToSettings(page)
   await page.getByText(tr.settings.advanced, { exact: true }).click()
   await page.getByText(tr.settings.solvers, { exact: true }).click()
+  await page.getByRole('tab', { name: tr.solvers.cardsTab, exact: true }).click()
 
   const noSolverCardsMessage = tr.solvers.storedPlural.replace('{count}', 'no')
   await expect(page.getByText(noSolverCardsMessage)).toBeVisible()
@@ -71,6 +73,7 @@ test('should show solver card info in the detail view', async ({ page }) => {
   await navigateToSettings(page)
   await page.getByText(tr.settings.advanced, { exact: true }).click()
   await page.getByText(tr.settings.solvers, { exact: true }).click()
+  await page.getByRole('tab', { name: tr.solvers.cardsTab, exact: true }).click()
 
   await page.getByRole('button', { name: '+ Add new' }).click()
   await page.locator('textarea').fill(JSON.stringify(mockSolverCard))

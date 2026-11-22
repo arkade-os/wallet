@@ -9,6 +9,7 @@ export async function clearStorage(): Promise<void> {
   localStorage.clear()
   if (config) {
     config.importedAssets = []
+    config.homeAssetVisibility = {}
     config.apps.assets.enabled = false
     saveConfigToStorage(config)
   }

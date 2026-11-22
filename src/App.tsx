@@ -13,7 +13,7 @@ import BootError from './components/BootError'
 import LoadingLogo from './components/LoadingLogo'
 import { useReducedMotion } from './hooks/useReducedMotion'
 import { useLoadingStatus } from './hooks/useLoadingStatus'
-import { appSendNeedsDriver } from './lib/sendRouter'
+import { appSendNeedsDriver, paymentEndedWithoutDelivery, trackedAppSwapPayment } from './lib/sendRouter'
 import { SwapsContext } from './providers/swaps'
 import { appIntentHandoff, nextAppIntentNavigation, redirectToCallback } from './lib/appIntent'
 import { defaultPassword } from './lib/constants'
@@ -126,15 +126,15 @@ export default function App() {
     if (!navigate) return
     const handleGlobalDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
-      // Success already broadcast. Report sent. Anything earlier is a decline,
-      // including connect. Read the txid before resetFlow clears it.
       if (appSendNeedsDriver(appIntent, sendInfo, outcomeOf)) {
+        const tracked = trackedAppSwapPayment(appIntent, sendInfo)
+        if (tracked && paymentEndedWithoutDelivery(outcomeOf(tracked.swapId))) resetFlow()
         navigate(Pages.Wallet)
         return
       }
       const sent =
         screen === Pages.SendSuccess ||
-        Boolean(appIntent?.status === 'send' && appIntent.committedOnchain) ||
+        Boolean(appIntent?.status === 'send' && (appIntent.committedSwap || appIntent.committedOnchain)) ||
         Boolean(sendInfo.swapId && outcomeOf(sendInfo.swapId) === 'claimed')
       const handoff = appIntentHandoff(appIntent, sent ? 'sent' : 'denied', sendInfo.txid)
       resetFlow()
@@ -143,7 +143,7 @@ export default function App() {
     }
     window.addEventListener('keydown', handleGlobalDown)
     return () => window.removeEventListener('keydown', handleGlobalDown)
-  }, [navigate, appIntent, screen, sendInfo, outcomeOf])
+  }, [navigate, appIntent, screen, sendInfo, outcomeOf, resetFlow])
 
   useEffect(() => {
     if (isIAB) return navigate(Pages.InAppBrowser)

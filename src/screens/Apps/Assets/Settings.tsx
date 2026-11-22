@@ -6,19 +6,16 @@ import Toggle from '../../../components/Toggle'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import { ConfigContext } from '../../../providers/config'
-import { NavigationContext, Pages } from '../../../providers/navigation'
 import { useTranslation } from '../../../providers/language'
 
 export default function AppAssetsSettings() {
   const { config } = useContext(ConfigContext)
-  const { replace } = useContext(NavigationContext)
   const { backupAndUpdateConfig } = useContext(BackupContext)
   const { t } = useTranslation()
 
   const toggleConnection = () => {
     const enabling = !config.apps.assets.enabled
     backupAndUpdateConfig({ ...config, apps: { ...config.apps, assets: { enabled: enabling } } })
-    if (enabling) replace(Pages.AppAssets, [Pages.Settings])
   }
 
   return (

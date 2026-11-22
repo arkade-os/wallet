@@ -3,26 +3,20 @@ import { translations } from '../../lib/i18n'
 
 const tr = translations.en
 
-test('should navigate to assets and see disabled state', async ({ page }) => {
+test('opens the asset library independently of minting', async ({ page }) => {
   await createWallet(page)
+  await expect(page.getByRole('button', { name: tr.assets.add, exact: true })).not.toBeVisible()
   await navigateToAssets(page)
 
-  // assert empty state
+  await expect(page.getByText(tr.common.noAssetsYet)).toBeVisible()
+  await expect(page.getByRole('button', { name: tr.assets.add, exact: true })).toBeVisible()
+  await page.getByText(tr.assets.advanced, { exact: true }).click()
   await expect(page.getByText(tr.mint.arkadeMintDisabled)).toBeVisible()
-  await expect(page.getByText(tr.mint.import, { exact: true })).not.toBeVisible()
   await expect(page.getByText(tr.mint.mint, { exact: true })).not.toBeVisible()
 
-  // go back
-  await page.getByLabel('Go back').click()
-
-  // enable assets and navigate again
   await enableAssets(page)
   await navigateToAssets(page)
-
-  // assert empty state
-  await expect(page.getByText(tr.common.noAssetsYet)).toBeVisible()
-  await expect(page.getByText(tr.common.importOrMintToStart)).toBeVisible()
-  await expect(page.getByText(tr.mint.import, { exact: true })).toBeVisible()
+  await page.getByText(tr.assets.advanced, { exact: true }).click()
   await expect(page.getByText(tr.mint.mint, { exact: true })).toBeVisible()
 })
 
@@ -75,6 +69,7 @@ test('should mint an asset and burn part of it', async ({ page }) => {
   await expect(page.getByText(tr.mint.receive)).toBeVisible()
 
   // click burn
+  await page.getByText(tr.assets.advanced, { exact: true }).click()
   await page.getByText(tr.mint.burn, { exact: true }).click()
   await page.waitForSelector(`text=${tr.mint.amountToBurn}`, { state: 'visible' })
 
@@ -117,6 +112,7 @@ test('should mint asset with fractional supply and burn it all', async ({ page }
   await expect(page.getByText(tr.mint.receive)).toBeVisible()
 
   // click burn
+  await page.getByText(tr.assets.advanced, { exact: true }).click()
   await page.getByText(tr.mint.burn, { exact: true }).click()
   await page.waitForSelector(`text=${tr.mint.amountToBurn}`, { state: 'visible' })
 
@@ -143,6 +139,7 @@ test('should reissue an asset with control token', async ({ page }) => {
   await page.getByText(tr.mint.backToArkadeMint).click()
 
   // mint asset with control token
+  await page.getByText(tr.assets.advanced, { exact: true }).click()
   await page.getByText(tr.mint.mint, { exact: true }).click()
   await page.waitForSelector(`text=${tr.mint.title}`, { state: 'visible' })
   await page.getByTestId('asset-amount').fill('500')
@@ -166,6 +163,7 @@ test('should reissue an asset with control token', async ({ page }) => {
   await page.waitForSelector('text=500 RSI', { timeout: 10000 })
 
   // click reissue
+  await page.getByText(tr.assets.advanced, { exact: true }).click()
   await page.getByText(tr.mint.reissue, { exact: true }).click()
   await page.waitForSelector(`text=${tr.mint.additionalAmount}`, { state: 'visible' })
 
@@ -208,6 +206,7 @@ test('should mint asset with new control asset', async ({ page }) => {
   await expect(page.getByText('ctrl-MyCoin')).toBeVisible()
 
   // reissue should be possible (we hold the control asset)
+  await page.getByText(tr.assets.advanced, { exact: true }).click()
   await expect(page.getByText(tr.mint.reissue, { exact: true })).toBeEnabled()
 })
 

@@ -219,13 +219,19 @@ web+arkade://send?request=<percent-encoded BIP21>&callback=https%3A%2F%2Farkade.
 
 The browser asks once before it lets the installed app own that protocol. Safari has no manifest protocol handler, so an iOS app uses the https link, which opens in the browser. That page shows **Open in App**: Chrome and Edge launch `web+arkade://` in the installed app, and Safari explains that it cannot switch there, so the request stays on this page. Ark notes keep using `web+arkade://` and are not treated as connect or send.
 
-## Solver priority
+## Payment routes
 
-Settings > Solvers has a compact Priority view with one row per give/receive direction. Open a direction to set its order in a sheet; the Cards view manages built-in and pasted cards, with add/edit forms in separate sheets. Manual priority is the default; move buttons adjust its saved order. Most used counts successful swaps from this wallet's persisted history and falls back to saved priority when that history cannot be read. Cost order estimates the requested trade amount from advertised fees and price feeds when quoting; Settings does not quote a reference amount.
+**Settings → Advanced → Payment routes** has two views. **Routes** shows the asset and rail on each side of a payment pair. Open a pair to set its provider order. **Providers** manages built-in, registry, and pasted cards.
+
+**Manual order** is the default. Use the move buttons to arrange providers. **Most used** counts completed swaps from wallet history and falls back to manual order when history is unavailable. **Lowest estimated fee** ranks providers when quoting the requested amount, using advertised fees and price feeds.
 
 Switch off a card to pause it across all directions, or switch off a solver in a direction sheet to pause only that route. Cards and saved priorities stay intact, and card-wide pauses preserve each direction's choices. A card's declared key also pauses its registry mirrors; cards without a key remain scoped to their local source. Pauses exclude new quote preparation, including cost-feed requests, while issued quotes and active swaps retain their selected solver.
 
-Choose Prefer first in a direction sheet to try one enabled solver before the others. Sort the rest by Most used or Lowest estimated cost; a failed preferred solver still falls back to those candidates. No preference restores normal sorting. A missing or paused preferred solver is skipped while its saved choice remains available for later. Manual ordering also keeps the preferred solver first and lets you reorder the remainder.
+Choose **Try first** on a provider row to prioritize it when it can quote. Other providers follow the pair's selected order. **Clear** returns the preferred provider to the regular order. A missing or paused first choice stays saved and eligible fallbacks can still quote.
+
+For BTC from Arkade to Bitcoin, **First payment method** lets you try a solver route or collaborative exit first when both paths are available. Provider ordering applies within the solver route. Lightning receive uses the wallet's LNURL server.
+
+**Open offers** starts at **Ask first**. Choose **When needed** to allow public searches when a compatible saved route cannot quote or **Off** to disable them. Public searches share the pair and amount.
 
 Repeated quote failures temporarily move a solver behind healthy alternatives, including a saved preferred solver. Two consecutive failures start a one-minute cooldown; further failures double it up to fifteen minutes. A verified quote restores priority, and thirty quiet minutes forget the streak. Reliability is retained across reloads per network and direction. Cooling solvers remain enabled as last-resort fallbacks; the direction sheet explains their reduced priority without changing the saved preference. Cancellations and request limits do not count as solver faults.
 

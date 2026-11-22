@@ -11,6 +11,7 @@ import {
 
 const STORAGE_KEY = 'solverRouting'
 export const SOLVER_HEALTH_STORAGE_KEY = 'solverHealth'
+export const PAYMENT_ROUTE_POLICY_PREFIX = 'paymentRoutePolicy:'
 let version = 0
 const listeners = new Set<() => void>()
 export const notifySolverRouting = (): void => {
@@ -18,7 +19,12 @@ export const notifySolverRouting = (): void => {
   listeners.forEach((fn) => fn())
 }
 const onStorage = (event: StorageEvent) => {
-  if (event.key === STORAGE_KEY || event.key === SOLVER_HEALTH_STORAGE_KEY || event.key === null) {
+  if (
+    event.key === STORAGE_KEY ||
+    event.key === SOLVER_HEALTH_STORAGE_KEY ||
+    event.key?.startsWith(PAYMENT_ROUTE_POLICY_PREFIX) ||
+    event.key === null
+  ) {
     notifySolverRouting()
   }
 }

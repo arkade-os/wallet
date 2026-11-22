@@ -37,11 +37,9 @@ vi.mock('../../../lib/asp', async (importOriginal) => ({
 
 /** Readable without waiting out the animation the error renders behind. */
 const consoleError = vi.fn()
-const consoleLog = vi.fn()
 vi.mock('../../../lib/logs', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../lib/logs')>()),
   consoleError: (...args: unknown[]) => consoleError(...args),
-  consoleLog: (...args: unknown[]) => consoleLog(...args),
 }))
 
 /** Built from the request, as the real router is: the exit rail must pay
@@ -200,7 +198,6 @@ describe('signing an on-chain send', () => {
   beforeEach(() => {
     collaborativeExitWithFees.mockClear()
     consoleError.mockClear()
-    consoleLog.mockClear()
     optionsFor = () => []
   })
 
@@ -211,6 +208,7 @@ describe('signing an on-chain send', () => {
       {
         railId: 'onchain-swap',
         quote: async () => ({
+          railId: 'onchain-swap',
           amount: 9_500,
           fee: 500,
           total: 10_000,
@@ -247,6 +245,7 @@ describe('signing an on-chain send', () => {
         {
           railId: 'onchain-swap',
           quote: async () => ({
+            railId: 'onchain-swap',
             amount: 9_500,
             fee: 500,
             total: 10_000,
@@ -284,8 +283,7 @@ describe('signing an on-chain send', () => {
     expect(consulted).not.toHaveBeenCalled()
   })
 
-  /** Characterisation of the #944 report; the fallback is a product decision. */
-  it('is committed to the exit’s price when the solver reaches options() only for the spend', async () => {
+  it('keeps the reviewed exit even if a solver becomes available at funding time', async () => {
     const sent = vi.fn()
     let asked = 0
     optionsFor = (req) =>
@@ -295,9 +293,7 @@ describe('signing an on-chain send', () => {
 
     await waitFor(() => expect(collaborativeExitWithFees).toHaveBeenCalledTimes(1))
     expect(sent).not.toHaveBeenCalled()
-    expect(consoleLog.mock.calls.map(String).join('\n')).toContain(
-      'onchain-swap refused: quote pays 22000 for 22709, screen shows 22000 for 22000',
-    )
+    expect(asked).toBe(1)
   })
 
   /** Before the budget, a silent rail held Tap to Sign for the RFQ's 30s. */
@@ -352,38 +348,26 @@ describe('signing an on-chain send', () => {
     expect(collaborativeExitWithFees).not.toHaveBeenCalled()
   })
 
-  it('never funds a rail that would spend more than the screen showed', async () => {
+  it('funds the reviewed quote even if a fresh quote would ask for a higher total', async () => {
     const sent = vi.fn()
     const solver = solverThatGetsDearer({ amount: 40_000, total: 40_754 }, { amount: 40_000, total: 41_000 }, sent)
-    optionsFor = (req) => [solver(), exitOption(req, 0)]
-    renderSign({ address: ADDRESS, satoshis: 40_000 }, { outputFee: 0, config: satsConfig })
+    const option = solver()
+    const quote = vi.spyOn(option, 'quote')
+    optionsFor = () => [option]
+    const setSendInfo = vi.fn()
+    renderSign({ address: ADDRESS, satoshis: 40_000 }, { outputFee: 0, config: satsConfig, setSendInfo })
 
     expect(await screen.findByTestId('Total')).toHaveTextContent(/40.?754/)
     await sign()
 
-    await waitFor(() => expect(collaborativeExitWithFees).toHaveBeenCalledTimes(1))
-    expect(sent).not.toHaveBeenCalled()
-  })
-
-  it('shows a total that rose since pricing and pays it only on a second signature', async () => {
-    const sent = vi.fn()
-    const solver = solverThatGetsDearer({ amount: 40_000, total: 40_754 }, { amount: 40_000, total: 41_000 }, sent)
-    optionsFor = () => [solver()]
-    renderSign({ address: ADDRESS, satoshis: 40_000 }, { outputFee: 0, config: satsConfig })
-
-    expect(await screen.findByTestId('Total')).toHaveTextContent(/40.?754/)
-    await sign()
-
-    expect(await screen.findByText(/fee changed/i)).toBeTruthy()
-    expect(screen.getByTestId('Total')).toHaveTextContent(/41.?000/)
-    expect(sent).not.toHaveBeenCalled()
-
-    await sign()
     await waitFor(() => expect(sent).toHaveBeenCalledTimes(1))
+    expect(quote).toHaveBeenCalledTimes(1)
+    expect(setSendInfo).toHaveBeenCalledWith(expect.objectContaining({ total: 40_754 }))
+    expect(collaborativeExitWithFees).not.toHaveBeenCalled()
     expect(sendFailure()).toBeUndefined()
   })
 
-  it('reports insufficient funds when that is the only reason no rail paid', async () => {
+  it('does not offer signing when the only rail cannot fund the quote', async () => {
     optionsFor = () => [
       {
         railId: 'onchain',
@@ -393,10 +377,11 @@ describe('signing an on-chain send', () => {
       },
     ]
     renderSign({ address: ADDRESS, satoshis: 10_000 })
-    await sign()
 
-    await waitFor(() => expect(sendFailure()).toBeDefined())
-    expect(String(sendFailure())).toMatch(/insufficient funds/i)
+    expect(await screen.findByText('No provider could quote this payment.')).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Tap to Sign' })).toBeNull()
+    expect(consoleError.mock.calls.some(([error]) => error instanceof InsufficientFundsError)).toBe(true)
+    expect(collaborativeExitWithFees).not.toHaveBeenCalled()
   })
 
   describe('when the exit cannot pay the intent fees on top of the amount', () => {

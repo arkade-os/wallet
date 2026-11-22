@@ -146,6 +146,7 @@ export const referencedAssetIds = (sources: {
   rows?: string[]
   /** Both legs of every stored swap record. */
   swaps?: string[]
+  tracked?: readonly string[]
 }): Set<string> => {
   const ids = new Set<string>()
   const add = (assetId: string | undefined) => {
@@ -154,6 +155,7 @@ export const referencedAssetIds = (sources: {
   for (const { assetId } of sources.owned ?? []) add(assetId)
   for (const assetId of sources.rows ?? []) add(assetId)
   for (const assetId of sources.swaps ?? []) add(assetId)
+  for (const assetId of sources.tracked ?? []) add(assetId)
   return ids
 }
 

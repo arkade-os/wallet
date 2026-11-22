@@ -1,19 +1,28 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import SendSuccess from '../../../screens/Wallet/Send/Success'
-import { LNURL_ARKADE_RAIL, LNURL_LIGHTNING_RAIL, ONCHAIN_SWAP_RAIL, WALLET_EXIT_RAIL } from '../../../lib/sendRouter'
-import type { Outcome } from '@arkade-os/swap'
+import {
+  ASSET_SWAP_PAYMENT_RAIL,
+  LIGHTNING_RAIL,
+  LNURL_ARKADE_RAIL,
+  LNURL_LIGHTNING_RAIL,
+  ONCHAIN_SWAP_RAIL,
+  WALLET_EXIT_RAIL,
+} from '../../../lib/sendRouter'
+import type { OpenRfqOffer, Outcome } from '@arkade-os/swap'
+import { readSolverCards, saveSolverCards } from '../../../lib/solverCards'
 import { SwapsContext } from '../../../providers/swaps'
 import { redirectToCallback } from '../../../lib/appIntent'
 import { AspContext } from '../../../providers/asp'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { FlowContext, type SendInfo } from '../../../providers/flow'
-import { NavigationContext } from '../../../providers/navigation'
+import { NavigationContext, Pages } from '../../../providers/navigation'
 import { NotificationsContext } from '../../../providers/notifications'
 import { WalletContext } from '../../../providers/wallet'
 import { LanguageContext, translate } from '../../../providers/language'
 import { Language } from '../../../lib/types'
+import { btcUsdt, USDT_ID } from '../../lib/swapFixtures'
 import {
   mockAspContextValue,
   mockConfigContextValue,
@@ -29,6 +38,7 @@ vi.mock('../../../lib/appIntent', async (original) => ({
 }))
 
 const notifications = { notifyPaymentSent: vi.fn() }
+const navigate = vi.fn()
 
 const ONCHAIN = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
 
@@ -39,7 +49,7 @@ const renderSuccess = (
   language = Language.English,
 ) => {
   const tree = () => (
-    <NavigationContext.Provider value={mockNavigationContextValue}>
+    <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate }}>
       <ConfigContext.Provider value={mockConfigContextValue}>
         <FiatContext.Provider value={mockFiatContextValue}>
           <AspContext.Provider value={mockAspContextValue}>
@@ -257,5 +267,148 @@ describe('onchain app handoff', () => {
     renderSuccess({ ...destination, total: 10_000, txid: 'direct-txid' }, { appIntent: appSend })
     fireEvent.click(screen.getByRole('button'))
     expect(redirectToCallback).toHaveBeenCalledWith(appSend.callback, { status: 'sent', txid: 'direct-txid' })
+  })
+})
+
+describe('tracked payment receipts', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+  })
+
+  const signedOffer: OpenRfqOffer = {
+    id: 'bid-id',
+    solverPubkey: 'c0fd90d75bfb7830956244e3ba1ed331f2d69b699a686d016ce23977c1a4177c',
+    solverName: 'Example provider',
+    market: btcUsdt,
+    signedCard: {
+      version: 0,
+      name: 'example-provider',
+      discovery_pubkey: 'c0fd90d75bfb7830956244e3ba1ed331f2d69b699a686d016ce23977c1a4177c',
+      markets: [
+        {
+          base_asset: { id: 'arkade:regtest/slip44:1', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
+          quote_asset: { id: `arkade:regtest/asset:${USDT_ID}`, name: 'Test asset', ticker: 'TEST', decimals: 2 },
+          fee_bps: 10,
+          price_feed: 'https://example.com/price',
+          price_feed_schema: { type: 'json', price_path: '/price' },
+          price_decimals: 6,
+          min_base_amount: '1000',
+          max_base_amount: '1000000',
+          min_quote_amount: '10',
+          max_quote_amount: '1000000',
+        },
+      ],
+      sig: 'bd324b2722c9c605be956076532e8a3c22ee792dacbe16053e2f10276de3af78ee72e44ae4ba0cd18e36bf3b34f89f49ff6c759742e6ba0a283aab5854037b57',
+    },
+    fromAmount: 10_000n,
+    toAmount: 9900n,
+    expiresAt: 1000,
+  }
+
+  it.each([
+    [LIGHTNING_RAIL, 'paid'],
+    [ONCHAIN_SWAP_RAIL, 'claimed'],
+    [ASSET_SWAP_PAYMENT_RAIL, 'filled'],
+  ] as const)('waits for %s delivery before notifying or returning to the external app', (railId, delivery) => {
+    let outcome: Outcome = 'funded'
+    const setAppIntent = vi.fn()
+    const trackedIntent = {
+      ...appSend,
+      committedSwap: { swapId: fundedSend.swapId, railId, fundingTxid: fundedSend.txid },
+    }
+    const view = renderSuccess(
+      { ...fundedSend, reviewId: 'review', railId },
+      { appIntent: trackedIntent, setAppIntent },
+      () => outcome,
+    )
+
+    expect(screen.getByRole('heading', { name: 'Payment processing' })).toBeInTheDocument()
+    expect(notifications.notifyPaymentSent).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+    expect(navigate).toHaveBeenCalledWith(Pages.Wallet)
+    expect(redirectToCallback).not.toHaveBeenCalled()
+    expect(setAppIntent).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'View activity' }))
+    expect(navigate).toHaveBeenCalledWith(Pages.Activity)
+
+    outcome = delivery === 'paid' ? 'claimed' : 'paid'
+    view.refresh()
+    expect(screen.getByRole('heading', { name: 'Payment processing' })).toBeInTheDocument()
+    expect(notifications.notifyPaymentSent).not.toHaveBeenCalled()
+
+    outcome = delivery
+    view.refresh()
+    expect(screen.getByRole('heading', { name: 'Payment sent' })).toBeInTheDocument()
+    expect(notifications.notifyPaymentSent).toHaveBeenCalledExactlyOnceWith(fundedSend.total)
+    fireEvent.click(screen.getByRole('button', { name: 'Return to app.example' }))
+    expect(redirectToCallback).toHaveBeenCalledExactlyOnceWith(appSend.callback, {
+      status: 'sent',
+      txid: fundedSend.txid,
+    })
+  })
+
+  it('reports a refund without a sent notification, provider action, or app callback', () => {
+    let outcome: Outcome = 'refunding'
+    const setAppIntent = vi.fn()
+    const view = renderSuccess(
+      { ...fundedSend, reviewId: 'review', openOffer: signedOffer },
+      { appIntent: appSend, setAppIntent },
+      () => outcome,
+    )
+    expect(screen.getByRole('heading', { name: 'Refund in progress' })).toBeInTheDocument()
+    outcome = 'refunded'
+    view.refresh()
+    expect(screen.getByRole('heading', { name: 'Payment refunded' })).toBeInTheDocument()
+    expect(screen.queryByText(/keep the wallet open/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save provider' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+    expect(setAppIntent).toHaveBeenCalledWith(undefined)
+    expect(redirectToCallback).not.toHaveBeenCalled()
+    expect(notifications.notifyPaymentSent).not.toHaveBeenCalled()
+  })
+
+  it('retains an earlier onchain app payment after a different tracked send is delivered', () => {
+    const setAppIntent = vi.fn()
+    renderSuccess(
+      { ...fundedSend, swapId: 'rfq:manual', reviewId: 'review', railId: LIGHTNING_RAIL },
+      { appIntent: committedAppSend, setAppIntent },
+      (swapId) => (swapId === 'rfq:manual' ? 'paid' : 'funded'),
+    )
+    expect(screen.getByRole('heading', { name: 'Payment sent' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+    expect(redirectToCallback).not.toHaveBeenCalled()
+    expect(setAppIntent).not.toHaveBeenCalled()
+  })
+
+  it('saves the verified provider only after delivery, keyed by its network and signing key', () => {
+    let outcome: Outcome = 'funded'
+    const elsewhere = { network: 'signet' as const, label: 'Other network', card: signedOffer.signedCard }
+    const unsigned = {
+      network: 'regtest' as const,
+      label: 'Unsigned',
+      card: { ...signedOffer.signedCard, sig: undefined },
+    }
+    saveSolverCards([elsewhere, unsigned])
+    const view = renderSuccess(
+      { ...fundedSend, railId: ASSET_SWAP_PAYMENT_RAIL, openOffer: signedOffer },
+      {},
+      () => outcome,
+    )
+    expect(screen.queryByRole('button', { name: 'Save provider' })).not.toBeInTheDocument()
+    outcome = 'filled'
+    view.refresh()
+    fireEvent.click(screen.getByRole('button', { name: 'Save provider' }))
+    expect(screen.getByText('Provider saved')).toBeInTheDocument()
+    expect(readSolverCards()).toEqual([
+      elsewhere,
+      { network: 'regtest', label: signedOffer.solverName, card: signedOffer.signedCard },
+    ])
+  })
+
+  it('omits the save action when the signed card does not match the winning bidder', () => {
+    renderSuccess({ ...fundedSend, openOffer: { ...signedOffer, solverPubkey: '1'.repeat(64) } }, {}, () => 'claimed')
+    expect(screen.queryByRole('button', { name: 'Save provider' })).not.toBeInTheDocument()
+    expect(readSolverCards()).toEqual([])
   })
 })

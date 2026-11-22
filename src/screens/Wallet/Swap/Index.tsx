@@ -4,7 +4,17 @@ import { fromAtomic, isNetwork, type OfferPlan } from '@arkade-os/solver-discove
 import { btcOn, type OpenRfqOffer, type Quote } from '@arkade-os/swap'
 import type { NetworkName } from '@arkade-os/sdk'
 import { useSolverQuote } from '../../../hooks/useSolverQuote'
-import { type ReactNode, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
+import {
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import AssetAvatar from '../../../components/AssetAvatar'
 import Button from '../../../components/Button'
 import Content from '../../../components/Content'
@@ -41,7 +51,8 @@ import { verifiedDesignatedCurrency } from '../../../lib/accountAssets'
 import { useTranslation } from '../../../providers/language'
 import { readSolverCards, saveSolverCards } from '../../../lib/solverCards'
 import { l1NetworkOf } from '../../../lib/onchainPayout'
-import { isSolverEnabled } from '../../../lib/solverRouting'
+import { getSolverRoutingVersion, isSolverEnabled, subscribeSolverRouting } from '../../../lib/solverRouting'
+import { readOpenOfferPolicy } from '../../../lib/openOfferPolicy'
 import QuoteChoices, { formatQuoteAmount } from './QuoteChoices'
 
 type AssetTarget = 'from' | 'to'
@@ -97,6 +108,8 @@ const validAssetDecimals = (value: unknown): value is number =>
 
 export default function WalletSwap() {
   const { aspInfo } = useContext(AspContext)
+  useSyncExternalStore(subscribeSolverRouting, getSolverRoutingVersion)
+  const openOfferPolicy = readOpenOfferPolicy(aspInfo.network)
   const {
     quoteExchange,
     acceptSwapQuote,
@@ -474,7 +487,10 @@ export default function WalletSwap() {
       }),
   )
   const searchOpenByDefault = Boolean(
-    discoveryReady && canViewQuotes && (!hasSavedSolver || (currentPlan && solvable === false)),
+    openOfferPolicy !== 'off' &&
+      discoveryReady &&
+      canViewQuotes &&
+      (!hasSavedSolver || (currentPlan && solvable === false)),
   )
   // The market's pre-fee rate beside the firm fee (spread plus any unreturned carrier) and amount.
   const firmDisplay = (estimate: OfferPlan, firm: Quote): SwapQuote => {
@@ -909,6 +925,7 @@ export default function WalletSwap() {
           destination={toAsset.external ? destination.trim() : undefined}
           automaticAmount={canContinue ? currentPlan?.receive.atomic : undefined}
           autoSearch={drawer === 'quotes' && searchOpenByDefault}
+          allowOpenOffers={openOfferPolicy !== 'off'}
           allowSmartRouting={!toAsset.external}
           onOpenChange={(open) => {
             if (!open) setDrawer(null)

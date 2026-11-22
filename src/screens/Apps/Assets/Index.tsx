@@ -1,11 +1,10 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useMemo, useState } from 'react'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import Header from '../../../components/Header'
 import Padded from '../../../components/Padded'
 import Text from '../../../components/Text'
 import Button from '../../../components/Button'
-import LoadingLogo from '../../../components/LoadingLogo'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
@@ -16,124 +15,140 @@ import { SettingsIconLight } from '../../../icons/Settings'
 import { EmptyAssetsList } from '../../../components/Empty'
 import { AspContext } from '../../../providers/asp'
 import AssetCard from '../../../components/AssetCard'
+import { truncatedAssetId } from '../../../lib/assets'
+import { normalizeAssetId, trackedAssetIds } from '../../../lib/assetLibrary'
+import { rawAssetPresentation } from '../../../lib/accountAssets'
 import { useTranslation } from '../../../providers/language'
 
-interface AssetListItem {
-  assetId: string
-  balance: bigint
-  name?: string
-  ticker?: string
-  icon?: string
-  decimals?: number
-}
-
 export default function AppAssets() {
-  const { goBack, navigate } = useContext(NavigationContext)
+  const { navigate } = useContext(NavigationContext)
   const { assetBalances, balance, svcWallet, assetMetadataCache, setCacheEntry } = useContext(WalletContext)
   const { config } = useContext(ConfigContext)
   const { setAssetInfo } = useContext(FlowContext)
   const { aspInfo } = useContext(AspContext)
   const { t } = useTranslation()
+  const [loading, setLoading] = useState(false)
 
-  const [assets, setAssets] = useState<AssetListItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const ids = useMemo(
+    () => trackedAssetIds([...assetBalances.map(({ assetId }) => assetId), ...config.importedAssets]),
+    [assetBalances, config.importedAssets],
+  )
 
   useEffect(() => {
-    const loadAssets = async () => {
-      if (!svcWallet) {
-        setLoading(false)
-        return
-      }
-
-      const allIds = new Set<string>()
-      for (const ab of assetBalances) allIds.add(ab.assetId)
-      for (const id of config.importedAssets) allIds.add(id)
-
-      const missingIds = [...allIds].filter((id) => !assetMetadataCache.get(id))
-      const results = await Promise.allSettled(missingIds.map((id) => svcWallet.assetManager.getAssetDetails(id)))
-      for (let i = 0; i < missingIds.length; i++) {
-        const r = results[i]
-        if (r.status === 'fulfilled' && r.value) {
-          setCacheEntry(missingIds[i], r.value)
-        } else if (r.status === 'rejected') {
-          consoleError(r.reason, `error fetching metadata for ${missingIds[i]}`)
-        }
-      }
-
-      const items: AssetListItem[] = [...allIds].map((assetId) => {
-        const bal = assetBalances.find((a) => a.assetId === assetId)
-        const meta = assetMetadataCache.get(assetId)
-        return {
-          assetId,
-          balance: bal?.amount ?? BigInt(0),
-          name: meta?.metadata?.name,
-          ticker: meta?.metadata?.ticker,
-          icon: meta?.metadata?.icon,
-          decimals: meta?.metadata?.decimals ?? 0,
-        }
-      })
-
-      setAssets(items)
+    const missing = ids.filter((id) => !assetMetadataCache.has(id))
+    if (!svcWallet || !missing.length) {
       setLoading(false)
+      return
     }
+    let active = true
+    setLoading(true)
+    void Promise.allSettled(missing.map((id) => svcWallet.assetManager.getAssetDetails(id))).then((results) => {
+      if (!active) return
+      results.forEach((result, index) => {
+        if (
+          result.status === 'fulfilled' &&
+          typeof result.value?.assetId === 'string' &&
+          normalizeAssetId(result.value.assetId) === missing[index]
+        ) {
+          setCacheEntry(missing[index], result.value)
+        }
+        if (result.status === 'rejected') consoleError(result.reason, 'error loading asset metadata')
+      })
+      setLoading(false)
+    })
+    return () => {
+      active = false
+    }
+  }, [svcWallet, ids, assetMetadataCache])
 
-    loadAssets()
-  }, [svcWallet, assetBalances, config.importedAssets])
+  const balances = new Map(assetBalances.map(({ assetId, amount }) => [normalizeAssetId(assetId), amount]))
+  const owned = ids.filter((id) => (balances.get(id) ?? 0n) > 0n)
+  const tracked = new Set(trackedAssetIds(config.importedAssets))
+  const watching = ids.filter((id) => tracked.has(id) && (balances.get(id) ?? 0n) === 0n)
 
-  const handleAssetClick = (assetId: string) => {
-    setAssetInfo({ assetId, supply: BigInt(0) })
-    navigate(Pages.AppAssetDetail)
+  const assetRow = (id: string) => {
+    const details = assetMetadataCache.get(id)
+    const meta = details?.metadata
+    const presentation = rawAssetPresentation(meta, truncatedAssetId(id) || t('mint.unknownAsset'))
+    return (
+      <AssetCard
+        key={id}
+        assetId={id}
+        balance={balances.get(id) ?? 0n}
+        {...presentation}
+        decimals={meta?.decimals}
+        onClick={() => {
+          setAssetInfo(details ?? { assetId: id, supply: 0n })
+          navigate(Pages.AppAssetDetail)
+        }}
+      />
+    )
   }
-
-  if (loading) return <LoadingLogo text={t('loading.loadingAssets')} />
-
-  const goToSettings = () => navigate(Pages.AppAssetsSettings)
 
   return (
     <>
-      <Header text={t('mint.arkadeMint')} back={goBack} auxFunc={goToSettings} auxIcon={<SettingsIconLight />} />
+      <Header
+        text={t('assets.title')}
+        back
+        auxAriaLabel={t('mint.settingsTitle')}
+        auxFunc={() => navigate(Pages.AppAssetsSettings)}
+        auxIcon={<SettingsIconLight />}
+      />
       <Content>
         <Padded>
-          {config.apps.assets.enabled ? (
-            <FlexCol gap='0.5rem' className='scroll-fade'>
-              {assets.length === 0 ? (
-                <EmptyAssetsList />
+          <FlexCol>
+            {balance > 0 || owned.length > 0 ? (
+              <section className='home-section' aria-busy={loading}>
+                <h2 className='home-section-label px-1'>{t('assets.held')}</h2>
+                <div className='home-section__content'>
+                  {balance > 0 ? (
+                    <AssetCard
+                      assetId=''
+                      name='Bitcoin'
+                      ticker='BTC'
+                      balance={balance}
+                      onClick={() => navigate(Pages.BitcoinDetail)}
+                    />
+                  ) : null}
+                  {owned.map(assetRow)}
+                </div>
+              </section>
+            ) : null}
+            {watching.length > 0 ? (
+              <section className='home-section' aria-busy={loading}>
+                <h2 className='home-section-label px-1'>{t('assets.tracking')}</h2>
+                <div className='home-section__content'>{watching.map(assetRow)}</div>
+              </section>
+            ) : null}
+            {balance === 0 && owned.length === 0 && watching.length === 0 ? <EmptyAssetsList /> : null}
+            <details>
+              <summary className='min-h-11 cursor-pointer content-center text-sm text-muted-foreground'>
+                {t('assets.advanced')}
+              </summary>
+              {config.apps.assets.enabled ? (
+                <Button
+                  label={t('mint.mint')}
+                  onClick={() => navigate(Pages.AppAssetMint)}
+                  disabled={balance < aspInfo.dust}
+                  secondary
+                />
               ) : (
-                assets.map((asset) => (
-                  <AssetCard
-                    key={asset.assetId}
-                    assetId={asset.assetId}
-                    balance={asset.balance}
-                    name={asset.name}
-                    ticker={asset.ticker}
-                    icon={asset.icon}
-                    decimals={asset.decimals}
-                    onClick={() => handleAssetClick(asset.assetId)}
+                <FlexCol gap='0.5rem'>
+                  <Text color='neutral-500'>{t('mint.arkadeMintDisabled')}</Text>
+                  <Button
+                    label={t('mint.enableArkadeMint')}
+                    onClick={() => navigate(Pages.AppAssetsSettings)}
+                    secondary
                   />
-                ))
+                </FlexCol>
               )}
-            </FlexCol>
-          ) : (
-            <FlexCol gap='0.5rem'>
-              <Text color='neutral-500'>{t('mint.arkadeMintDisabled')}</Text>
-              <Text color='neutral-500'>
-                <a onClick={goToSettings}>{t('mint.enableIt')}</a> {t('mint.toViewYourAssets')}
-              </Text>
-            </FlexCol>
-          )}
+            </details>
+          </FlexCol>
         </Padded>
       </Content>
-      {config.apps.assets.enabled ? (
-        <ButtonsOnBottom>
-          <Button label={t('mint.import')} onClick={() => navigate(Pages.AppAssetImport)} />
-          <Button
-            label={t('mint.mint')}
-            onClick={() => navigate(Pages.AppAssetMint)}
-            disabled={balance < aspInfo.dust}
-            secondary
-          />
-        </ButtonsOnBottom>
-      ) : null}
+      <ButtonsOnBottom>
+        <Button label={t('assets.add')} onClick={() => navigate(Pages.AppAssetImport)} />
+      </ButtonsOnBottom>
     </>
   )
 }

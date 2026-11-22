@@ -42,18 +42,21 @@ import { aspErrorText, getReceivingAddresses } from '../../../lib/asp'
 import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
-import { ArkNote, AssetDetails, isValidArkAddress, type NetworkName } from '@arkade-os/sdk'
+import { ArkNote, AssetDetails, isValidArkAddress } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
 import { createLnurlClient, isValidLnUrl, LnurlError, type PayRequest } from '@arkade-os/lnurl-client'
 import { lnurlPayableRanges } from '@arkade-os/lnurl-client/arkade'
 import { fetchArkAddress } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
-import { decodeInvoice } from '../../../lib/bolt11'
-import { appSendNeedsDriver, LIGHTNING_RAIL, lnSendRefusal, lnSendRequest, quoteLnurl } from '../../../lib/sendRouter'
-import { marketCorridor } from '@arkade-os/solver-discovery'
-import { isSolverEnabled } from '../../../lib/solverRouting'
+import { decodeInvoice, isInvoiceExpired } from '../../../lib/bolt11'
+import {
+  appSendNeedsDriver,
+  paymentEndedWithoutDelivery,
+  quoteLnurl,
+  trackedAppSwapPayment,
+} from '../../../lib/sendRouter'
 import { SwapsContext } from '../../../providers/swaps'
-import { discoverMarkets } from '../../../lib/swapMarkets'
+import { newRequestId } from '../../../lib/requestId'
 import { appIntentHandoff, redirectToCallback } from '../../../lib/appIntent'
 import OpenInApp from '../../AppIntent/OpenInApp'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
@@ -93,10 +96,17 @@ const brantaClient = new BrantaService({
 
 const lnurlClient = createLnurlClient()
 
-// resolve() spreads the raw server body, so transferAmounts survives at runtime though PayRequest omits it
-type LnUrlConditions = PayRequest & {
-  sendRanges: { min: number; max: number }[]
+// resolve() preserves the legacy transferAmounts field although PayRequest omits it.
+type LnurlPayRequest = PayRequest & {
   transferAmounts?: { method: string; available: boolean }[]
+}
+
+type LnUrlConditions = {
+  target: string
+  payRequest: LnurlPayRequest
+  sendRanges: { min: number; max: number }[]
+  minSendable: number
+  maxSendable: number
 }
 
 /** Spread before the one target a recipient sets, so the previous one cannot be paid instead. */
@@ -105,6 +115,7 @@ const noTarget = {
   arkAddress: undefined,
   invoice: undefined,
   lnUrl: undefined,
+  lnurlInvoice: undefined,
   pendingLnSend: undefined,
 }
 
@@ -215,7 +226,8 @@ export default function SendForm() {
   const [error, setError] = useState('')
   const [focus, setFocus] = useState('recipient')
   const [label, setLabel] = useState('')
-  const [lnUrlResponse, setLnUrlResponse] = useState<LnUrlConditions>()
+  const [resolvedLnurl, setResolvedLnurl] = useState<LnUrlConditions>()
+  const lnUrlResponse = resolvedLnurl?.target === sendInfo.lnUrl ? resolvedLnurl : undefined
   const [keys, setKeys] = useState(false)
   const [proceed, setProceed] = useState(false)
   const [processing, setProcessing] = useState(false)
@@ -241,10 +253,12 @@ export default function SendForm() {
 
   const leaveAppSend = () => {
     if (appSendNeedsDriver(appIntent, sendInfo, outcomeOf)) {
+      const tracked = trackedAppSwapPayment(appIntent, sendInfo)
+      if (tracked && paymentEndedWithoutDelivery(outcomeOf(tracked.swapId))) resetFlow()
       navigate(Pages.Wallet)
       return
     }
-    const committed = appIntent?.status === 'send' && appIntent.committedOnchain
+    const committed = appIntent?.status === 'send' && (appIntent.committedSwap || appIntent.committedOnchain)
     const handoff = appIntentHandoff(appIntent, committed ? 'sent' : 'denied')
     resetFlow()
     if (handoff) redirectToCallback(handoff.callback, handoff.params)
@@ -269,6 +283,30 @@ export default function SendForm() {
   )
   const activeAsset = accountAsset ?? selectedAsset
   const isAssetSend = activeAsset !== null
+  const assetAmt = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? 0n
+  const swapAssetRequest = useMemo(() => {
+    if (!activeAsset || sendInfo.account || assetAmt <= activeAsset.balance || !isBip21(recipient.trim())) return
+    try {
+      const { assetId, assetAmount, arkAddress } = decodeBip21(recipient.trim())
+      if (
+        !assetId ||
+        !assetAmount ||
+        !arkAddress ||
+        arkAddress !== sendInfo.arkAddress ||
+        assetId !== activeAsset.assetId
+      )
+        return
+      if (
+        !assetMetadataCache.get(assetId) ||
+        unitsToAtomic(assetAmount, activeAsset.decimals) !== assetAmt ||
+        assetAmt <= 0n
+      )
+        return
+      return { address: arkAddress, assetId, amount: assetAmt }
+    } catch {
+      return
+    }
+  }, [activeAsset, assetAmt, assetMetadataCache, recipient, sendInfo.account, sendInfo.arkAddress])
 
   const RECIPIENT_DEBOUNCE_MS = 800
   const hasAssets = assetBalances.length > 0
@@ -349,7 +387,6 @@ export default function SendForm() {
 
   // build asset options from balances + metadata
   useEffect(() => {
-    if (!config.apps.assets.enabled) return
     const loadOptions = async () => {
       if (!svcWallet) return
       const options: AssetOption[] = []
@@ -379,7 +416,7 @@ export default function SendForm() {
       setAssetOptions(options)
     }
     loadOptions()
-  }, [svcWallet, assetBalances, availableAssetBalances, config.apps.assets.enabled])
+  }, [svcWallet, assetBalances, availableAssetBalances])
 
   // initialize selected asset from pre-set sendInfo.assets (e.g. from Asset Detail page)
   useEffect(() => {
@@ -434,31 +471,38 @@ export default function SendForm() {
           }
           setSelectedAsset(found)
           const rawAmount = assetAmount ? unitsToAtomic(assetAmount, found.decimals) : BigInt(0)
-          if (assetAmount) setAmountTextValue(assetAmount)
+          if (assetAmount) {
+            setAmountTextValue(assetAmount)
+            setAmountIsReadOnly(true)
+          }
           return setSendInfo((prev) => ({
             ...prev,
             address,
             arkAddress,
             invoice,
             lnUrl: undefined,
+            lnurlInvoice: undefined,
             recipient,
             satoshis: 0,
             assets: [{ assetId, amount: rawAmount }],
             pendingLnSend: invoice === prev.invoice ? prev.pendingLnSend : undefined,
           }))
         }
-        setSendInfo((prev) => ({
-          ...prev,
-          account: prev.account,
-          address,
-          arkAddress,
-          assets: prev.assets,
-          invoice,
-          lnUrl,
-          recipient,
-          satoshis: satoshis ?? prev.satoshis,
-          pendingLnSend: invoice && invoice === prev.invoice ? prev.pendingLnSend : undefined,
-        }))
+        setSendInfo((prev) => {
+          const lnurlInvoice =
+            lnUrl && prev.lnUrl === lnUrl && prev.recipient === recipient ? prev.lnurlInvoice : undefined
+          return {
+            ...prev,
+            address,
+            arkAddress,
+            invoice: lnurlInvoice?.pr ?? invoice,
+            lnUrl,
+            lnurlInvoice,
+            recipient,
+            satoshis: satoshis ?? prev.satoshis,
+            pendingLnSend: invoice && invoice === prev.invoice ? prev.pendingLnSend : undefined,
+          }
+        })
         if (satoshis) setAmountTextValue(getTextValue(satoshis))
         return
       }
@@ -508,7 +552,9 @@ export default function SendForm() {
         }
       }
       if (isValidLnUrl(lowerCaseData)) {
-        return setSendInfo((prev) => ({ ...prev, ...noTarget, lnUrl: lowerCaseData }))
+        return setSendInfo((prev) =>
+          prev.lnUrl === lowerCaseData && prev.lnurlInvoice ? prev : { ...prev, ...noTarget, lnUrl: lowerCaseData },
+        )
       }
       setRecipientError(t('send.invalidRecipient'))
       setReadyToParse(false)
@@ -591,20 +637,20 @@ export default function SendForm() {
   // check lnurl conditions
   useEffect(() => {
     // Keyed on the target, not the keystroke: re-entering the same LNURL keeps its conditions.
-    if (!sendInfo.lnUrl || sendInfo.arkAddress) return setLnUrlResponse(undefined)
+    const target = sendInfo.lnUrl
+    if (!target || sendInfo.arkAddress) return setResolvedLnurl(undefined)
     if (sendInfo.invoice && lnUrlResponse) return
-    setLnUrlResponse(undefined)
+    setResolvedLnurl(undefined)
     // A BIP21 carrying an address or invoice beside the LNURL still pays that when the LNURL fails.
-    const hasFallback = Boolean(sendInfo.address || sendInfo.invoice)
+    const hasFallback = Boolean(sendInfo.address || (sendInfo.invoice && !sendInfo.lnurlInvoice))
     const lnurlFailed = (message: string) => (hasFallback ? undefined : setRecipientError(message))
     let live = true
     lnurlClient
-      .resolve(sendInfo.lnUrl)
+      .resolve(target)
       .then((conditions) => {
         if (!live) return
-        const legacyArk = (conditions as LnUrlConditions).transferAmounts?.some(
-          (method) => method.method === 'Ark' && method.available,
-        )
+        const payRequest = conditions as LnurlPayRequest
+        const legacyArk = payRequest.transferAmounts?.some((method) => method.method === 'Ark' && method.available)
         // The top-level pair belongs to default Lightning; Arkade can offer a wider range.
         const {
           ranges: sendRanges,
@@ -619,7 +665,7 @@ export default function SendForm() {
           setValueSats(min)
           setAmountIsReadOnly(true)
         }
-        return setLnUrlResponse({ ...conditions, sendRanges, minSendable: min, maxSendable: max })
+        return setResolvedLnurl({ target, payRequest, sendRanges, minSendable: min, maxSendable: max })
       })
       .catch((e) => {
         if (!live) return
@@ -665,7 +711,7 @@ export default function SendForm() {
       }
     }
     // avoid mixed amounts between invoice amount and bip21 amount field
-    if (!arkAddress && invoice) {
+    if (!arkAddress && invoice && !sendInfo.lnurlInvoice) {
       let sats: number | undefined = satoshis
       let invo: string | undefined = invoice
       try {
@@ -697,7 +743,11 @@ export default function SendForm() {
   useEffect(() => {
     if (isAssetSend && activeAsset) {
       const assetAmount = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
-      setLabel(assetAmount > activeAsset.balance ? t('send.insufficientAssetBalance') : t('send.continue'))
+      setLabel(
+        assetAmount > activeAsset.balance && !swapAssetRequest
+          ? t('send.insufficientAssetBalance')
+          : t('send.continue'),
+      )
       return
     }
     const satoshis = sendInfo.satoshis ?? 0
@@ -724,6 +774,7 @@ export default function SendForm() {
     sendInfo.account,
     liquidBalance,
     activeAsset,
+    swapAssetRequest,
     lnUrlResponse,
     lnurlAmountUnavailable,
   ])
@@ -747,36 +798,7 @@ export default function SendForm() {
   useEffect(() => {
     if (!proceed) return
     if (!sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice && !sendInfo.pendingLnSend) return
-    // Everything except an un-negotiated invoice goes straight through: an ark
-    // address, an on-chain address, and an invoice whose quote is already in
-    // hand all have all they need to be signed on the next screen.
-    if (!sendInfo.invoice || sendInfo.pendingLnSend || sendInfo.arkAddress) return navigate(Pages.SendDetails)
-    // RFQ Lightning send: negotiate a quote over Nostr, derive the covenant
-    // locally, verify, and carry the address+amount to the pay screen. The
-    // negotiation is the only interactive step — funding IS acceptance.
-    const negotiate = async () => {
-      if (!svcWallet) return handleError('Wallet not ready')
-      // For the refusal message only — the rail ranks off the client's own
-      // snapshot; a second read let a cold cache throw on the error path.
-      const markets = await discoverMarkets(aspInfo.network as NetworkName)
-      const router = await sendRouter()
-      const options = await router.options(lnSendRequest(sendInfo.invoice!, sendInfo.satoshis))
-      const route = options.find((option) => option.railId === LIGHTNING_RAIL)
-      if (!route)
-        return handleError(
-          lnSendRefusal(
-            markets.filter((market) =>
-              isSolverEnabled(market, marketCorridor(market, 'base') === 'arkade' ? 'base' : 'quote', aspInfo.network),
-            ),
-            sendInfo.satoshis,
-          ),
-        )
-      // Unguarded: a quote that throws names an unpayable invoice or a
-      // covenant that did not match, and neither reads as "no route".
-      const pendingLnSend = await route.quote()
-      setSendInfo((prev) => ({ ...prev, pendingLnSend }))
-    }
-    negotiate().catch(handleError)
+    navigate(Pages.SendDetails)
   }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingLnSend])
 
   // deal with fees deduction from amount
@@ -902,7 +924,7 @@ export default function SendForm() {
     setSendInfo((prev) => ({ ...prev, saveAsContact: !prev.saveAsContact }))
   }
   const lnUrlArkMethodAvailable = Boolean(
-    lnUrlResponse?.transferAmounts?.some((method) => method.method === 'Ark' && method.available),
+    lnUrlResponse?.payRequest.transferAmounts?.some((method) => method.method === 'Ark' && method.available),
   )
 
   const handleContinue = async () => {
@@ -932,7 +954,28 @@ export default function SendForm() {
             ...prev,
             arkAddress,
             invoice: undefined,
+            lnurlInvoice: undefined,
             pendingLnSend: undefined,
+          }))
+        } else if (lnUrlResponse.payRequest.paymentOptions === undefined && !sendAll) {
+          if (satoshis < 1) return handleError(t('send.amountTooLow'))
+          const cached = sendInfo.lnurlInvoice
+          const cachedInvoice = cached && decodeInvoice(cached.pr)
+          const result =
+            cached && cachedInvoice && cachedInvoice.milliSats === satoshis * 1_000 && !isInvoiceExpired(cachedInvoice)
+              ? cached
+              : await lnurlClient.requestInvoice(lnUrlResponse.payRequest, { amountSat: satoshis })
+          if (stale()) return setProcessing(false)
+          if (!('pr' in result)) return handleError(t('send.quoteForDifferentPayment'))
+          setSendInfo((prev) => ({
+            ...prev,
+            arkAddress: undefined,
+            assetPayment: undefined,
+            invoice: result.pr,
+            lnurlInvoice: result,
+            pendingLnSend: undefined,
+            reviewId: prev.reviewId ?? newRequestId(),
+            openOffer: undefined,
           }))
         } else {
           // The client refuses an invoice for any other amount before a solver is asked.
@@ -951,10 +994,23 @@ export default function SendForm() {
             setValueSats(sent)
             setAmountTextValue(getTextValue(sent))
           }
-          setSendInfo((prev) => ({ ...prev, arkAddress: undefined, invoice: undefined, satoshis: sent, pendingLnSend }))
+          setSendInfo((prev) => ({
+            ...prev,
+            arkAddress: undefined,
+            invoice: undefined,
+            lnurlInvoice: undefined,
+            satoshis: sent,
+            pendingLnSend,
+          }))
         }
       } else {
-        setSendInfo({ ...sendInfo, satoshis })
+        setSendInfo({
+          ...sendInfo,
+          satoshis,
+          assetPayment: swapAssetRequest,
+          reviewId: sendInfo.reviewId ?? newRequestId(),
+          openOffer: undefined,
+        })
       }
       setProceed(true)
     } catch (error) {
@@ -1039,8 +1095,6 @@ export default function SendForm() {
 
   const { address, arkAddress, lnUrl, invoice, satoshis } = sendInfo
 
-  const assetAmt = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
-
   // a partial asset send leaves asset change, and that change needs a second
   // dust carrier; without one the SDK fails with a bare "Insufficient funds".
   // Derived, not stored: the server-status effect owns `error` and would
@@ -1056,7 +1110,7 @@ export default function SendForm() {
 
   const buttonDisabled = isAssetSend
     ? !(arkAddress && assetAmt > 0) ||
-      (activeAsset ? assetAmt > activeAsset.balance : true) ||
+      (activeAsset ? assetAmt > activeAsset.balance && !swapAssetRequest : true) ||
       Boolean(recipientError) ||
       Boolean(carrierError) ||
       aspInfo.unreachable ||

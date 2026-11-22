@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { hex } from '@scure/base'
-import { getEmulatorPubkeyForNetwork } from '../../../lib/constants'
 import { makeHandle } from '@arkade-os/sdk'
 import SendDetails from '../../../screens/Wallet/Send/Details'
 import SendForm from '../../../screens/Wallet/Send/Form'
@@ -9,7 +8,7 @@ import { AspContext } from '../../../providers/asp'
 import { ConfigContext } from '../../../providers/config'
 import { FeesContext } from '../../../providers/fees'
 import { FiatContext } from '../../../providers/fiat'
-import { FlowContext, type SendInfo } from '../../../providers/flow'
+import { FlowContext, emptySendInfo, type SendInfo } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import { SwapsContext } from '../../../providers/swaps'
 import { NavigationContext } from '../../../providers/navigation'
@@ -17,6 +16,7 @@ import { OptionsContext } from '../../../providers/options'
 import { WalletContext } from '../../../providers/wallet'
 import fixtures from '../../fixtures.json'
 import { decodeInvoice } from '../../../lib/bolt11'
+import { encodeBip21Asset } from '../../../lib/bip21'
 import {
   mockAspContextValue,
   mockConfigContextValue,
@@ -45,18 +45,9 @@ const swaps = {
   },
 }
 
-/** The cards the form discovers once and hands to both the router and the
- *  refusal. `discovered` counts the calls; `marketsThrow` is the cold-cache
- *  registry failure. */
-let markets: unknown[] = []
-let marketsThrow = false
-const discovered = vi.fn()
+const discovered = vi.fn().mockResolvedValue([])
 vi.mock('../../../lib/swapMarkets', () => ({
-  discoverMarkets: async () => {
-    discovered()
-    if (marketsThrow) throw new Error('registry unreachable')
-    return markets
-  },
+  discoverMarkets: () => discovered(),
 }))
 
 const INVOICE = fixtures.lib.bolt11.invoice
@@ -212,162 +203,97 @@ describe('signing an asset send', () => {
  *  failure, which `mockSvcWallet`'s empty strings trigger. */
 const formWallet = { ...mockSvcWallet, getAddress: async () => 'ark1self', getBoardingAddress: async () => 'bcrt1self' }
 
-const renderForm = (sendInfo: SendInfo) =>
-  render(
-    <NavigationContext.Provider value={mockNavigationContextValue}>
-      <AspContext.Provider value={mockAspContextValue}>
-        <ConfigContext.Provider value={mockConfigContextValue as never}>
-          <FiatContext.Provider value={mockFiatContextValue as never}>
-            <OptionsContext.Provider value={mockOptionsContextValue as never}>
-              <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo, setSendInfo } as never}>
-                <WalletContext.Provider
+const renderForm = (initial: SendInfo, wallet: Partial<typeof mockWalletContextValue> = {}) => {
+  function ControlledForm() {
+    const [currentSendInfo, setCurrentSendInfo] = useState(initial)
+    return (
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider value={mockAspContextValue}>
+          <ConfigContext.Provider value={mockConfigContextValue as never}>
+            <FiatContext.Provider value={mockFiatContextValue as never}>
+              <OptionsContext.Provider value={mockOptionsContextValue as never}>
+                <FlowContext.Provider
                   value={{
-                    ...mockWalletContextValue,
-                    balance: 1_000_000,
-                    availableBalance: 1_000_000,
-                    svcWallet: formWallet as never,
+                    ...mockFlowContextValue,
+                    sendInfo: currentSendInfo,
+                    setSendInfo: (next) => {
+                      setSendInfo(next)
+                      setCurrentSendInfo(next)
+                    },
                   }}
                 >
-                  <SwapsContext.Provider value={swaps as never}>
-                    <LimitsContext.Provider value={mockLimitsContextValue}>
-                      <FeesContext.Provider value={{ calcOnchainOutputFee: () => 500 } as never}>
-                        <SendForm />
-                      </FeesContext.Provider>
-                    </LimitsContext.Provider>
-                  </SwapsContext.Provider>
-                </WalletContext.Provider>
-              </FlowContext.Provider>
-            </OptionsContext.Provider>
-          </FiatContext.Provider>
-        </ConfigContext.Provider>
-      </AspContext.Provider>
-    </NavigationContext.Provider>,
-  )
+                  <WalletContext.Provider
+                    value={{
+                      ...mockWalletContextValue,
+                      balance: 1_000_000,
+                      availableBalance: 1_000_000,
+                      svcWallet: formWallet as never,
+                      ...wallet,
+                    }}
+                  >
+                    <SwapsContext.Provider value={swaps as never}>
+                      <LimitsContext.Provider value={mockLimitsContextValue}>
+                        <FeesContext.Provider value={{ calcOnchainOutputFee: () => 500 } as never}>
+                          <SendForm />
+                        </FeesContext.Provider>
+                      </LimitsContext.Provider>
+                    </SwapsContext.Provider>
+                  </WalletContext.Provider>
+                </FlowContext.Provider>
+              </OptionsContext.Provider>
+            </FiatContext.Provider>
+          </ConfigContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>
+    )
+  }
+  return render(<ControlledForm />)
+}
 
 const cont = async () => fireEvent.click(await screen.findByText('Continue'))
 
-describe('negotiating a Lightning send', () => {
-  const lnMarket = {
-    pair: 'BTC/lightning:BTC',
-    base_asset: { id: 'btc', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
-    quote_asset: { id: 'btc', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
-    base_corridor: 'arkade',
-    quote_corridor: 'lightning',
-    fee_bps: 0,
-    min_base_amount: '1000',
-    max_base_amount: '1000000',
-    min_quote_amount: '1000',
-    max_quote_amount: '1000000',
-    discovery_pubkey: 'bb'.repeat(32),
-    emulator_pubkey: hex.encode(getEmulatorPubkeyForNetwork('regtest')!),
-    transports: { nostr: { relays: ['wss://relay.example'] } },
-  }
-
-  beforeEach(() => {
-    consoleError.mockClear()
+describe('starting a Lightning send', () => {
+  it('passes the original invoice and amount to review before looking for a route', async () => {
     setSendInfo.mockClear()
     discovered.mockClear()
-    optionsFor = () => []
-    markets = []
-    marketsThrow = false
     routerAsked = 0
-  })
-
-  it('carries the route the Lightning rail quoted to the sign screen', async () => {
-    const quote = lnQuote()
-    optionsFor = () => [{ railId: 'lightning', quote: async () => quote }]
     renderForm({ invoice: INVOICE, satoshis: INVOICE_SATS })
     await cont()
 
-    await waitFor(() => expect(setSendInfo).toHaveBeenCalled())
-    const update = setSendInfo.mock.calls.at(-1)![0] as (prev: SendInfo) => SendInfo
-    expect(update({} as SendInfo).pendingLnSend).toBe(quote)
+    await waitFor(() =>
+      expect(setSendInfo).toHaveBeenCalledWith(
+        expect.objectContaining({ invoice: INVOICE, satoshis: INVOICE_SATS, reviewId: expect.any(String) }),
+      ),
+    )
+    expect(routerAsked).toBe(0)
+    expect(discovered).not.toHaveBeenCalled()
   })
+})
 
-  it('asks the router with the invoice, not the raw text and not a second amount', async () => {
-    const consulted = vi.fn(() => [{ railId: 'lightning', quote: async () => lnQuote() }])
-    optionsFor = consulted
-    renderForm({ invoice: INVOICE, satoshis: INVOICE_SATS })
+describe('starting an exact asset payment', () => {
+  it('offers review for an exact payment request the wallet does not hold', async () => {
+    setSendInfo.mockClear()
+    const assetId = '12'.repeat(32) + '0000'
+    const decimals = 2
+    const amount = 123n
+    const metadata = { assetId, supply: 10_000n, metadata: { name: 'Test asset', ticker: 'TST', decimals } }
+    const request = encodeBip21Asset(ARK_ADDRESS, assetId, amount, decimals)
+    const { container } = renderForm(emptySendInfo, {
+      assetMetadataCache: new Map([[assetId, metadata]]),
+      svcWallet: { ...formWallet, getAddress: async () => ARK_ADDRESS } as never,
+    })
+    const recipient = container.querySelector('input[name="send-address"]')!
+    fireEvent.change(recipient, { target: { value: request } })
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled())
+    expect(container.querySelector('input[name="send-amount"]')).toHaveValue(1.23)
     await cont()
-
-    await waitFor(() => expect(consulted).toHaveBeenCalledWith({ raw: INVOICE }))
-  })
-
-  it('says no solver when the rail dropped itself and no card serves the corridor', async () => {
-    optionsFor = () => []
-    renderForm({ invoice: INVOICE, satoshis: INVOICE_SATS })
-    await cont()
-
-    expect(await screen.findByText('No Lightning solver available')).toBeInTheDocument()
-  })
-
-  it('names the card’s bounds when the rail dropped itself over the size', async () => {
-    optionsFor = () => []
-    markets = [{ ...lnMarket, min_quote_amount: '50000', max_quote_amount: '1000000' }]
-    renderForm({ invoice: INVOICE, satoshis: INVOICE_SATS })
-    await cont()
-
-    expect(await screen.findByText(/Amount outside solver bounds/)).toBeInTheDocument()
-  })
-
-  it('does not blame bounds that admit the amount when the rail dropped for another reason', async () => {
-    optionsFor = () => []
-    markets = [lnMarket]
-    renderForm({ invoice: INVOICE, satoshis: INVOICE_SATS })
-    await cont()
-
-    expect(await screen.findByText(/No Lightning solver took this payment/)).toBeInTheDocument()
-    expect(screen.queryByText(/Amount outside solver bounds/)).not.toBeInTheDocument()
-  })
-
-  it('discovers the cards once, and explains the refusal off that same list', async () => {
-    optionsFor = () => []
-    markets = [lnMarket]
-    renderForm({ invoice: INVOICE, satoshis: INVOICE_SATS })
-    await cont()
-
-    // The refusal message proves the list reached `lnSendRefusal`; the count
-    // proves the rail was not sent to fetch its own.
-    expect(await screen.findByText(/solvers take 1,000-1,000,000 sats/)).toBeInTheDocument()
-    expect(discovered).toHaveBeenCalledTimes(1)
-  })
-
-  // A cold cache with an unreachable registry used to replace the intended
-  // message with the registry's own, because the error path asked again.
-  it('still names the refusal when the registry is unreachable mid-flight', async () => {
-    optionsFor = () => {
-      marketsThrow = true
-      return []
-    }
-    renderForm({ invoice: INVOICE, satoshis: INVOICE_SATS })
-    await cont()
-
-    expect(await screen.findByText('No Lightning solver available')).toBeInTheDocument()
-    expect(discovered).toHaveBeenCalledTimes(1)
-  })
-
-  it('reads the cards once, for the refusal message — the rail ranks off the client', async () => {
-    markets = [lnMarket]
-    optionsFor = () => [{ railId: 'lightning', quote: async () => lnQuote() }]
-    renderForm({ invoice: INVOICE, satoshis: INVOICE_SATS })
-    await cont()
-
-    await waitFor(() => expect(routerAsked).toBe(1))
-    expect(discovered).toHaveBeenCalledTimes(1)
-  })
-
-  it('surfaces a refused negotiation verbatim rather than as a routing failure', async () => {
-    optionsFor = () => [
-      {
-        railId: 'lightning',
-        quote: async () => {
-          throw new Error('invoice has expired')
-        },
-      },
-    ]
-    renderForm({ invoice: INVOICE, satoshis: INVOICE_SATS })
-    await cont()
-
-    expect(await screen.findByText('invoice has expired')).toBeInTheDocument()
+    expect(setSendInfo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipient: request,
+        assetPayment: { address: ARK_ADDRESS, assetId, amount },
+        reviewId: expect.any(String),
+      }),
+    )
   })
 })

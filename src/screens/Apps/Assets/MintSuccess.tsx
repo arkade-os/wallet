@@ -14,7 +14,7 @@ import AssetCard from '../../../components/AssetCard'
 import { useTranslation } from '../../../providers/language'
 
 export default function AppAssetMintSuccess() {
-  const { replace } = useContext(NavigationContext)
+  const { goBack, replace } = useContext(NavigationContext)
   const { assetInfo } = useContext(FlowContext)
   const { assetMetadataCache } = useContext(WalletContext)
   const { t } = useTranslation()
@@ -59,11 +59,7 @@ export default function AppAssetMintSuccess() {
       </Content>
       <ButtonsOnBottom>
         <Button label={t('mint.viewAsset')} onClick={handleViewAsset} />
-        <Button
-          label={t('mint.backToArkadeMint')}
-          onClick={() => replace(Pages.AppAssets, [Pages.Settings])}
-          secondary
-        />
+        <Button label={t('mint.backToArkadeMint')} onClick={goBack} secondary />
       </ButtonsOnBottom>
     </>
   )
