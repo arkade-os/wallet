@@ -9,6 +9,7 @@ import Header from '../../../components/Header'
 import Padded from '../../../components/Padded'
 import Text from '../../../components/Text'
 import { toast } from '../../../components/Toast'
+import UnverifiedBadge from '../../../components/UnverifiedBadge'
 import HistoryIcon from '../../../icons/History'
 import SuccessIcon from '../../../icons/Success'
 import { paymentEndedWithoutDelivery } from '../../../lib/sendRouter'
@@ -50,6 +51,7 @@ function SaveProvider({ offer, network }: { offer: OpenRfqOffer; network: string
 
 interface PaymentReceiptProps {
   amount: string
+  unverifiedAsset: boolean
   destination?: string
   onchain: boolean
   delivered: boolean
@@ -63,6 +65,7 @@ interface PaymentReceiptProps {
 
 export default function PaymentReceipt({
   amount,
+  unverifiedAsset,
   destination,
   onchain,
   delivered,
@@ -100,6 +103,7 @@ export default function PaymentReceipt({
               <Text centered big wrap>
                 {amount}
               </Text>
+              {unverifiedAsset ? <UnverifiedBadge /> : null}
             </div>
             {destination ? (
               <Text centered small wrap>

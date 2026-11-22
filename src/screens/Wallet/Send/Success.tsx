@@ -146,6 +146,7 @@ export default function SendSuccess() {
     return (
       <PaymentReceipt
         amount={displayAmount}
+        unverifiedAsset={isAssetSend ? trustedTicker === undefined : false}
         destination={onchain ? sendInfo.address : (sendInfo.assetPayment?.address ?? sendInfo.lnUrl)}
         onchain={onchain}
         delivered={delivered}

@@ -152,6 +152,20 @@ describe('reviewing a solver payment', () => {
   })
   afterEach(() => vi.useRealTimers())
 
+  it('quotes the new recipient when the previous draft still has an asset payment', async () => {
+    quotePaymentRoute.mockResolvedValueOnce(lightningQuote('new-lightning-payment', 2_110))
+    render(
+      review({
+        ...sendInfo,
+        assetPayment: { address: fixtures.lib.address.ark[0].address, assetId: '12'.repeat(34), amount: 42n },
+      }),
+    )
+
+    expect(await screen.findByTestId('Total')).toHaveTextContent('2,110')
+    expect(quotePaymentRoute).toHaveBeenCalledExactlyOnceWith(lightningRequest, undefined)
+    expect(pay()).toBeEnabled()
+  })
+
   it('keeps Pay disabled when saved routing fails and asks before publishing an open offer request', async () => {
     quotePaymentRoute.mockRejectedValue(new Error('No saved route can quote'))
     openPaymentQuotes.mockResolvedValue({
@@ -317,6 +331,21 @@ describe('reviewing a solver payment', () => {
     fireEvent.click(pay())
     expect(acceptPaymentQuote).toHaveBeenCalledTimes(1)
     expect(openPaymentQuotes).not.toHaveBeenCalled()
+  })
+
+  it('requires a fresh Lightning invoice after a confirmed refund', async () => {
+    quotePaymentRoute.mockResolvedValueOnce(lightningQuote('refunded-payment', 2_105))
+    acceptPaymentQuote.mockRejectedValueOnce(
+      Object.assign(new Error('Refunded'), { name: 'PaymentRequiresNewInvoice' }),
+    )
+    render(review())
+
+    expect(await screen.findByTestId('Total')).toHaveTextContent('2,105')
+    fireEvent.click(pay())
+    expect(await screen.findByText('Refund confirmed. Use a new Lightning invoice to retry.')).toBeVisible()
+    expect(pay()).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Go back' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'Refresh quote' })).toBeNull()
   })
 
   it('pays a fixed BIP21 amount through a prepared exit and keeps solver discovery out of the flow', async () => {

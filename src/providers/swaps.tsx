@@ -62,7 +62,7 @@ import {
   type Swap,
   type SwapClient,
 } from '@arkade-os/swap'
-import { fundingWasNotSubmitted, recordOutcome, swapOf } from '@arkade-os/swap/advanced'
+import { fundingWasNotSubmitted, recordOutcome, swapOf, walletLockupIndexer } from '@arkade-os/swap/advanced'
 import {
   isRfqMarket,
   marketCorridor,
@@ -97,11 +97,16 @@ import {
   type PaymentQuoteRequest,
 } from '../lib/paymentQuotes'
 import {
+  canReplaceMissingPaymentRecord,
   claimPaymentFunding,
+  hasConfirmedPaymentRefund,
   PaymentNotSubmitted,
+  PaymentRequiresNewInvoice,
   PaymentSubmissionPending,
   readPaymentFunding,
   releasePaymentFunding,
+  withPaymentFundingCheckpoint,
+  withPaymentFundingLock,
 } from '../lib/paymentFunding'
 import {
   DriverPromoted,
@@ -1006,13 +1011,33 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const acceptPaymentQuoteHere = async (id: string, request: PaymentQuoteRequest, reviewId?: string): Promise<Swap> => {
     const network = aspInfo.network as NetworkName
     const key = paymentAttemptKey(request, network, wallet.pubkey, reviewId)
+    return withPaymentFundingLock(key, (guarded) => acceptReservedPayment(id, request, network, key, guarded))
+  }
+
+  const acceptReservedPayment = async (
+    id: string,
+    request: PaymentQuoteRequest,
+    network: NetworkName,
+    key: string,
+    guarded: boolean,
+  ): Promise<Swap> => {
     const issuer = held.current
     const client = await driving()
     const previous = await readPaymentFunding(key)
     if (previous) {
       const record = await assetSwapRepository.getSwapRecord(previous.quoteId)
-      if (record?.fundingTxid) return swapOf(record, recordOutcome(record))
-      if (!record || !fundingWasNotSubmitted(record)) throw new PaymentSubmissionPending(previous.swapId)
+      if (!record) {
+        if (!canReplaceMissingPaymentRecord(previous, guarded)) throw new PaymentSubmissionPending(previous.swapId)
+      } else if (!fundingWasNotSubmitted(record)) {
+        if (!record.fundingTxid) throw new PaymentSubmissionPending(previous.swapId)
+        if (record.family !== 'rfq' || record.kind !== 'lightning_send' || record.state !== 'refunded') {
+          return swapOf(record, recordOutcome(record))
+        }
+        const refunded = svcWallet && (await hasConfirmedPaymentRefund(record, walletLockupIndexer(svcWallet)))
+        // A refunded covenant cannot prove the payee never revealed the invoice's preimage.
+        if (refunded) throw new PaymentRequiresNewInvoice(previous.swapId)
+        throw new PaymentSubmissionPending(previous.swapId)
+      }
       if (previous.quoteId === id) throw new QuoteUnavailable()
     }
     const quote = issued.current.get(id)
@@ -1023,7 +1048,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       throw new PaymentNotSubmitted(error)
     }
     const swapId = assetSwapIdOf(request.kind === 'asset' ? 'offer' : 'rfq', id)
-    const attempt = { quoteId: id, swapId }
+    const attempt = { quoteId: id, swapId, ...(guarded ? { guarded: true as const } : {}) }
     const raced = await claimPaymentFunding(key, attempt, previous?.quoteId)
     if (raced) throw new PaymentSubmissionPending(raced.swapId)
     try {
@@ -1037,14 +1062,24 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
     let swap: Swap
     try {
-      swap = await client.accept(quote, { validUntil: paymentQuoteExpiry(quote) })
+      swap = await withPaymentFundingCheckpoint(key, id, () =>
+        client.accept(quote, { validUntil: paymentQuoteExpiry(quote) }),
+      )
     } catch (error) {
-      const record = await assetSwapRepository.getSwapRecord(id).catch(() => undefined)
+      const stored = await assetSwapRepository
+        .getSwapRecord(id)
+        .then((record) => ({ record }))
+        .catch(() => undefined)
+      const record = stored?.record
       if (record?.fundingTxid) return swapOf(record, recordOutcome(record))
+      const reservation = stored && !record ? await readPaymentFunding(key).catch(() => undefined) : undefined
       if (
         record
           ? fundingWasNotSubmitted(record)
-          : isSwapError(error, 'InsufficientFunds') || isSwapError(error, 'QuoteExpired')
+          : stored &&
+            (isSwapError(error, 'InsufficientFunds') ||
+              isSwapError(error, 'QuoteExpired') ||
+              (reservation?.quoteId === id && canReplaceMissingPaymentRecord(reservation, guarded)))
       ) {
         await releasePaymentFunding(key, id)
         throw new PaymentNotSubmitted(error)

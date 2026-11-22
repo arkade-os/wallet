@@ -521,6 +521,7 @@ export const translations = {
       recipientGets: 'Recipient gets',
       noPaymentQuote: 'No provider could quote this payment.',
       submissionPending: 'The wallet is still checking this payment. Follow it in Activity before trying again.',
+      paymentRequiresNewInvoice: 'Refund confirmed. Use a new Lightning invoice to retry.',
       rememberRoute: 'Remember this next time',
       swapAndPay: 'Swap and pay',
       pay: 'Pay',
@@ -1536,6 +1537,7 @@ export const translations = {
       recipientGets: 'El destinatario recibe',
       noPaymentQuote: 'Ningún proveedor pudo cotizar este pago.',
       submissionPending: 'La cartera sigue comprobando el pago. Consúltalo en Actividad antes de reintentar.',
+      paymentRequiresNewInvoice: 'Reembolso confirmado. Usa una nueva factura Lightning para reintentar.',
       rememberRoute: 'Recordar para la próxima vez',
       swapAndPay: 'Convertir y pagar',
       pay: 'Pagar',
@@ -2559,6 +2561,7 @@ export const translations = {
       noPaymentQuote: 'Nenhum provedor conseguiu cotar este pagamento.',
       submissionPending:
         'A carteira ainda está verificando este pagamento. Acompanhe em Atividade antes de tentar novamente.',
+      paymentRequiresNewInvoice: 'Reembolso confirmado. Use uma nova fatura Lightning para tentar novamente.',
       rememberRoute: 'Lembrar da próxima vez',
       swapAndPay: 'Converter e pagar',
       pay: 'Pagar',

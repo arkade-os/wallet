@@ -71,7 +71,8 @@ export default function SendDetails() {
   const { sendRouter } = useContext(SwapsContext)
   const { t } = useTranslation()
 
-  const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
+  const assetPayment = sendInfo.assetPayment?.address === sendInfo.arkAddress ? sendInfo.assetPayment : undefined
+  const assetId = assetPayment?.assetId ?? sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
   const assetDecimals = sendInfo.account?.decimals ?? assetMeta?.metadata?.decimals ?? 0
   const assetAmountValue = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
@@ -108,10 +109,10 @@ export default function SendDetails() {
   const exactOnchainRequest = exactOnchainAmount !== undefined
   const firmRequest = useMemo<PaymentQuoteRequest | undefined>(() => {
     if (!allowOffchain) return
-    if (sendInfo.assetPayment) return { kind: 'asset', ...sendInfo.assetPayment }
+    if (assetPayment) return { kind: 'asset', ...assetPayment }
     if (!arkAddress && !lnurlRoute && invoice && sendInfo.reviewId)
       return { kind: 'lightning', invoice, amount: satoshis }
-  }, [allowOffchain, arkAddress, invoice, lnurlRoute, satoshis, sendInfo.assetPayment, sendInfo.reviewId])
+  }, [allowOffchain, arkAddress, invoice, lnurlRoute, satoshis, assetPayment, sendInfo.reviewId])
   const review = usePaymentQuoteReview(firmRequest, network)
   const firm = review.reviewed?.quote
   const firmMarket = firm && quoteProviderMarket(firm)
@@ -131,8 +132,8 @@ export default function SendDetails() {
   }, [enableDiscovery, openOfferPolicy, review.quoteError])
   const amountDisplay = buildTransactionAmountDisplay({
     ...displayContext,
-    assets: sendInfo.assetPayment
-      ? [{ assetId: sendInfo.assetPayment.assetId, amount: sendInfo.assetPayment.amount }]
+    assets: assetPayment
+      ? [{ assetId: assetPayment.assetId, amount: assetPayment.amount }]
       : sendInfo.account
         ? [{ assetId: sendInfo.account.assetId, amount: sendInfo.account.amount }]
         : sendInfo.assets,
@@ -314,7 +315,7 @@ export default function SendDetails() {
     // back the txid, so its cache is already current — and the metadata saved
     // just above is what the refreshed history grafts onto this row.
     reloadWallet().catch(consoleError)
-    setSendInfo({ ...sendInfo, total: details?.total, txid })
+    setSendInfo({ ...sendInfo, assetPayment, total: details?.total, txid })
     setSendDone(true)
   }
 
@@ -357,7 +358,7 @@ export default function SendDetails() {
         setAppIntent({ ...appIntent, committedOnchain: { swapId, fundingTxid: txid } })
       }
     }
-    setSendInfo({ ...sendInfo, total, txid, railId, swapId, openOffer })
+    setSendInfo({ ...sendInfo, assetPayment, total, txid, railId, swapId, openOffer })
     setSendDone(true)
   }
 
@@ -504,6 +505,11 @@ export default function SendDetails() {
         const reason = (failure as Error)?.name
         const pending = reason === 'PaymentSubmissionPending'
         setSubmissionPending(pending)
+        if (reason === 'PaymentRequiresNewInvoice') {
+          setError(t('send.paymentRequiresNewInvoice'))
+          if (lnurlTarget) setSendInfo((previous) => ({ ...previous, lnurlInvoice: undefined }))
+          return
+        }
         setError(pending ? t('send.submissionPending') : extractError(failure))
         if (['PaymentNotSubmitted', 'QuoteUnavailable', 'QuoteExpired'].includes(reason)) {
           commitStarted.current = false

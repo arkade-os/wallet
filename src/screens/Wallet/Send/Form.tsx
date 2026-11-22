@@ -113,6 +113,7 @@ type LnUrlConditions = {
 const noTarget = {
   address: undefined,
   arkAddress: undefined,
+  assetPayment: undefined,
   invoice: undefined,
   lnUrl: undefined,
   lnurlInvoice: undefined,
@@ -956,6 +957,7 @@ export default function SendForm() {
           setSendInfo((prev) => ({
             ...prev,
             arkAddress,
+            assetPayment: undefined,
             invoice: undefined,
             lnurlInvoice: undefined,
             pendingLnSend: undefined,
@@ -1000,6 +1002,7 @@ export default function SendForm() {
           setSendInfo((prev) => ({
             ...prev,
             arkAddress: undefined,
+            assetPayment: undefined,
             invoice: undefined,
             lnurlInvoice: undefined,
             satoshis: sent,

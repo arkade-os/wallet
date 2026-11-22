@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import type { ContextType } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import SendSuccess from '../../../screens/Wallet/Send/Success'
 import {
@@ -47,6 +48,7 @@ const renderSuccess = (
   flow = {},
   outcomeOf: (id: string) => Outcome | undefined = () => undefined,
   language = Language.English,
+  wallet: Partial<ContextType<typeof WalletContext>> = {},
 ) => {
   const tree = () => (
     <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate }}>
@@ -54,7 +56,7 @@ const renderSuccess = (
         <FiatContext.Provider value={mockFiatContextValue}>
           <AspContext.Provider value={mockAspContextValue}>
             <NotificationsContext.Provider value={notifications as never}>
-              <WalletContext.Provider value={mockWalletContextValue as never}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, ...wallet }}>
                 <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo, ...flow }}>
                   <SwapsContext.Provider value={{ outcomeOf } as never}>
                     <SendSuccess />
@@ -274,6 +276,25 @@ describe('tracked payment receipts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
+  })
+
+  it.each([false, true])('marks a token receipt unverified when registry verification is %s', (verified) => {
+    const assetPayment = { assetId: USDT_ID, amount: 123n, address: 'ark1recipient' }
+    renderSuccess(
+      { ...fundedSend, assetPayment, reviewId: 'review', railId: ASSET_SWAP_PAYMENT_RAIL },
+      {},
+      () => 'filled',
+      Language.English,
+      {
+        assetMetadataCache: new Map([
+          [USDT_ID, { assetId: USDT_ID, cachedAt: 0, supply: 1_000n, metadata: { ticker: 'USD', decimals: 2 } }],
+        ]),
+        isVerifiedAsset: (assetId) => assetId === USDT_ID && verified,
+      },
+    )
+    expect(screen.getByText(/1\.23 USD/)).toBeInTheDocument()
+    if (verified) expect(screen.queryByText('Unverified')).not.toBeInTheDocument()
+    else expect(screen.getByText('Unverified')).toBeInTheDocument()
   })
 
   const signedOffer: OpenRfqOffer = {

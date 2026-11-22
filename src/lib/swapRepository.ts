@@ -15,11 +15,20 @@
  * WHOLE database, asset swaps and markets cache included. Rolling back this
  * release means rolling back the data, not just the bundle.
  */
-import { IndexedDbAssetSwapRepository, type AssetSwap } from '@arkade-os/swap'
+import { IndexedDbAssetSwapRepository, type AssetSwap, type SwapRecord } from '@arkade-os/swap'
+import { checkpointPaymentRecord } from './paymentFunding'
+
+class WalletAssetSwapRepository extends IndexedDbAssetSwapRepository {
+  async saveSwapRecord(record: SwapRecord): Promise<void> {
+    await super.saveSwapRecord(record)
+    // SDK acceptance waits for this write before funding. Keep that proof if the SDK history is cleared later.
+    await checkpointPaymentRecord(record.id)
+  }
+}
 
 /** Shared per tab: the repository opens its database lazily on first use, and
  * a second instance would open a second connection to the same stores. */
-export const assetSwapRepository = new IndexedDbAssetSwapRepository()
+export const assetSwapRepository = new WalletAssetSwapRepository()
 
 /** Display facts frozen at quote time — only what the activity UI reads.
  * Every field is optional: a restore can only backfill what is recoverable
