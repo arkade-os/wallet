@@ -835,7 +835,14 @@ describe('Receive QR Code screen — asset pill', () => {
       flow: { recvInfo: { ...tapFixture().flow!.recvInfo!, assetId }, setRecvInfo },
       wallet: { svcWallet: mockSvcWallet as any, assetMetadataCache },
     })
-    fireEvent.click(await screen.findByTestId('receive-asset-pill'))
+    const picker = screen.getByRole('button', { name: 'Change asset' })
+    const qr = await screen.findByRole('button', { name: 'Copy QR code' })
+    const labels = screen.getAllByText(/^Token(?: \(TKN\))?$/)
+    expect(labels).toHaveLength(1)
+    expect(labels[0]).toHaveTextContent('Token (TKN)')
+    expect(qr.compareDocumentPosition(labels[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    fireEvent.click(picker)
     expect(screen.getByRole('radio', { name: /^Token/ })).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(screen.getByRole('radio', { name: /^Bitcoin/ }))
 

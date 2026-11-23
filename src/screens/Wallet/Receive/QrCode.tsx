@@ -628,15 +628,15 @@ export default function ReceiveQRCode() {
   const held = assetBalances.filter((a) => a.amount > 0 && assetMetadataCache.has(a.assetId)).map((a) => a.assetId)
   const assetIds = new Set([assetId ?? '', ...held])
   const assetRows = ['', ...[...assetIds].filter(Boolean)].map(assetRow)
-  const current = assetRows.find((r) => r.id === (assetId ?? '')) ?? assetRows[0]
+  const bitcoinRow = assetRows[0]
   const pill = (
     <>
-      {current.icon}
-      <span className='truncate'>{current.title}</span>
+      {isAssetReceive ? null : bitcoinRow.icon}
+      <span className='truncate'>{isAssetReceive ? t('receive.changeAsset') : bitcoinRow.title}</span>
       {assetRows.length > 1 ? <ChevronDownIcon /> : null}
     </>
   )
-  const pillClass = 'flex min-w-0 items-center gap-2 rounded-full bg-neutral-50 py-1.5 pr-4 pl-1.5 font-semibold'
+  const pillClass = `flex min-w-0 items-center gap-2 rounded-full bg-neutral-50 py-1.5 pr-4 font-semibold ${isAssetReceive ? 'pl-4' : 'pl-1.5'}`
   const showingQr = addressesCurrent && !hasError && !noPaymentMethods && Boolean(bip21Uri)
   const assetIdentity = assetId ? (
     <div className='flex w-full max-w-85 flex-col items-center'>
@@ -859,7 +859,7 @@ export default function ReceiveQRCode() {
             onClose={() => setAssetsOpen(false)}
             title={t('swap.chooseAssetToReceive')}
             formats={assetRows}
-            active={current.id}
+            active={assetId ?? ''}
             onPick={switchAsset}
           />
         </Padded>
