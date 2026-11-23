@@ -84,7 +84,7 @@ export function FormatsCard({ onClick }: { onClick: () => void }) {
     compact: true,
   }
   return (
-    <div className={CARD}>
+    <div className={`${CARD} max-w-85`}>
       <Row row={row} onClick={onClick} aria-haspopup='dialog' trailing={<Chevron />} />
     </div>
   )

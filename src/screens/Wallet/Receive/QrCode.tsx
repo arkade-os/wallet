@@ -72,6 +72,7 @@ import CheckMarkIcon from '../../../icons/CheckMark'
 import CopyIcon from '../../../icons/Copy'
 import ScanIcon from '../../../icons/Scan'
 import ChevronDownIcon from '../../../icons/ChevronDown'
+import ButtonsOnBottom from '@/components/ButtonsOnBottom'
 
 const railLogo = (rail: LnurlTokenRail, ring: string) => (
   <TokenOnChainLogo ticker={rail.unit.code} chainId={rail.asset?.chainId ?? ''} ring={ring} />
@@ -707,8 +708,7 @@ export default function ReceiveQRCode() {
                   </TextSecondary>
                 ) : null}
                 <div
-                  // svh, not dvh: a phone browser's toolbar covers the page, and dvh counts the space under it.
-                  className={`receive-invoice-stage w-full grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] overflow-hidden rounded-3xl border border-neutral-100 ${shown === 'token' ? 'max-w-[clamp(11rem,calc(100svh-31rem),20rem)]' : hasAmount ? 'max-w-[clamp(12rem,calc(100svh-28rem),20rem)]' : 'max-w-[clamp(12rem,calc(100svh-24rem),20rem)]'} aspect-square`}
+                  className='receive-invoice-stage w-full grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] overflow-hidden rounded-3xl border border-neutral-100 max-w-85 aspect-square'
                   data-generating={generating}
                 >
                   <div
@@ -823,16 +823,35 @@ export default function ReceiveQRCode() {
                 </div>
               </>
             )}
-            <FlexRow gap='0.75rem'>
-              <Button label={amountLabel} onClick={openAmountEntry} secondary />
-              <Button label={t('receive.share')} onClick={handleShare} disabled={shareDisabled} />
-            </FlexRow>
             {showingQr ? <LnurlRailPanel rail={lnurlRail} /> : null}
             {/* In the flow, not a fixed footer: pinned, it covered the buttons on short phones. */}
             {showingQr && !isAssetReceive ? <FormatsCard onClick={() => setFormatsOpen(true)} /> : null}
           </FlexCol>
+          <ReceiveFormats
+            open={formatsOpen}
+            onClose={() => setFormatsOpen(false)}
+            formats={formatRows}
+            active={shown}
+            onPick={pickFormat}
+            tokens={tokenRows}
+            onPickToken={pickToken}
+          />
+          <ReceiveFormats
+            open={assetsOpen}
+            onClose={() => setAssetsOpen(false)}
+            title={t('swap.chooseAssetToReceive')}
+            formats={assetRows}
+            active={current.id}
+            onPick={switchAsset}
+          />
         </Padded>
       </Content>
+      <ButtonsOnBottom>
+        <FlexRow gap='0.75rem'>
+          <Button label={amountLabel} onClick={openAmountEntry} secondary />
+          <Button label={t('receive.share')} onClick={handleShare} disabled={shareDisabled} />
+        </FlexRow>
+      </ButtonsOnBottom>
 
       {/* Amount bottom sheet */}
       <SheetModal isOpen={showAmountSheet} onClose={closeAmountEntry}>
@@ -859,24 +878,6 @@ export default function ReceiveQRCode() {
           {hasAmount ? <Button label={t('receive.clearAmount')} onClick={handleAmountClear} secondary /> : null}
         </FlexCol>
       </SheetModal>
-
-      <ReceiveFormats
-        open={formatsOpen}
-        onClose={() => setFormatsOpen(false)}
-        formats={formatRows}
-        active={shown}
-        onPick={pickFormat}
-        tokens={tokenRows}
-        onPickToken={pickToken}
-      />
-      <ReceiveFormats
-        open={assetsOpen}
-        onClose={() => setAssetsOpen(false)}
-        title={t('swap.chooseAssetToReceive')}
-        formats={assetRows}
-        active={current.id}
-        onPick={switchAsset}
-      />
     </>
   )
 }

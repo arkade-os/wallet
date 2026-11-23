@@ -474,7 +474,7 @@ export const translations = {
       otherFormats: 'Other formats',
       otherFormatsHint:
         "The default code works with most wallets. Pick another only when the sender's wallet asks for it.",
-      otherFormatsSub: 'Lightning, Arkade or the Bitcoin network',
+      otherFormatsSub: 'Lightning, Arkade or Bitcoin',
       partLink: 'Payment link',
       partLnurl: 'Lightning (LNURL)',
       pickForMe: 'Pick one for me',
@@ -1448,7 +1448,7 @@ export const translations = {
       otherFormats: 'Otros formatos',
       otherFormatsHint:
         'El código predeterminado funciona con la mayoría de las billeteras. Elige otro solo si la billetera de quien paga lo pide.',
-      otherFormatsSub: 'Lightning, Arkade o la red de Bitcoin',
+      otherFormatsSub: 'Lightning, Arkade o Bitcoin',
       partLink: 'Enlace de pago',
       partLnurl: 'Lightning (LNURL)',
       pickForMe: 'Elige uno por mí',
@@ -2429,7 +2429,7 @@ export const translations = {
       otherFormats: 'Outros formatos',
       otherFormatsHint:
         'O código padrão funciona com a maioria das carteiras. Escolha outro só quando a carteira de quem paga pedir.',
-      otherFormatsSub: 'Lightning, Arkade ou a rede Bitcoin',
+      otherFormatsSub: 'Lightning, Arkade ou Bitcoin',
       partLink: 'Link de pagamento',
       partLnurl: 'Lightning (LNURL)',
       pickForMe: 'Escolher para mim',
