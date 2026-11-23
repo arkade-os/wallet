@@ -677,7 +677,7 @@ export default function SendDetails() {
   const togglePicker = (open: boolean) => {
     setRoutePicker(open)
     setSearchOnOpen(undefined)
-    setRememberChoice(false)
+    setRememberChoice(open && rememberedRoute !== undefined)
     if (!open) setOnchainCandidates([])
   }
   const chooseOnchain = (rail: string, providerId?: string) => {
@@ -836,7 +836,11 @@ export default function SendDetails() {
                     type='checkbox'
                     className='size-4 shrink-0 accent-[var(--purple-700)] scheme-light dark:scheme-dark'
                     checked={rememberChoice}
-                    onChange={(event) => setRememberChoice(event.target.checked)}
+                    onChange={(event) => {
+                      const checked = event.target.checked
+                      setRememberChoice(checked)
+                      if (!checked) setRememberedRoute(undefined)
+                    }}
                   />
                   {t('send.rememberRoute')}
                 </label>

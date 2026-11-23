@@ -389,7 +389,10 @@ describe('signing an on-chain send', () => {
     expect(sent).not.toHaveBeenCalled()
   })
 
-  it('names the current Bitcoin provider and remembers the selected provider only after funding', async () => {
+  it.each([
+    { action: 'remembers', keepPreference: true },
+    { action: 'does not remember after clearing the checkbox for', keepPreference: false },
+  ])('$action the selected Bitcoin provider after funding', async ({ keepPreference }) => {
     const network = mockAspContextValue.aspInfo.network as NetworkName
     const direction = JSON.stringify([network, btcOn('arkade', network), btcOn('bitcoin', network)])
     const original = { providerName: 'Harbor', providerId: 'harbor' }
@@ -427,17 +430,22 @@ describe('signing an on-chain send', () => {
     expect(readOnchainSendPreference(network)).toBe('exit')
     expect(readSolverRouting(network, direction).preferFirst).toBeUndefined()
 
+    fireEvent.click(screen.getByRole('button', { name: 'Change route' }))
+    const selectedPicker = within(await screen.findByRole('dialog', { name: 'Change route' }))
+    const remember = selectedPicker.getByRole('checkbox', { name: 'Remember this next time' })
+    expect(remember).toBeChecked()
+    if (!keepPreference) fireEvent.click(remember)
+    fireEvent.click(selectedPicker.getByRole('button', { name: 'Close' }))
+
     await sign()
-    await waitFor(() =>
-      expect(readSolverRouting(network, direction)).toMatchObject({
-        mode: 'cost',
-        priority: [original.providerId],
-        preferFirst: selected.providerId,
-      }),
-    )
-    expect(readOnchainSendPreference(network)).toBe('solver')
+    await waitFor(() => expect(selectedSent).toHaveBeenCalledOnce())
+    expect(readSolverRouting(network, direction)).toMatchObject({
+      mode: 'cost',
+      priority: [original.providerId],
+    })
+    expect(readSolverRouting(network, direction).preferFirst).toBe(keepPreference ? selected.providerId : undefined)
+    expect(readOnchainSendPreference(network)).toBe(keepPreference ? 'solver' : 'exit')
     expect(originalSent).not.toHaveBeenCalled()
-    expect(selectedSent).toHaveBeenCalledOnce()
   })
 
   it('funds the reviewed quote even if a fresh quote would ask for a higher total', async () => {
