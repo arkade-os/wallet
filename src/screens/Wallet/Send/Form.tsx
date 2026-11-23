@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { BrantaEnvironment, BrantaService, VerifyStatus, type Payment, type VerifyResult } from '@branta-ops/branta'
 import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
@@ -73,6 +73,7 @@ import {
   normalizeAssetMinorUnits,
   rawAssetPresentation,
   verifiedDesignatedCurrency,
+  walletAssetLabel,
 } from '../../../lib/accountAssets'
 import {
   DropdownMenu,
@@ -215,6 +216,7 @@ export default function SendForm() {
   const { navigate } = useContext(NavigationContext)
   const { outcomeOf, sendRouter } = useContext(SwapsContext)
   const { t } = useTranslation()
+  const recipientAssetLabelId = useId()
   const {
     assetBalances,
     availableAssetBalances,
@@ -469,10 +471,7 @@ export default function SendForm() {
             try {
               const fetched = await svcWallet.assetManager.getAssetDetails(assetId)
               if (!active) return
-              if (fetched) {
-                setCacheEntry(assetId, fetched)
-                meta = fetched
-              }
+              if (fetched) meta = setCacheEntry(assetId, fetched)
             } catch (err) {
               if (!active) return
               consoleError(err, `error fetching metadata for ${assetId}`)
@@ -1227,6 +1226,12 @@ export default function SendForm() {
         amount: `${prettyAssetAmount(fundingAsset.balance, fundingAsset.decimals)} ${fundingAsset.ticker}`,
       })
     : t('send.available', { amount: prettyUnitBalance(liquidBalance) })
+  const recipientAssetLabel = linkedAsset
+    ? walletAssetLabel({
+        name: linkedAsset.asset.name.trim() || linkedAsset.asset.ticker || t('send.unknownAsset'),
+        ticker: linkedAsset.asset.ticker,
+      })
+    : ''
 
   const overlayOpen = scan || (keys && !amountIsReadOnly)
   const sendOverlayStyle = { ...overlayStyle, position: 'fixed' as const, zIndex: 20 }
@@ -1461,19 +1466,28 @@ export default function SendForm() {
                 </FlexCol>
               ) : null}
               <FlexCol gap='0.5rem'>
+                {linkedAsset ? (
+                  <div className='flex w-full min-w-0 items-center gap-2'>
+                    <AssetIcon asset={linkedAsset.asset} />
+                    <div className='min-w-0 flex-1' id={recipientAssetLabelId}>
+                      <div className='text-xs text-muted-foreground'>{t('send.recipientGets')}</div>
+                      <div
+                        className='truncate text-sm font-semibold'
+                        title={recipientAssetLabel}
+                        data-testid='send-recipient-asset'
+                      >
+                        {recipientAssetLabel}
+                      </div>
+                    </div>
+                    {isVerifiedAsset(linkedAsset.asset.assetId) ? null : <UnverifiedBadge />}
+                  </div>
+                ) : null}
                 <InputAmount
-                  label={t(linkedAsset ? 'send.recipientGets' : 'common.amount')}
+                  label={linkedAsset ? undefined : t('common.amount')}
+                  labelledBy={linkedAsset ? recipientAssetLabelId : undefined}
                   name='send-amount'
                   valueSats={valueSats}
-                  right={
-                    linkedAsset ? (
-                      isVerifiedAsset(linkedAsset.asset.assetId) ? undefined : (
-                        <UnverifiedBadge />
-                      )
-                    ) : (
-                      <Available />
-                    )
-                  }
+                  right={linkedAsset ? undefined : <Available />}
                   onEnter={handleEnter}
                   onFocus={handleFocus}
                   onMax={linkedAsset ? undefined : handleSendAll}

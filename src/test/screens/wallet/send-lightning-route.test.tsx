@@ -278,10 +278,16 @@ describe('starting an exact asset payment', () => {
     const decimals = 2
     const amount = 123n
     const metadata = { assetId, supply: 10_000n, metadata: { name: 'Test asset', ticker: 'TST', decimals } }
+    const unmoderated = { ...metadata, metadata: { ...metadata.metadata, icon: 'https://example.com/icon.png' } }
+    const setCacheEntry = vi.fn(() => ({ ...metadata, cachedAt: 0 }))
     const request = encodeBip21Asset(ARK_ADDRESS, assetId, amount, decimals)
     const { container } = renderForm(emptySendInfo, {
-      assetMetadataCache: new Map([[assetId, metadata]]),
-      svcWallet: { ...formWallet, getAddress: async () => ARK_ADDRESS } as never,
+      setCacheEntry,
+      svcWallet: {
+        ...formWallet,
+        getAddress: async () => ARK_ADDRESS,
+        assetManager: { getAssetDetails: async () => unmoderated },
+      } as never,
     })
     const recipient = container.querySelector('input[name="send-address"]')!
     fireEvent.change(recipient, { target: { value: request } })
@@ -290,6 +296,9 @@ describe('starting an exact asset payment', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled())
     expect(screen.getByTestId('asset-selector')).toHaveTextContent('Bitcoin')
     expect(screen.getByText('Recipient gets')).toBeInTheDocument()
+    expect(screen.getByTestId('send-recipient-asset')).toHaveTextContent('Test asset (TST)')
+    expect(setCacheEntry).toHaveBeenCalledWith(assetId, unmoderated)
+    expect(container.querySelector('img[src="https://example.com/icon.png"]')).toBeNull()
     expect(container.querySelector('input[name="send-amount"]')).toHaveValue(1.23)
     expect(container.querySelector('input[name="send-amount"]')).toHaveAttribute('readonly')
     await cont()
@@ -396,7 +405,7 @@ describe('starting an asset payment with an editable amount', () => {
       fireEvent.change(container.querySelector('input[name="send-address"]')!, { target: { value: link } })
 
       const picker = await screen.findByTestId('asset-selector', undefined, { timeout: 3000 })
-      const input = container.querySelector('input[name="send-amount"]')!
+      const input = screen.getByRole('spinbutton', { name: 'Recipient gets Gucci (GUCCI)' })
       expect(screen.getByText('Pay with')).toBeInTheDocument()
       expect(picker).toHaveTextContent('Bitcoin')
       expect(screen.getByText('Recipient gets')).toBeInTheDocument()
