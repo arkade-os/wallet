@@ -195,7 +195,7 @@ export default function App() {
   // Hold the loading screen until wallet data is ready, except while the connect
   // page is showing so it can run swap recovery before navigating.
   const isConnectIntent = appIntent?.status === 'connect'
-  const isInInitFlow = !!(initInfo.password || initInfo.privateKey)
+  const isInInitFlow = !!(initInfo.password || initInfo.privateKey || initInfo.passkeyPrf)
   const showReturningHome =
     hasStoredWallet &&
     isCapable &&
@@ -208,7 +208,8 @@ export default function App() {
     (authState === 'passwordless' || authState === 'authenticated')
   const shouldHoldOnLoading =
     hasStoredWallet &&
-    (!initialized || (!dataReady && !(isConnectIntent && screen === Pages.AppIntent))) &&
+    (!initialized ||
+      (!dataReady && !(isConnectIntent && screen === Pages.AppIntent) && screen !== Pages.InitConnect)) &&
     authState !== 'locked' &&
     !isSettingUpWallet
 
