@@ -7,7 +7,10 @@ vi.mock('../../lib/swapRepository', () => ({
   },
 }))
 
-import { lnSendViews } from '../../lib/swapRecords'
+import { solverId, type DiscoveredMarket } from '@arkade-os/solver-discovery'
+import type { Swap } from '@arkade-os/swap/advanced'
+import { candidateUsage, lnSendViews, solverUsage } from '../../lib/swapRecords'
+import { assetSwapRepository } from '../../lib/swapRepository'
 
 // Plain JSON, as the store hands it back.
 const send = (market: { kind: string; backend: string }) => ({
@@ -42,5 +45,77 @@ describe('lnSendViews', () => {
     expect(view.amount).toBe(100_000)
     expect(view).not.toHaveProperty('takeAmount')
     expect(view).not.toHaveProperty('feeAmount')
+  })
+
+  it('keeps history readable when the repository is unavailable', async () => {
+    vi.spyOn(assetSwapRepository, 'getSwapRecordsPage').mockRejectedValueOnce(new Error('history unavailable'))
+    await expect(lnSendViews()).resolves.toEqual([])
+  })
+})
+
+describe('solverUsage', () => {
+  it('reports repository read errors instead of displaying zero completed swaps', async () => {
+    vi.spyOn(assetSwapRepository, 'getSwapRecordsPage').mockRejectedValueOnce(new Error('history unavailable'))
+    await expect(solverUsage('bitcoin', 'direction', [])).rejects.toThrow('history unavailable')
+  })
+})
+
+describe('candidateUsage', () => {
+  const network = 'mutinynet'
+  const key = 'ab'.repeat(32)
+  const give = 'arkade:mutinynet/slip44:1'
+  const take = `arkade:mutinynet/asset:${'cd'.repeat(34)}`
+  const direction = JSON.stringify([network, give, take])
+  const card = (source: string, sourceType: 'local' | 'registry', relays = ['wss://relay']) =>
+    ({
+      solver: 'ln',
+      source,
+      sourceType,
+      discovery_pubkey: key,
+      transports: { nostr: { relays } },
+      base_asset: { id: give, name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
+      quote_asset: { id: take, name: 'USD', ticker: 'USD', decimals: 2 },
+      fee_bps: 10,
+      min_base_amount: '1',
+      max_base_amount: '100',
+      min_quote_amount: '1',
+      max_quote_amount: '100',
+    }) as DiscoveredMarket
+  const swap = (id: string, listed: DiscoveredMarket, solver?: string) =>
+    ({
+      id,
+      outcome: 'filled',
+      route: { give: { asset: give }, take: { asset: take } },
+      market: {
+        kind: 'card',
+        solver: 'ln',
+        source: listed.source,
+        sourceType: listed.sourceType,
+        discoveryPubkey: key,
+      },
+      solver,
+    }) as unknown as Swap
+  const local = card('ln', 'local')
+  const registry = card('https://registry/mutinynet.json', 'registry')
+
+  it('counts a quote the solver signed toward its key, whichever source listed the card', () => {
+    const usage = candidateUsage(
+      [swap('a', local, key), swap('b', registry, key)],
+      [local, registry],
+      network,
+      direction,
+    )
+    expect(usage).toEqual({ [solverId(local, network)]: 2, [solverId(registry, network)]: 2 })
+  })
+
+  it('keeps an unsigned swap with the source that listed it', () => {
+    expect(candidateUsage([swap('a', local)], [local, registry], network, direction)).toEqual({
+      [solverId(local, network)]: 1,
+    })
+  })
+
+  it('lends no key history to a card that is not quoted over that key', () => {
+    const spot = card('spot', 'registry', [])
+    expect(candidateUsage([swap('a', local, key)], [spot], network, direction)).toEqual({})
   })
 })

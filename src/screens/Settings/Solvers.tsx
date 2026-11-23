@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect, useRef } from 'react'
+import { useContext, useState, useEffect, useRef, useSyncExternalStore, type RefObject } from 'react'
 import { AspContext } from '../../providers/asp'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
@@ -9,69 +9,160 @@ import {
   LocalCardInput,
   legacyMarketCorridor,
   pairSideLabel,
-  stableStringify,
+  sideLimits,
   validateCard,
   Network,
+  type DiscoveredMarket,
   type Market,
 } from '@arkade-os/solver-discovery'
+import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
 import { readSolverCards, saveSolverCards } from '@/lib/solverCards'
-import { BUNDLED_CARDS } from '@/lib/swapMarkets'
+import { BUNDLED_CARDS, marketLegId } from '@/lib/swapMarkets'
 import FlexRow from '@/components/FlexRow'
 import FlexCol from '@/components/FlexCol'
 import ErrorMessage from '@/components/Error'
 import Shadow from '@/components/Shadow'
 import Modal from '@/components/Modal'
+import Table, { type TableData } from '@/components/Table'
 import { consoleError } from '@/lib/logs'
-import { prettyLongText } from '@/lib/format'
+import { prettyLongText, prettyNumber } from '@/lib/format'
+import { prettyAssetAmount } from '@/lib/assets'
 import SegmentedControl from '@/components/SegmentedControl'
 import { useRemoteSolverCard } from '@/hooks/useRemoteSolverCard'
 import { BackupContext } from '@/providers/backup'
+import { SwapsContext } from '@/providers/swaps'
 import { useTranslation } from '@/providers/language'
+import SolverRouting, { directionLabelOf, feeLabelOf, useMarketTicker, type TickerOf } from './SolverRouting'
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer'
+import { Switch } from '@/components/ui/switch'
+import {
+  carrySolverDirectionPauses,
+  isSolverCardEnabled,
+  saveSolverCardEnabled,
+  subscribeSolverRouting,
+  getSolverRoutingVersion,
+} from '@/lib/solverRouting'
 
-const isSameCard = (card: LocalCardInput, label: string | undefined, network: Network) =>
-  card.label === label && card.network === network
+const cardIdentity = (input: LocalCardInput): string => {
+  const card = input.card as Card
+  return JSON.stringify([input.network, card.discovery_pubkey ?? [input.label ?? `local:${card.name}`, card.name]])
+}
 
-/** `replacing` is the label a rename vacates, folded into this one write so
- * subscribers never see the intermediate list with the card missing. */
-const putSolverCard = (input: LocalCardInput, replacing?: string) => {
-  const network = input.network as Network
-  const others = readSolverCards().filter(
-    (card) => !isSameCard(card, input.label, network) && !(replacing && isSameCard(card, replacing, network)),
+const putSolverCard = (input: LocalCardInput, replacing?: LocalCardInput) => {
+  const cards = readSolverCards()
+  const others = cards.filter(
+    (card) =>
+      cardIdentity(card) !== cardIdentity(input) && (!replacing || cardIdentity(card) !== cardIdentity(replacing)),
   )
+  for (const displaced of cards.filter((card) => !others.includes(card))) carrySolverDirectionPauses(displaced, input)
+  if (replacing && cardIdentity(input) !== cardIdentity(replacing) && !isSolverCardEnabled(replacing))
+    saveSolverCardEnabled(input, false)
   saveSolverCards([...others, input])
 }
 
 const removeSolverCard = (input: LocalCardInput) => {
-  saveSolverCards(readSolverCards().filter((card) => !isSameCard(card, input.label, input.network as Network)))
+  saveSolverCards(readSolverCards().filter((card) => cardIdentity(card) !== cardIdentity(input)))
 }
 
-/** A canonical card carries no `pair`; its label is derived from the asset ids'
- *  rails, as the registry reducer derives it for a published index. */
-const marketLabel = (market: Market): string =>
-  market.pair ??
-  `${pairSideLabel(legacyMarketCorridor(market, 'base'), market.base_asset.ticker)}/${pairSideLabel(legacyMarketCorridor(market, 'quote'), market.quote_asset.ticker)}`
+/** Derived as the registry reducer derives `pair`, but from the wallet's names for the legs. */
+const marketLabel = (market: Market, tickerOf: TickerOf): string =>
+  `${pairSideLabel(legacyMarketCorridor(market, 'base'), tickerOf(market.base_asset))}/${pairSideLabel(legacyMarketCorridor(market, 'quote'), tickerOf(market.quote_asset))}`
+
+/** A registry lists solvers rather than cards: one read-only card per listed solver, keyed by listing. */
+const registryCards = (markets: DiscoveredMarket[], network: string): [string, LocalCardInput][] => {
+  const cards = new Map<string, LocalCardInput>()
+  for (const market of markets) {
+    if (market.sourceType !== 'registry') continue
+    const key = JSON.stringify([market.source, market.solver, market.discovery_pubkey ?? null])
+    const card = (cards.get(key)?.card as Card | undefined) ?? {
+      name: market.solver,
+      discovery_pubkey: market.discovery_pubkey,
+      transports: market.transports,
+      markets: [],
+    }
+    card.markets = [...(card.markets ?? []), market]
+    cards.set(key, { network: network as Network, label: market.solver, card: card as LocalCardInput['card'] })
+  }
+  return [...cards.entries()]
+}
+
+const amountRange = (limits: { min: bigint; max: bigint }, asset: Market['base_asset'], tickerOf: TickerOf) =>
+  marketLegId(asset) === BTC_ASSET_ID
+    ? `${prettyNumber(limits.min, 0)} – ${prettyNumber(limits.max, 0)} sats`
+    : `${prettyAssetAmount(limits.min, asset.decimals)} – ${prettyAssetAmount(limits.max, asset.decimals)} ${tickerOf(asset)}`
 
 const getCardsForNetwork = (network: Network): LocalCardInput[] => {
   return readSolverCards().filter((c) => c.network === network)
 }
 
-function Button({ onClick, text }: { onClick?: () => void; text: string }) {
+function Button({
+  onClick,
+  text,
+  buttonRef,
+}: {
+  onClick?: () => void
+  text: string
+  buttonRef?: RefObject<HTMLButtonElement>
+}) {
   return (
-    <button type='button' className='pill-base' onClick={onClick}>
+    <button type='button' className='pill-base' onClick={onClick} ref={buttonRef}>
       {text}
     </button>
   )
 }
 
-function Editor({ card, toClose, onChange }: { card?: Card; toClose?: () => void; onChange?: () => void }) {
+function CardAvailability({ input }: { input: LocalCardInput }) {
+  const { t } = useTranslation()
+  const [error, setError] = useState('')
+  const card = input.card as Card
+  const enabled = isSolverCardEnabled(input)
+  return (
+    <div className='flex shrink-0 flex-col items-end gap-2'>
+      <Switch
+        size='lg'
+        checked={enabled}
+        aria-label={`${t('solvers.cardEnabled', { name: input.label ?? card.name })}${card.discovery_pubkey ? ` (${prettyLongText(card.discovery_pubkey)})` : ''}`}
+        onCheckedChange={(next) => {
+          try {
+            saveSolverCardEnabled(input, next)
+            setError('')
+          } catch {
+            setError(t('solvers.failedSave'))
+          }
+        }}
+      />
+      {!enabled ? <TextSecondary>{t('solvers.paused')}</TextSecondary> : null}
+      {error ? (
+        <div className='max-w-48'>
+          <ErrorMessage error text={error} />
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function Editor({
+  card,
+  original,
+  toClose,
+  onChange,
+  fallbackFocus,
+}: {
+  card?: Card
+  original?: LocalCardInput
+  toClose?: () => void
+  onChange?: () => void
+  fallbackFocus: RefObject<HTMLButtonElement>
+}) {
   const { aspInfo } = useContext(AspContext)
   const { t } = useTranslation()
 
   const [error, setError] = useState<string>('')
 
   const editorRef = useRef<HTMLTextAreaElement>(null)
+  const previousFocus = useRef(document.activeElement)
 
-  const saveCard = (olderCard?: Card) => {
+  const saveCard = () => {
     if (!editorRef.current) return
     if (!toClose || !onChange) return
     const inputValue = editorRef.current.value.trim()
@@ -97,12 +188,13 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose?: () => void
     }
     try {
       // a rename must not leave the old label lingering in storage
-      putSolverCard(input, olderCard && olderCard.name !== card.name ? olderCard.name : undefined)
+      putSolverCard(input, original)
     } catch (err) {
       consoleError(err, 'failed to save solver card')
       setError(t('solvers.failedSave'))
       return
     }
+    if (original && cardIdentity(input) !== cardIdentity(original)) previousFocus.current = null
     onChange()
     toClose()
   }
@@ -117,98 +209,108 @@ function Editor({ card, toClose, onChange }: { card?: Card; toClose?: () => void
   }
 
   return (
-    <FlexCol>
-      <ErrorMessage error={Boolean(error)} text={error} />
-      <textarea
-        rows={21}
-        ref={editorRef}
-        style={cssStyle}
-        onFocus={() => setError('')}
-        readOnly={!toClose || !onChange}
-        placeholder='{ version: 0, name: "My Card", markets: [...] }'
-        defaultValue={card ? JSON.stringify(card, null, 2) : ''}
-      />
-      {toClose && onChange ? (
-        <FlexRow>
-          <Button onClick={() => toClose()} text={t('common.cancel')} />
-          <Button onClick={() => saveCard(card)} text={t('components.save')} />
-        </FlexRow>
-      ) : null}
-    </FlexCol>
+    <Drawer
+      open
+      onOpenChange={(open) => {
+        if (!open) toClose?.()
+      }}
+    >
+      <DrawerContent
+        finalFocus={() =>
+          previousFocus.current instanceof HTMLElement &&
+          previousFocus.current !== document.body &&
+          previousFocus.current.isConnected
+            ? previousFocus.current
+            : fallbackFocus.current
+        }
+      >
+        <DrawerHeader className='shrink-0'>
+          <DrawerTitle>{t('solvers.editorTitle')}</DrawerTitle>
+          <DrawerDescription>{t('solvers.editorHint')}</DrawerDescription>
+        </DrawerHeader>
+        <div className='min-h-0 overflow-y-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))]'>
+          <FlexCol>
+            <ErrorMessage error={Boolean(error)} text={error} />
+            <textarea
+              rows={12}
+              className='max-h-[45dvh]'
+              aria-label={t('solvers.editorTitle')}
+              ref={editorRef}
+              style={cssStyle}
+              onFocus={() => setError('')}
+              readOnly={!toClose || !onChange}
+              placeholder='{ version: 0, name: "My Card", markets: [...] }'
+              defaultValue={card ? JSON.stringify(card, null, 2) : ''}
+            />
+            {toClose && onChange ? (
+              <FlexRow>
+                <Button onClick={() => toClose()} text={t('common.cancel')} />
+                <Button onClick={saveCard} text={t('components.save')} />
+              </FlexRow>
+            ) : null}
+          </FlexCol>
+        </div>
+      </DrawerContent>
+    </Drawer>
   )
 }
 
-/**
- * A card compiled into the build. Read-only on purpose: it cannot be removed
- * from storage it never lived in, and an edit would silently shadow it with a
- * stored copy — a user who wants different terms adds their own card.
- */
-function MarketLines({ markets }: { markets: Market[] }) {
+/** One row per direction the card serves: a side with no payout bounds is not offered at all. */
+function MarketDirections({ markets, tickerOf }: { markets: Market[]; tickerOf: TickerOf }) {
   const { t } = useTranslation()
-  if (markets.length === 0) return <TextSecondary>{t('solvers.publishedMarkets')}</TextSecondary>
-  return (
-    <FlexCol gap='8px'>
-      {markets.map((m) => (
-        <FlexCol gap='4px' key={stableStringify(m)}>
-          <DetailRow label='Pair' value={marketLabel(m)} />
-          <DetailRow label={t('solvers.fieldFee')} value={`${m.fee_bps} bps`} />
-          <DetailRow label={t('solvers.fieldBase')} value={`${m.min_base_amount} - ${m.max_base_amount} sats`} />
-          <DetailRow label={t('solvers.fieldQuote')} value={`${m.min_quote_amount} - ${m.max_quote_amount} sats`} />
-        </FlexCol>
-      ))}
-    </FlexCol>
+  const rows = markets.flatMap((market, index) =>
+    (['base', 'quote'] as const).flatMap((give) => {
+      const take = give === 'base' ? 'quote' : 'base'
+      const limits = sideLimits(market, take)
+      if (!limits) return []
+      const direction = { card: market as DiscoveredMarket, give }
+      return [
+        {
+          key: `${index}-${give}`,
+          label: directionLabelOf(direction, tickerOf),
+          fee: feeLabelOf(direction, tickerOf),
+          range: amountRange(limits, take === 'base' ? market.base_asset : market.quote_asset, tickerOf),
+        },
+      ]
+    }),
   )
-}
-
-function DetailRow({ label, value, copy }: { label: string; value: string; copy?: string }) {
+  if (rows.length === 0) return <TextSecondary>{t('solvers.publishedMarkets')}</TextSecondary>
   return (
-    <FlexRow between>
-      <TextSecondary>{label}</TextSecondary>
-      <Text small right copy={copy}>
-        {value}
-      </Text>
-    </FlexRow>
+    <div className='table--receipt'>
+      {rows.map((row) => (
+        <div key={row.key} className='table-row first:border-t-0'>
+          <span className='min-w-0'>
+            <span className='block text-sm'>{row.label}</span>
+            <span className='mt-0.5 block text-xs text-[var(--neutral-500)]'>{row.fee}</span>
+          </span>
+          <span className='shrink-0 text-right text-sm font-medium tabular-nums'>{row.range}</span>
+        </div>
+      ))}
+    </div>
   )
 }
 
 function CardDetails({ input, network }: { input: LocalCardInput; network: Network }) {
   const { t } = useTranslation()
+  const tickerOf = useMarketTicker(network)
   const card = input.card as Card
   const relays = card.transports?.nostr?.relays ?? []
-  const markets = card.markets ?? []
   const remote = useRemoteSolverCard(card, network)
   const [view, setView] = useState<'original' | 'current'>('original')
   const [showRaw, setShowRaw] = useState(false)
   const remoteCard =
     remote.status === 'has-remote' && remote.card && typeof remote.card === 'object' ? (remote.card as Card) : null
-  const remoteMarkets = remoteCard?.markets ?? []
-  const showingCurrent = view === 'current' && remoteCard !== null
-  const shownCard: unknown = remote.status === 'has-remote' && view === 'current' ? remote.card : card
+  const shownCard = view === 'current' && remoteCard !== null ? remoteCard : card
+  const solverRows: TableData = [
+    [t('solvers.fieldName'), card.name],
+    [t('common.network'), network],
+    [t('solvers.fieldDiscoveryKey'), card.discovery_pubkey],
+    [t('solvers.fieldRelays'), relays.join(', ')],
+    [t('solvers.fieldVersion'), card.version === undefined ? undefined : String(card.version)],
+  ]
   return (
-    <FlexCol gap='12px'>
-      <FlexCol gap='2px'>
-        <Text bold>{t('solvers.cardInfo')}</Text>
-        <TextSecondary>{input.label}</TextSecondary>
-      </FlexCol>
-      <FlexCol gap='4px'>
-        <DetailRow label={t('solvers.fieldName')} value={card.name} />
-        <DetailRow label={t('solvers.fieldVersion')} value={String(card.version)} />
-        <DetailRow label={t('common.network')} value={network} />
-        {card.discovery_pubkey ? (
-          <DetailRow
-            label={t('solvers.fieldDiscoveryKey')}
-            value={prettyLongText(card.discovery_pubkey)}
-            copy={card.discovery_pubkey}
-          />
-        ) : null}
-        {relays.length > 0 ? (
-          <FlexCol gap='2px'>
-            {relays.map((relay, idx) => (
-              <DetailRow key={relay} label={idx === 0 ? 'Relays' : ''} value={relay} />
-            ))}
-          </FlexCol>
-        ) : null}
-      </FlexCol>
+    <div className='flex flex-col gap-5'>
+      <Table data={solverRows} variant='receipt' />
       {remoteCard !== null ? (
         <SegmentedControl
           options={['original', 'current']}
@@ -217,92 +319,119 @@ function CardDetails({ input, network }: { input: LocalCardInput; network: Netwo
           getLabel={(v) => (v === 'current' ? t('solvers.currentLabel') : t('solvers.originalLabel'))}
         />
       ) : null}
-      <Text bold>{t('solvers.marketsLabel')}</Text>
-      <FlexCol gap='4px'>
-        <MarketLines markets={showingCurrent ? remoteMarkets : markets} />
-      </FlexCol>
-      {remote.status === 'checking' ? <TextSecondary>{t('solvers.remoteChecking')}</TextSecondary> : null}
-      {remote.status === 'no-relays' ? <TextSecondary>{t('solvers.remoteNoRelays')}</TextSecondary> : null}
-      {remote.status === 'not-found' ? <TextSecondary>{t('solvers.remoteNotFound')}</TextSecondary> : null}
-      {remote.status === 'error' ? <TextSecondary>{t('solvers.remoteError')}</TextSecondary> : null}
-      <FlexCol gap='4px'>
+      <section className='settings-section'>
+        <p className='settings-section-label'>{t('solvers.marketsLabel')}</p>
+        <MarketDirections markets={shownCard.markets ?? []} tickerOf={tickerOf} />
+        {remote.status === 'checking' ? <TextSecondary>{t('solvers.remoteChecking')}</TextSecondary> : null}
+        {remote.status === 'no-relays' ? <TextSecondary>{t('solvers.remoteNoRelays')}</TextSecondary> : null}
+        {remote.status === 'not-found' ? <TextSecondary>{t('solvers.remoteNotFound')}</TextSecondary> : null}
+        {remote.status === 'error' ? <TextSecondary>{t('solvers.remoteError')}</TextSecondary> : null}
+      </section>
+      <section className='settings-section items-start'>
         <Button
           onClick={() => setShowRaw((show) => !show)}
           text={showRaw ? t('solvers.hideRaw') : t('solvers.viewRaw')}
         />
         {showRaw ? (
-          <div
-            style={{
-              maxHeight: '12rem',
-              overflow: 'auto',
-              border: '1px solid var(--neutral-100)',
-              borderRadius: '0.5rem',
-              padding: '0.5rem',
-            }}
-          >
-            <pre
-              style={{
-                margin: 0,
-                fontFamily: 'monospace',
-                fontSize: 11,
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-              }}
-            >
-              {JSON.stringify(shownCard, null, 2)}
-            </pre>
-          </div>
+          <pre className='table--receipt m-0 max-h-48 w-full overflow-auto p-3 font-mono text-[11px] break-words whitespace-pre-wrap'>
+            {JSON.stringify(shownCard, null, 2)}
+          </pre>
         ) : null}
-      </FlexCol>
-    </FlexCol>
+      </section>
+    </div>
   )
 }
 
-function BundledCardLine({ input }: { input: LocalCardInput }) {
+function CardInfo({
+  input,
+  open,
+  onOpenChange,
+}: {
+  input: LocalCardInput
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const { t } = useTranslation()
+  const network = (input.network ?? 'bitcoin') as Network
+  return (
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent>
+        <DrawerHeader className='shrink-0 text-left'>
+          <DrawerTitle>{input.label ?? (input.card as Card).name}</DrawerTitle>
+          <DrawerDescription>{t('solvers.cardInfo')}</DrawerDescription>
+        </DrawerHeader>
+        <div className='min-h-0 overflow-y-auto overscroll-contain px-4 pb-4'>
+          {open ? <CardDetails input={input} network={network} /> : null}
+        </div>
+        <div className='shrink-0 border-t border-[var(--neutral-100)] px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]'>
+          <button
+            type='button'
+            className='pill-base flex w-full items-center justify-center'
+            onClick={() => onOpenChange(false)}
+          >
+            {t('common.close')}
+          </button>
+        </div>
+      </DrawerContent>
+    </Drawer>
+  )
+}
+
+/**
+ * A card this wallet did not store: compiled into the build, or listed by the
+ * network's registry. Read-only on purpose: it cannot be removed from storage
+ * it never lived in, and an edit would silently shadow it with a stored copy —
+ * a user who wants different terms adds their own card.
+ */
+function ReadOnlyCardLine({ input, badge, pausable }: { input: LocalCardInput; badge: string; pausable: boolean }) {
   const { t } = useTranslation()
   const card = input.card as Card
-  const pairs = card.markets?.map(marketLabel).join(', ') ?? t('solvers.publishedMarkets')
+  const tickerOf = useMarketTicker(input.network ?? 'bitcoin')
+  const pairs = card.markets?.map((m) => marketLabel(m, tickerOf)).join(', ') ?? t('solvers.publishedMarkets')
   const [showInfo, setShowInfo] = useState(false)
 
   return (
     <Shadow>
-      <Modal open={showInfo} onOpenChange={setShowInfo}>
-        <div role='dialog' aria-modal='true' style={{ maxHeight: '80vh', overflowY: 'auto' }}>
-          <FlexCol gap='1rem'>
-            <CardDetails input={input} network={(input.network ?? 'bitcoin') as Network} />
-            <FlexRow centered>
-              <Button onClick={() => setShowInfo(false)} text={t('common.close')} />
-            </FlexRow>
-          </FlexCol>
-        </div>
-      </Modal>
+      <CardInfo input={input} open={showInfo} onOpenChange={setShowInfo} />
       <FlexCol padding='8px' gap='8px'>
         <FlexRow between>
           <FlexCol gap='4px'>
-            <Text>{input.label ?? card.name}</Text>
+            <Text wrap>{input.label ?? card.name}</Text>
             <TextSecondary>{pairs}</TextSecondary>
+            {card.discovery_pubkey ? <TextSecondary>{prettyLongText(card.discovery_pubkey)}</TextSecondary> : null}
           </FlexCol>
-          <FlexRow end minWidth='64px'>
-            <Button onClick={() => setShowInfo(true)} text={t('solvers.viewInfo')} />
-            <Text small color='neutral-500'>
-              {t('solvers.builtIn')}
-            </Text>
-          </FlexRow>
+          {pausable ? <CardAvailability input={input} /> : null}
+        </FlexRow>
+        <FlexRow end minWidth='10rem'>
+          <Button onClick={() => setShowInfo(true)} text={t('solvers.viewInfo')} />
+          <Text small color='neutral-500'>
+            {badge}
+          </Text>
         </FlexRow>
       </FlexCol>
     </Shadow>
   )
 }
 
-function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => void }) {
+function CardLine({
+  input,
+  onChange,
+  fallbackFocus,
+}: {
+  input: LocalCardInput
+  onChange: () => void
+  fallbackFocus: RefObject<HTMLButtonElement>
+}) {
   const { t } = useTranslation()
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [showEditor, setShowEditor] = useState(false)
+
   const [showInfo, setShowInfo] = useState(false)
   const [error, setError] = useState<string>('')
 
   const card = input.card as Card
-  const pairs = card.markets?.map(marketLabel).join(', ') ?? t('solvers.publishedMarkets')
+  const tickerOf = useMarketTicker(input.network ?? 'bitcoin')
+  const pairs = card.markets?.map((m) => marketLabel(m, tickerOf)).join(', ') ?? t('solvers.publishedMarkets')
 
   const handleConfirmRemove = () => {
     setConfirmRemove(true)
@@ -328,7 +457,7 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
   }
 
   return (
-    <Shadow>
+    <Shadow testId='stored-solver-card'>
       <Modal open={confirmRemove} onOpenChange={setConfirmRemove}>
         {error ? (
           <ErrorMessage error={Boolean(error)} text={error} />
@@ -351,29 +480,30 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
           </div>
         )}
       </Modal>
-      <Modal open={showInfo} onOpenChange={setShowInfo}>
-        <div role='dialog' aria-modal='true' style={{ maxHeight: '80vh', overflowY: 'auto' }}>
-          <FlexCol gap='1rem'>
-            <CardDetails input={input} network={(input.network ?? 'bitcoin') as Network} />
-            <FlexRow centered>
-              <Button onClick={() => setShowInfo(false)} text={t('common.close')} />
-            </FlexRow>
-          </FlexCol>
-        </div>
-      </Modal>
+      <CardInfo input={input} open={showInfo} onOpenChange={setShowInfo} />
       <FlexCol padding='8px' gap='8px'>
         <FlexRow between>
           <FlexCol gap='4px'>
-            <Text>{input.label}</Text>
+            <Text wrap>{input.label}</Text>
             <TextSecondary>{pairs}</TextSecondary>
+            {card.discovery_pubkey ? <TextSecondary>{prettyLongText(card.discovery_pubkey)}</TextSecondary> : null}
           </FlexCol>
-          <FlexRow end>
-            <Button onClick={handleShowInfo} text={t('solvers.viewInfo')} />
-            <Button onClick={handleEdit} text={t('solvers.edit')} />
-            <Button onClick={handleConfirmRemove} text={t('solvers.remove')} />
-          </FlexRow>
+          <CardAvailability input={input} />
         </FlexRow>
-        {showEditor ? <Editor card={card} toClose={() => setShowEditor(false)} onChange={onChange} /> : null}
+        <FlexRow end>
+          <Button onClick={handleShowInfo} text={t('solvers.viewInfo')} />
+          <Button onClick={handleEdit} text={t('solvers.edit')} />
+          <Button onClick={handleConfirmRemove} text={t('solvers.remove')} />
+        </FlexRow>
+        {showEditor ? (
+          <Editor
+            card={card}
+            original={input}
+            toClose={() => setShowEditor(false)}
+            onChange={onChange}
+            fallbackFocus={fallbackFocus}
+          />
+        ) : null}
       </FlexCol>
     </Shadow>
   )
@@ -381,11 +511,15 @@ function CardLine({ input, onChange }: { input: LocalCardInput; onChange: () => 
 
 export default function Solvers() {
   const { aspInfo } = useContext(AspContext)
+  const { allMarkets = [] } = useContext(SwapsContext)
   const { backupSolverCards } = useContext(BackupContext)
   const { t } = useTranslation()
 
+  useSyncExternalStore(subscribeSolverRouting, getSolverRoutingVersion, getSolverRoutingVersion)
   const [localCards, setLocalCards] = useState<LocalCardInput[]>()
   const [showEditor, setShowEditor] = useState(false)
+  const [view, setView] = useState('priority')
+  const addButtonRef = useRef<HTMLButtonElement>(null)
 
   // The card store notifies discovery on write, so this only owes the backup;
   // on unmount to keep it at one Nostr write per visit rather than per edit.
@@ -408,21 +542,37 @@ export default function Solvers() {
   }
 
   const bundledCards = BUNDLED_CARDS.filter((c) => (c.network ?? 'bitcoin') === aspInfo.network)
+  const listedCards = registryCards(allMarkets, aspInfo.network)
 
   const storedCount = localCards?.length ?? 0
-  const title =
-    bundledCards.length > 0
-      ? storedCount > 0
-        ? t(bundledCards.length > 1 ? 'solvers.builtInPlusOwnPlural' : 'solvers.builtInPlusOwnSingular', {
-            builtIn: bundledCards.length,
-            own: storedCount,
-          })
-        : t(bundledCards.length > 1 ? 'solvers.buildShipsPlural' : 'solvers.buildShipsSingular', {
-            count: bundledCards.length,
-          })
-      : storedCount > 0
-        ? t(storedCount > 1 ? 'solvers.storedPlural' : 'solvers.storedSingular', { count: storedCount })
-        : t('solvers.noStoredCards')
+
+  let title = ''
+
+  if (bundledCards.length === 0) {
+    if (storedCount === 0) {
+      title = t('solvers.noStoredCards')
+    } else if (storedCount === 1) {
+      title = t('solvers.storedSingular', { count: storedCount })
+    } else {
+      title = t('solvers.storedPlural', { count: storedCount })
+    }
+  } else if (bundledCards.length === 1) {
+    if (storedCount === 0) {
+      title = t('solvers.buildShipsSingular', { count: bundledCards.length })
+    } else if (storedCount === 1) {
+      title = t('solvers.builtInSingularPlusOwnSingular', { builtIn: bundledCards.length, own: storedCount })
+    } else {
+      title = t('solvers.builtInSingularPlusOwnPlural', { builtIn: bundledCards.length, own: storedCount })
+    }
+  } else {
+    if (storedCount === 0) {
+      title = t('solvers.buildShipsPlural', { count: bundledCards.length })
+    } else if (storedCount === 1) {
+      title = t('solvers.builtInPluralPlusOwnSingular', { builtIn: bundledCards.length, own: storedCount })
+    } else {
+      title = t('solvers.builtInPluralPlusOwnPlural', { builtIn: bundledCards.length, own: storedCount })
+    }
+  }
 
   return (
     <>
@@ -432,20 +582,50 @@ export default function Solvers() {
           <FlexCol>
             <FlexRow between>
               <Text wrap>{title}</Text>
-              <Button onClick={() => setShowEditor(true)} text={t('solvers.addNew')} />
+              <Button
+                buttonRef={addButtonRef}
+                onClick={() => {
+                  setView('cards')
+                  setShowEditor(true)
+                }}
+                text={t('solvers.addNew')}
+              />
             </FlexRow>
-            {showEditor ? <Editor toClose={() => setShowEditor(false)} onChange={handleChange} /> : null}
-            {bundledCards.length > 0 ? (
+            <SegmentedControl
+              options={['priority', 'cards']}
+              selected={view}
+              onChange={setView}
+              getLabel={(option) => t(option === 'priority' ? 'solvers.priorityTab' : 'solvers.cardsTab')}
+            />
+            {view === 'cards' ? <TextSecondary>{t('solvers.pauseHint')}</TextSecondary> : null}
+            {view === 'priority' ? <SolverRouting network={aspInfo.network} /> : null}
+            {showEditor ? (
+              <Editor toClose={() => setShowEditor(false)} onChange={handleChange} fallbackFocus={addButtonRef} />
+            ) : null}
+            {view === 'cards' && bundledCards.length + listedCards.length > 0 ? (
               <FlexCol>
                 {bundledCards.map((input) => (
-                  <BundledCardLine key={input.label ?? (input.card as Card).name} input={input} />
+                  <ReadOnlyCardLine key={cardIdentity(input)} input={input} badge={t('solvers.builtIn')} pausable />
+                ))}
+                {listedCards.map(([key, input]) => (
+                  <ReadOnlyCardLine
+                    key={key}
+                    input={input}
+                    badge={t('solvers.fromRegistry')}
+                    pausable={Boolean((input.card as Card).discovery_pubkey)}
+                  />
                 ))}
               </FlexCol>
             ) : null}
-            {localCards && localCards.length > 0 ? (
+            {view === 'cards' && localCards && localCards.length > 0 ? (
               <FlexCol>
                 {localCards.map((input) => (
-                  <CardLine key={input.label} input={input} onChange={handleChange} />
+                  <CardLine
+                    key={cardIdentity(input)}
+                    input={input}
+                    onChange={handleChange}
+                    fallbackFocus={addButtonRef}
+                  />
                 ))}
               </FlexCol>
             ) : null}

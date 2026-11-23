@@ -53,6 +53,29 @@ export const readWalletFromStorage = (): Wallet | undefined => {
   return getStorageItem('wallet', undefined, (val) => JSON.parse(val))
 }
 
+const LAST_SATS_KEY = 'lastSats'
+
+export const readLastSats = (pubkey: string | undefined): number | undefined => {
+  if (!pubkey) return
+  return getStorageItem<number | undefined>(LAST_SATS_KEY, undefined, (raw) => {
+    const parsed = JSON.parse(raw) as { pubkey?: string; sats?: unknown }
+    if (
+      parsed.pubkey !== pubkey ||
+      typeof parsed.sats !== 'number' ||
+      !Number.isFinite(parsed.sats) ||
+      parsed.sats < 0
+    ) {
+      return undefined
+    }
+    return parsed.sats
+  })
+}
+
+export const saveLastSats = (pubkey: string, sats: number): void => {
+  if (!pubkey || !Number.isFinite(sats) || sats < 0) return
+  setStorageItemSafely(LAST_SATS_KEY, JSON.stringify({ pubkey, sats }), 'Failed to save last balance')
+}
+
 export type TransactionActivityMetadata = {
   assetAction?: 'issued' | 'reissued' | 'burned'
   destination?: string

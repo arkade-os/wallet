@@ -159,7 +159,9 @@ export default function App() {
     if (authState === 'locked') return navigate(Pages.Unlock)
     // boot a ready wallet home from Init — do not list `screen` as a dep:
     // that retriggers the no-pubkey → Init redirect and bounces Restore/Create
-    if (screen === Pages.Init && authState === 'authenticated') return navigate(Pages.Wallet)
+    if (screen === Pages.Init && (authState === 'authenticated' || authState === 'passwordless')) {
+      return navigate(Pages.Wallet)
+    }
   }, [
     walletLoaded,
     wallet.pubkey,
@@ -185,11 +187,22 @@ export default function App() {
   const allChecksReady = jsCapabilitiesChecked && configLoaded && aspReady
   const hasStoredWallet = walletLoaded && !!wallet.pubkey
   const shouldShowUnlock = hasStoredWallet && authState === 'locked' && !aspInfo.unreachable
+  const bootReady = jsCapabilitiesChecked && configLoaded && (aspReady || hasStoredWallet)
 
   // Hold the loading screen until wallet data is ready, except while the connect
   // page is showing so it can run swap recovery before navigating.
   const isConnectIntent = appIntent?.status === 'connect'
   const isInInitFlow = !!(initInfo.password || initInfo.privateKey)
+  const showReturningHome =
+    hasStoredWallet &&
+    isCapable &&
+    !dataReady &&
+    !loadError &&
+    !appIntent &&
+    !isInInitFlow &&
+    !isIAB &&
+    !aspInfo.unreachable &&
+    (authState === 'passwordless' || authState === 'authenticated')
   const shouldHoldOnLoading =
     hasStoredWallet &&
     (!initialized || (!dataReady && !(isConnectIntent && screen === Pages.AppIntent))) &&
@@ -271,15 +284,19 @@ export default function App() {
   // so onboarding mounted every boot — invisible, but focusable and read aloud.
   const onboardingIsMoot = hasStoredWallet && authState === 'authenticated' && screen === Pages.Init
   const page =
-    isDevAutoInitializing || !(allChecksReady || isNewUser)
+    isDevAutoInitializing || !(bootReady || isNewUser)
       ? Pages.Loading
-      : shouldHoldOnLoading
-        ? Pages.Loading
-        : shouldShowUnlock
-          ? Pages.Unlock
-          : onboardingIsMoot
-            ? Pages.Wallet
-            : screen
+      : showReturningHome
+        ? Pages.Wallet
+        : authState === 'locked' && !aspReady
+          ? Pages.Loading
+          : shouldHoldOnLoading
+            ? Pages.Loading
+            : shouldShowUnlock
+              ? Pages.Unlock
+              : onboardingIsMoot
+                ? Pages.Wallet
+                : screen
 
   // Boot animation: persists on Loading, then flies to the LogoIcon position when
   // Wallet is reached. For any other destination (Unlock, Init, etc.), exits with fly-up.

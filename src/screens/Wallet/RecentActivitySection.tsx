@@ -12,24 +12,29 @@ import { useTranslation } from '../../providers/language'
  * Shows the most recent transactions with a View all link.
  */
 export default function RecentActivitySection() {
-  const { txs } = useContext(WalletContext)
+  const { booting, dataReady, txs } = useContext(WalletContext)
   const { navigate } = useContext(NavigationContext)
   const { t } = useTranslation()
 
+  const homeBusy = Boolean(booting) && !dataReady
+
   const handleViewAll = () => {
+    if (homeBusy) return
     hapticLight()
     navigate(Pages.Activity)
   }
 
-  if (!txs || txs.length === 0) {
+  if (homeBusy || !txs || txs.length === 0) {
     return (
       <section className='home-section'>
         <div className='flex w-full items-center justify-between px-1'>
           <span className='home-section-label'>{t('wallet.recentActivity')}</span>
         </div>
-        <div className='home-section__content'>
-          <EmptyTxList />
-        </div>
+        {homeBusy ? null : (
+          <div className='home-section__content'>
+            <EmptyTxList />
+          </div>
+        )}
       </section>
     )
   }
