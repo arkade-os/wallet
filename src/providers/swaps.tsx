@@ -81,14 +81,8 @@ import {
 } from '@arkade-os/solver-discovery'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
-import {
-  discoverMarkets,
-  marketAssetDisplay,
-  marketLegId,
-  swapAssetId,
-  swapRouteEdges,
-  watchSwapMarkets,
-} from '../lib/swapMarkets'
+import { discoverMarkets, marketAssetDisplay, marketLegId, swapAssetId, watchSwapMarkets } from '../lib/swapMarkets'
+import { swapRouteEdges } from '../lib/swapRouteMarkets'
 import { getSolverCardsVersion, subscribeSolverCards } from '../lib/solverCards'
 import { createSendRouter, isLightningMarket } from '../lib/sendRouter'
 import { claimFeeRate } from '../lib/claimFee'
@@ -144,6 +138,7 @@ import {
   swapRouteFamily,
   swapRouteFundingKey,
   swapRouteLegKey,
+  swapRoutePointerKey,
   type SwapRouteProgress,
 } from '../lib/swapRouteExecution'
 import {
@@ -1133,9 +1128,10 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     return plan
   }
 
-  const routeKey = (id: string) => {
+  const routeKeys = (id: string) => {
     if (!wallet.pubkey || !id) throw new Error('Swap route wallet is unavailable')
-    return swapRouteFundingKey(`${aspInfo.network}:${wallet.pubkey}`, id)
+    const scope = `${aspInfo.network}:${wallet.pubkey}`
+    return { scope, key: swapRouteFundingKey(scope, id), ownerKey: swapRouteFundingKey(scope, 'active') }
   }
 
   const readSwapRouteProgress = async (key: string, plan: SwapRoutePlan, guarded: boolean) => {
@@ -1147,6 +1143,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       let progress: SwapRouteProgress = { phase: 'waiting', step, swapId: attempt.swapId }
       if (!record) {
         if (canReplaceMissingPaymentRecord(attempt, guarded)) continue
+        if (!routeQuoteLive(quote))
+          return { progress: { ...progress, phase: 'stopped' as const, reason: 'recovery' as const } }
         return { progress }
       }
       if (
@@ -1160,6 +1158,9 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       if (state === 'waiting') {
         if (record.family === 'rfq' && plan.expiresAt <= Math.floor(Date.now() / 1000)) {
           return { progress: { ...progress, phase: 'stopped' as const, reason: 'expired' as const } }
+        }
+        if (record.family === 'offer' && !record.fundingTxid && !routeQuoteLive(quote)) {
+          return { progress: { ...progress, phase: 'stopped' as const, reason: 'recovery' as const } }
         }
         return { progress: { ...progress, invoice: routeFundingInvoice(record, plan) } }
       }
@@ -1182,24 +1183,42 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const getSwapRoute: SwapsContextProps['getSwapRoute'] = async (id) => {
-    const key = routeKey(id)
-    const prior = await readPaymentFunding(key)
-    if (!prior?.route) return
-    const plan = prior.route
-    const { progress } = await withPaymentFundingStatus(key, (guarded) => readSwapRouteProgress(key, plan, guarded))
-    return { plan, progress }
+    const { key, ownerKey } = routeKeys(id)
+    return withPaymentFundingStatus(ownerKey, async (guarded) => {
+      const prior = await readPaymentFunding(key)
+      if (!prior?.route) {
+        if (!guarded && navigator.locks) throw new PaymentSubmissionPending(id)
+        return undefined
+      }
+      const plan = prior.route
+      const progress = prior.routeStop ?? (await readSwapRouteProgress(key, plan, guarded)).progress
+      return { plan, progress }
+    })
   }
 
   const runSwapRouteHere = async (id: string, start: boolean): Promise<SwapRouteProgress> => {
-    const key = routeKey(id)
-    return withPaymentFundingLock(key, async (guarded) => {
+    const { scope, key, ownerKey } = routeKeys(id)
+    return withPaymentFundingLock(ownerKey, async (guarded) => {
       if (!guarded) throw new Error('Swap routes require browser support for coordinating wallet tabs')
       const issuer = held.current
       const client = await driving()
       const previous = await readPaymentFunding(key)
+      let owner = await readPaymentFunding(ownerKey)
+      if (previous?.routeStop) return previous.routeStop
       let plan = previous?.route
+      if (plan && owner?.quoteId !== id) return { phase: 'stopped', step: 0, reason: 'quote-unavailable' }
       if (!plan) {
         if (!start) throw new Error('Review and confirm the swap route before funding')
+        if (localStorage.getItem(swapRoutePointerKey(scope)) !== id) throw new QuoteUnavailable()
+        if (owner && owner.quoteId !== id) {
+          const otherKey = swapRouteFundingKey(scope, owner.quoteId)
+          const other = await readPaymentFunding(otherKey)
+          if (other?.route && !other.routeStop) {
+            const { progress } = await readSwapRouteProgress(otherKey, other.route, guarded)
+            if (progress.phase === 'ready' || progress.phase === 'waiting')
+              throw new PaymentSubmissionPending(owner.swapId)
+          }
+        }
         plan = plannedRoutes.current.get(id)
         if (!plan) throw new QuoteUnavailable()
         assertJoinedQuotes(plan.quotes)
@@ -1217,9 +1236,14 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
           }
         }
         const first = plan.quotes[0]
+        const swapId = assetSwapIdOf(swapRouteFamily(first), first.id)
+        const nextOwner = { quoteId: id, swapId, guarded: true as const }
+        const raced = await claimPaymentFunding(ownerKey, nextOwner, owner?.quoteId)
+        if (raced) throw new PaymentSubmissionPending(raced.swapId)
+        owner = nextOwner
         const prior = await claimPaymentFunding(key, {
           quoteId: id,
-          swapId: assetSwapIdOf(swapRouteFamily(first), first.id),
+          swapId,
           route: plan,
         })
         if (prior) throw new PaymentSubmissionPending(prior.swapId)
@@ -1228,7 +1252,12 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       if (progress.phase !== 'ready') return progress
       const reviewed = plan.quotes[progress.step]
       const quote = issued.current.get(reviewed.id)
-      if (!quote || held.current !== issuer) return { ...progress, phase: 'stopped', reason: 'quote-unavailable' }
+      if (!quote || held.current !== issuer) {
+        const stop = { ...progress, phase: 'stopped', reason: 'quote-unavailable' } as const
+        if (owner?.quoteId === id)
+          await claimPaymentFunding(key, { quoteId: id, swapId: owner.swapId, route: plan, routeStop: stop }, id)
+        return stop
+      }
       const legKey = swapRouteLegKey(key, progress.step)
       if (quote.route.give.corridor === 'lightning') {
         const previous = await readPaymentFunding(legKey)

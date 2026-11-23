@@ -1,6 +1,7 @@
 import { hex } from '@scure/base'
 import type { CorridorSwapRecord, LockupSpendIndexer } from '@arkade-os/swap'
 import { readLockupFate } from '@arkade-os/swap/protocol'
+import type { SwapRouteProgress } from './swapRouteExecution'
 import type { SwapRoutePlan } from './swapRoutePlan'
 
 const STORE = 'attempts'
@@ -13,6 +14,7 @@ export interface PaymentFundingAttempt {
   recordSaved?: true
   chain?: { lightningQuoteId: string; sats: bigint }
   route?: SwapRoutePlan
+  routeStop?: SwapRouteProgress
 }
 
 export class PaymentSubmissionPending extends Error {

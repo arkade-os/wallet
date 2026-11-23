@@ -35,7 +35,8 @@ import { formatFiatAmountParts, normalizeBitcoinUnit, prettyFiatAmount, prettyNu
 import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
 import { swapRouteTicker } from '../../../lib/swapDisplay'
 import { BTC_ASSET_ID, findMarket, l1ScriptForAddress, validatePlan } from '@arkade-os/swap/protocol'
-import { marketLegId, preFeeDisplayRate, swapAssetId, swapRouteEdges } from '../../../lib/swapMarkets'
+import { marketLegId, preFeeDisplayRate, swapAssetId } from '../../../lib/swapMarkets'
+import { swapRouteEdges } from '../../../lib/swapRouteMarkets'
 import { type AssetSwapQuoteSnapshot } from '../../../lib/swapRepository'
 import { Currencies, Unit } from '../../../lib/types'
 import { AspContext } from '../../../providers/asp'
@@ -146,7 +147,7 @@ export default function WalletSwap() {
     return {
       assetId: lightningId,
       ticker: 'sats',
-      name: t('swap.routeLightningSource'),
+      name: t('receive.methodLightning'),
       decimals: 0,
       balance: 0n,
       lightningFunding: true,
@@ -893,7 +894,7 @@ export default function WalletSwap() {
       (!hasSavedSolver || firmError || (!canContinue && (status === 'success' || status === 'error'))),
   )
   const routeAssetLabel = (id: AssetId) => {
-    if (id === lightningId) return { name: t('swap.routeLightningSource'), ticker: t('common.sats'), decimals: 0 }
+    if (id === lightningId) return { name: t('receive.methodLightning'), ticker: t('common.sats'), decimals: 0 }
     if (isBtcAsset(id)) return { name: t('send.bitcoin'), ticker: t('common.sats'), decimals: 0 }
     const assetId = parseAssetId(id).assetReference
     const asset = swapTargets.find((item) => item.assetId === assetId) ?? { ticker: assetId, decimals: 0 }

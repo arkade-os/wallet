@@ -27,6 +27,7 @@ import { createSendRouter } from '../../lib/sendRouter'
 import { makeSwapClient } from '../../lib/swapClient'
 import { checkpointPaymentRecord, type PaymentFundingAttempt } from '../../lib/paymentFunding'
 import { assetSwapRepository } from '../../lib/swapRepository'
+import { swapRouteFundingKey, swapRouteLegKey, swapRoutePointerKey } from '../../lib/swapRouteExecution'
 import fixtures from '../fixtures.json'
 
 const success = vi.hoisted(() => vi.fn())
@@ -675,6 +676,53 @@ describe('SwapsProvider chained Lightning payments', () => {
       reason: swapId,
     })
     expect(accept).toHaveBeenCalledTimes(1)
+  })
+
+  it('fences a different active route and records a stop when the driver loses its issued quotes', async () => {
+    const scope = 'bitcoin:test-wallet'
+    const first = conversionQuote()
+    const destination = arkadeAsset('bitcoin', asset.AssetId.fromString(`${'ab'.repeat(32)}0000`))
+    const next: Quote = {
+      ...first,
+      id: 'route-destination',
+      route: {
+        give: { corridor: 'arkade', asset: btc, instrument: { kind: 'wallet' } },
+        take: { corridor: 'arkade', asset: destination, instrument: { kind: 'wallet' } },
+      },
+      give: { asset: btc, amount: debit },
+      take: { asset: destination, amount: 9n },
+    }
+    const plan = { id: 'approved-route', quotes: [first, next], expiresAt: first.expiresAt }
+    const key = swapRouteFundingKey(scope, plan.id)
+    const swapId = assetSwapIdOf('offer', first.id)
+    attempts.set(swapRouteFundingKey(scope, 'active'), { quoteId: plan.id, swapId })
+    attempts.set(key, { quoteId: plan.id, swapId, route: plan })
+    attempts.set(swapRouteLegKey(key, 0), { quoteId: first.id, swapId })
+    await assetSwapRepository.saveSwapRecord(assetRecord(first))
+
+    const { result } = await mountChainedPayment()
+    localStorage.setItem(swapRoutePointerKey(scope), 'replacement-route')
+    try {
+      await expect(result.current.startSwapRoute('replacement-route')).rejects.toMatchObject({
+        name: 'PaymentSubmissionPending',
+        reason: swapId,
+      })
+      await assetSwapRepository.saveSwapRecord({ ...assetRecord(first), status: 'fulfilled', spentTxid: payout.txid })
+      getSpendableVtxos.mockResolvedValue([payout])
+      await expect(result.current.getSwapRoute(plan.id)).resolves.toMatchObject({
+        progress: { phase: 'ready', step: 1 },
+      })
+      await expect(result.current.advanceSwapRoute(plan.id)).resolves.toMatchObject({
+        phase: 'stopped',
+        reason: 'quote-unavailable',
+      })
+      await expect(result.current.getSwapRoute(plan.id)).resolves.toMatchObject({
+        progress: { phase: 'stopped', reason: 'quote-unavailable' },
+      })
+      expect(accept).not.toHaveBeenCalled()
+    } finally {
+      localStorage.removeItem(swapRoutePointerKey(scope))
+    }
   })
 })
 

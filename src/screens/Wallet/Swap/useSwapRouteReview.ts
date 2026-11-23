@@ -1,7 +1,7 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import { extractError } from '../../../lib/error'
 import { paymentQuoteExpiry } from '../../../lib/paymentQuotes'
-import type { SwapRouteProgress } from '../../../lib/swapRouteExecution'
+import { swapRoutePointerKey as pointerKey, type SwapRouteProgress } from '../../../lib/swapRouteExecution'
 import type { SwapRoutePlan, SwapRouteRequest } from '../../../lib/swapRoutePlan'
 import { useTranslation } from '../../../providers/language'
 import { SwapsContext } from '../../../providers/swaps'
@@ -9,7 +9,6 @@ import { SwapsContext } from '../../../providers/swaps'
 type Operation = 'quote' | 'start' | 'advance' | 'resume'
 type Review = { scope: string; inputKey?: string; id?: string; plan?: SwapRoutePlan; progress?: SwapRouteProgress }
 
-const pointerKey = (scope: string) => `active-swap-route:${scope}`
 const funding = (kind: Operation | undefined) => kind === 'start' || kind === 'advance'
 
 export function canAdvanceRoute(plan: SwapRoutePlan, progress: SwapRouteProgress): boolean {

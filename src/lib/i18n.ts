@@ -847,7 +847,6 @@ export const translations = {
       routeReturned: 'A swap returned its funds. Check Activity for the result.',
       routeStopped: 'This route stopped. Check Activity for the latest swap and any proceeds you can use.',
       routeStatusUnavailable: 'Could not read the route status. Check Activity before starting another swap.',
-      routeLightningSource: 'Lightning',
       routeExternalFunding: 'Pay from another Lightning wallet',
       routePayInvoice: 'Pay {amount} from a Lightning wallet.',
       routeCopyInvoice: 'Copy Lightning invoice',
@@ -1916,7 +1915,6 @@ export const translations = {
       routeStopped: 'Esta ruta se detuvo. Consulta el último intercambio y los fondos disponibles en Actividad.',
       routeStatusUnavailable:
         'No se pudo consultar el estado de la ruta. Revisa Actividad antes de iniciar otro intercambio.',
-      routeLightningSource: 'Lightning',
       routeExternalFunding: 'Paga desde otra cartera Lightning',
       routePayInvoice: 'Paga {amount} desde una cartera Lightning.',
       routeCopyInvoice: 'Copiar factura Lightning',
@@ -2986,7 +2984,6 @@ export const translations = {
       routeStopped: 'Esta rota parou. Confira a última troca e os fundos disponíveis em Atividade.',
       routeStatusUnavailable:
         'Não foi possível consultar o estado da rota. Confira a atividade antes de iniciar outra troca.',
-      routeLightningSource: 'Lightning',
       routeExternalFunding: 'Pague com outra carteira Lightning',
       routePayInvoice: 'Pague {amount} com uma carteira Lightning.',
       routeCopyInvoice: 'Copiar fatura Lightning',

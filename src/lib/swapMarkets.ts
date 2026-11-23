@@ -18,14 +18,12 @@ import {
   DEFAULT_NETWORK,
   displayPrice,
   isNetwork,
-  marketCorridor,
-  sideLimits,
   type DiscoveredMarket,
   type LocalCardInput,
   type OfferPlan,
 } from '@arkade-os/solver-discovery'
 import { asset, type NetworkName } from '@arkade-os/sdk'
-import { arkadeAsset, btcOn, parseAssetId, type AssetId } from '@arkade-os/swap'
+import { arkadeAsset, btcOn, type AssetId } from '@arkade-os/swap'
 import betaSolverCard from './beta-solver.card.json'
 import { verifiedDesignatedCurrency } from './accountAssets'
 import { getSolverRegistryUrl } from './constants'
@@ -34,8 +32,6 @@ import { readSolverCards } from './solverCards'
 import { sharedTransportCards } from './solverCardRemote'
 import { displayAssetOf } from './swapRecords'
 import { assetSwapRepository } from './swapRepository'
-import { isSolverEnabled } from './solverRouting'
-import type { DirectedSwapEdge } from './swapRoutePlan'
 
 /** The composer's asset IDs are discovery IDs, while the client uses CAIP-19. */
 export const swapAssetId = (network: NetworkName, discoveryId: string): AssetId =>
@@ -44,37 +40,6 @@ export const swapAssetId = (network: NetworkName, discoveryId: string): AssetId 
     : discoveryId === BTC_ASSET_ID
       ? btcOn('arkade', network)
       : arkadeAsset(network, asset.AssetId.fromString(discoveryId))
-
-export function swapRouteEdges(markets: readonly DiscoveredMarket[], network: NetworkName): DirectedSwapEdge[] {
-  return markets.flatMap((market) => {
-    if (!market.discovery_pubkey || !market.transports?.nostr?.relays?.length) return []
-    const endpoint = (side: 'base' | 'quote') => {
-      const corridor = marketCorridor(market, side)
-      const id = (side === 'base' ? market.base_asset : market.quote_asset).id
-      if (corridor === 'bolt11' && id === BTC_ASSET_ID) return btcOn('bolt11', network)
-      if (corridor === 'arkade') return swapAssetId(network, id)
-      if (corridor === 'bolt11') return id as AssetId
-    }
-    try {
-      const base = endpoint('base')
-      const quote = endpoint('quote')
-      if (!base || !quote || parseAssetId(base).reference !== network || parseAssetId(quote).reference !== network)
-        return []
-      return (
-        [
-          ['base', 'quote', base, quote],
-          ['quote', 'base', quote, base],
-        ] as const
-      ).flatMap(([give, take, from, to]) =>
-        marketCorridor(market, take) === 'arkade' && sideLimits(market, take) && isSolverEnabled(market, give, network)
-          ? [{ from, to }]
-          : [],
-      )
-    } catch {
-      return []
-    }
-  })
-}
 
 /**
  * Solver cards shipped with the wallet.
