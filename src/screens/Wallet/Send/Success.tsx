@@ -19,6 +19,8 @@ import AssetCard from '../../../components/AssetCard'
 import { accountAssetLabel, rawAssetPresentation, verifiedDesignatedCurrency } from '../../../lib/accountAssets'
 import {
   appSendNeedsDriver,
+  ASSET_SWAP_PAYMENT_RAIL,
+  LIGHTNING_RAIL,
   LNURL_ARKADE_RAIL,
   LNURL_LIGHTNING_RAIL,
   ONCHAIN_SWAP_RAIL,
@@ -143,11 +145,19 @@ export default function SendSuccess() {
 
   if (tracked) {
     const onchain = tracked.railId === ONCHAIN_SWAP_RAIL
+    const lnurlTarget =
+      sendInfo.lnurlInvoice && sendInfo.lnurlInvoice.pr === sendInfo.invoice ? sendInfo.lnUrl : undefined
+    const destination = onchain
+      ? sendInfo.address
+      : tracked.railId === ASSET_SWAP_PAYMENT_RAIL
+        ? sendInfo.assetPayment?.address
+        : lnurlTarget
     return (
       <PaymentReceipt
         amount={displayAmount}
         unverifiedAsset={isAssetSend ? trustedTicker === undefined : false}
-        destination={onchain ? sendInfo.address : (sendInfo.assetPayment?.address ?? sendInfo.lnUrl)}
+        destination={destination}
+        invoice={tracked.railId === LIGHTNING_RAIL && !destination ? sendInfo.invoice : undefined}
         onchain={onchain}
         delivered={delivered}
         outcome={outcome}

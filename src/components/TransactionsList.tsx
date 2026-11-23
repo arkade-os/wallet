@@ -2,7 +2,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { useContext, useLayoutEffect, useRef, useState } from 'react'
 import { WalletContext } from '../providers/wallet'
 import { Currencies, Tx } from '../lib/types'
-import { isBurn, isIssuance, prettyDate } from '../lib/format'
+import { isBurn, isIssuance, prettyDate, prettyLongText } from '../lib/format'
 import AssetAvatar from './AssetAvatar'
 import ReceivedIcon from '../icons/Received'
 import SentIcon from '../icons/Sent'
@@ -56,6 +56,7 @@ const TransactionLine = ({
       ? t('transaction.unconfirmed')
       : t('common.unknown')
   const swap = tx.type === 'swap'
+  const swapPayment = (swap || Boolean(tx.lnSwap)) && Boolean(contactAddress)
   const swapStatus = swap ? swapStatusForTx(tx) : undefined
   const issuance = isIssuance(tx)
   const burn = isBurn(tx)
@@ -112,7 +113,7 @@ const TransactionLine = ({
   }
 
   const kind =
-    (contactName ? t('settings.contactSent', { name: contactName }) : undefined) ??
+    (contactName && !swapPayment ? t('settings.contactSent', { name: contactName }) : undefined) ??
     lnSwapKind ??
     lnurlLabel(tx, t) ??
     (swap
@@ -137,7 +138,8 @@ const TransactionLine = ({
   const Kind = () => <span className='activity-row__kind'>{kind}</span>
 
   const swapRoute = swap ? swapRouteLabel(tx) : ''
-  const When = () => <span className='activity-row__meta'>{swapRoute ? `${swapRoute} · ${date}` : date}</span>
+  const payee = swapPayment ? contactName || prettyLongText(contactAddress, 7) : ''
+  const When = () => <span className='activity-row__meta'>{[payee, swapRoute, date].filter(Boolean).join(' · ')}</span>
 
   const RawAmounts = () => {
     const configured = amountDisplay?.configured

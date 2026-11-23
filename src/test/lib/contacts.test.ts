@@ -145,4 +145,10 @@ describe('contacts', () => {
     expect(savableActivityAddress({ ...baseTx, destination: invoice })).toBeUndefined()
     expect(savableActivityAddress({ ...baseTx, type: 'received' as const })).toBeUndefined()
   })
+
+  it('uses the directed payment recipient for swap contacts', () => {
+    const swap = { ...baseTx, type: 'swap', destination: bitcoin, assetSwap: { fromTicker: 'sats', toTicker: 'USD' } }
+    expect(savableActivityAddress(swap)).toBeUndefined()
+    expect(savableActivityAddress({ ...swap, assetSwap: { ...swap.assetSwap, paymentDestination: ark } })).toBe(ark)
+  })
 })

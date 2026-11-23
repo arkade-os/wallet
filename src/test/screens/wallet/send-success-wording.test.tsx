@@ -11,6 +11,8 @@ import {
   WALLET_EXIT_RAIL,
 } from '../../../lib/sendRouter'
 import type { OpenRfqOffer, Outcome } from '@arkade-os/swap'
+import { readContacts, saveContact } from '../../../lib/contacts'
+import { prettyLongText } from '../../../lib/format'
 import { readSolverCards, saveSolverCards } from '../../../lib/solverCards'
 import { SwapsContext } from '../../../providers/swaps'
 import { redirectToCallback } from '../../../lib/appIntent'
@@ -42,6 +44,10 @@ const notifications = { notifyPaymentSent: vi.fn() }
 const navigate = vi.fn()
 
 const ONCHAIN = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
+const ARKADE =
+  'tark1qplnj2gett9j483fchy6chaxn4y52c4g7n5djh9xua3ywdxw0ldatc3e9xcj9xpx0r5tmr0dgvu2f4s352muklg0tcxx0scnnkraajy9jgz4xl'
+const INVOICE = 'lnbc10u1p7demo5vqqqqq9one-time-invoice3hdq9567'
+const LIGHTNING_ADDRESS = 'alice@pay.example'
 
 const renderSuccess = (
   sendInfo: SendInfo,
@@ -295,6 +301,72 @@ describe('tracked payment receipts', () => {
     expect(screen.getByText(/1\.23 USD/)).toBeInTheDocument()
     if (verified) expect(screen.queryByText('Unverified')).not.toBeInTheDocument()
     else expect(screen.getByText('Unverified')).toBeInTheDocument()
+  })
+
+  it('keeps the requested asset payee visible and saves a named contact only after delivery', () => {
+    let outcome: Outcome = 'funded'
+    const assetPayment = { assetId: USDT_ID, amount: 123n, address: ARKADE }
+    const view = renderSuccess(
+      { ...fundedSend, assetPayment, reviewId: 'review', railId: ASSET_SWAP_PAYMENT_RAIL },
+      {},
+      () => outcome,
+    )
+    expect(screen.getByTestId('Destination')).toHaveTextContent(prettyLongText(ARKADE))
+    expect(screen.queryByRole('button', { name: 'Save as contact' })).not.toBeInTheDocument()
+
+    outcome = 'filled'
+    view.refresh()
+    fireEvent.click(screen.getByRole('button', { name: 'Save as contact' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name (optional)' }), {
+      target: { value: '  Merchant  ' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save contact' }))
+
+    expect(readContacts()).toEqual([{ address: ARKADE, name: 'Merchant', sendCount: 0, lastSentAt: 0 }])
+    expect(screen.getByText('Merchant')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save as contact' })).not.toBeInTheDocument()
+  })
+
+  it('shows the Bitcoin recipient and an existing contact on a claimed onchain swap', () => {
+    expect(saveContact(ONCHAIN, 'Merchant')).toBe(true)
+    renderSuccess({ ...fundedSend, reviewId: 'review' }, {}, () => 'claimed')
+
+    expect(screen.getByTestId('Destination')).toHaveTextContent(prettyLongText(ONCHAIN))
+    expect(screen.getByText('Merchant')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save as contact' })).not.toBeInTheDocument()
+  })
+
+  it('shows a Lightning invoice without treating a stale Lightning address as the payee', () => {
+    renderSuccess(
+      { ...fundedSend, reviewId: 'review', railId: LIGHTNING_RAIL, invoice: INVOICE, lnUrl: LIGHTNING_ADDRESS },
+      {},
+      () => 'paid',
+    )
+
+    expect(screen.getByTestId('Invoice')).toHaveTextContent(prettyLongText(INVOICE))
+    expect(screen.queryByTestId('Destination')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save as contact' })).not.toBeInTheDocument()
+  })
+
+  it('shows and can save the Lightning address bound to the paid invoice', () => {
+    renderSuccess(
+      {
+        ...fundedSend,
+        reviewId: 'review',
+        railId: LIGHTNING_RAIL,
+        invoice: INVOICE,
+        lnUrl: LIGHTNING_ADDRESS,
+        lnurlInvoice: { pr: INVOICE },
+      },
+      {},
+      () => 'paid',
+    )
+
+    expect(screen.getByTestId('Destination')).toHaveTextContent(LIGHTNING_ADDRESS)
+    expect(screen.queryByTestId('Invoice')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Save as contact' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save contact' }))
+    expect(readContacts()).toEqual([{ address: LIGHTNING_ADDRESS, sendCount: 0, lastSentAt: 0 }])
   })
 
   const signedOffer: OpenRfqOffer = {

@@ -183,6 +183,7 @@ export type Tx = {
   settled: boolean
   type: TxKind
   assetSwap?: {
+    paymentDestination?: string
     fromAssetId?: string
     fromTicker: string
     fromDecimals?: number

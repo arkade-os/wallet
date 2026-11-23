@@ -240,6 +240,8 @@ On the send review, **Change route** shows the current provider and other eligib
 
 An asset payment link fixes the recipient, asset, and amount. **Pay with** offers direct payment when the wallet holds enough of the requested asset, or a Bitcoin-funded swap. If a saved provider cannot quote the swap, review can search Open offers. Only the selected provider gets the recipient address for its firm quote.
 
+Payment swap receipts and Activity details show the recorded payee. Use **Save as contact** for a reusable address. One-time Lightning invoices appear in the receipt for reference.
+
 Repeated quote failures temporarily move a solver behind healthy alternatives, including a saved preferred solver. Two consecutive failures start a one-minute cooldown; further failures double it up to fifteen minutes. A verified quote restores priority, and thirty quiet minutes forget the streak. Reliability is retained across reloads per network and direction. Cooling solvers remain enabled as last-resort fallbacks; the direction sheet explains their reduced priority without changing the saved preference. Cancellations and request limits do not count as solver faults.
 
 Priorities are local to this wallet, scoped by network and ordered direction, and cleared on wallet reset. Solvers with different discovery public keys stay distinct even when names match. Quote preparation can try the next eligible solver; accepting a quote keeps that solver and the confirmed terms throughout funding and recovery.

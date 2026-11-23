@@ -49,7 +49,10 @@ export interface AssetSwapQuoteSnapshot {
 /** The package's record plus the quote snapshot it deliberately does not own.
  * The repository stores records whole, so `quote` survives package-side writes
  * (`cancelOffer`, the watcher) untouched. */
-export type WalletAssetSwap = AssetSwap & { quote?: AssetSwapQuoteSnapshot }
+export type WalletAssetSwap = AssetSwap & {
+  quote?: AssetSwapQuoteSnapshot
+  paymentDestination?: string
+}
 
 /**
  * Where the snapshot is kept.

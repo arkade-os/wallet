@@ -1,19 +1,27 @@
-import { useSyncExternalStore } from 'react'
+import { useContext, useState, useSyncExternalStore } from 'react'
 import { cardErrors, isNetwork, verifyCardSig, type Card, type LocalCardInput } from '@arkade-os/solver-discovery'
 import type { OpenRfqOffer, Outcome } from '@arkade-os/swap'
 import Button from '../../../components/Button'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Content from '../../../components/Content'
+import Details from '../../../components/Details'
+import ErrorMessage from '../../../components/Error'
 import FlexCol from '../../../components/FlexCol'
 import Header from '../../../components/Header'
+import InputContainer from '../../../components/InputContainer'
 import Padded from '../../../components/Padded'
+import SheetModal from '../../../components/SheetModal'
 import Text from '../../../components/Text'
 import { toast } from '../../../components/Toast'
 import UnverifiedBadge from '../../../components/UnverifiedBadge'
+import { DrawerTitle } from '../../../components/ui/drawer'
 import HistoryIcon from '../../../icons/History'
 import SuccessIcon from '../../../icons/Success'
+import { contactForAddress, isReusableContact, readContacts, saveContact } from '../../../lib/contacts'
+import { consoleError } from '../../../lib/logs'
 import { paymentEndedWithoutDelivery } from '../../../lib/sendRouter'
 import { getSolverCardsVersion, readSolverCards, saveSolverCards, subscribeSolverCards } from '../../../lib/solverCards'
+import { BackupContext } from '../../../providers/backup'
 import { useTranslation } from '../../../providers/language'
 
 function SaveProvider({ offer, network }: { offer: OpenRfqOffer; network: string }) {
@@ -49,10 +57,74 @@ function SaveProvider({ offer, network }: { offer: OpenRfqOffer; network: string
   return <Button clear label={t('send.savePaymentProvider')} onClick={save} />
 }
 
+function ReceiptRecipient({
+  destination,
+  invoice,
+  delivered,
+}: {
+  destination?: string
+  invoice?: string
+  delivered: boolean
+}) {
+  const { t } = useTranslation()
+  const { backupContacts } = useContext(BackupContext)
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState('')
+  const [saveError, setSaveError] = useState(false)
+  const address = destination && isReusableContact(destination) ? destination : undefined
+  const contact = contactForAddress(address)
+  const canSave = delivered && Boolean(address) && !contact
+
+  const close = () => {
+    setOpen(false)
+    setName('')
+    setSaveError(false)
+  }
+
+  const save = () => {
+    if (!delivered || !address) return
+    if (contactForAddress(address)) return close()
+    if (!saveContact(address, name)) return setSaveError(true)
+    backupContacts(readContacts()).catch((err) => consoleError(err, 'failed to backup contacts'))
+    close()
+  }
+
+  return (
+    <>
+      <Details
+        variant='receipt'
+        details={{
+          destination,
+          invoice,
+          contactBadge: contact ? contact.name?.trim() || t('contacts.badge') : undefined,
+          saveContactAction: canSave ? { label: t('contacts.convert'), onClick: () => setOpen(true) } : undefined,
+        }}
+      />
+      <SheetModal isOpen={open ? canSave : false} onClose={close}>
+        <div className='contact-form'>
+          <DrawerTitle>{t('contacts.save')}</DrawerTitle>
+          <ErrorMessage error={saveError} text={t('contacts.saveFailed')} />
+          <InputContainer label={t('contacts.name')}>
+            <input
+              className='input'
+              aria-label={t('contacts.name')}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </InputContainer>
+          <Button label={t('contacts.save')} onClick={save} />
+          <Button label={t('common.cancel')} secondary onClick={close} />
+        </div>
+      </SheetModal>
+    </>
+  )
+}
+
 interface PaymentReceiptProps {
   amount: string
   unverifiedAsset: boolean
   destination?: string
+  invoice?: string
   onchain: boolean
   delivered: boolean
   outcome?: Outcome
@@ -67,6 +139,7 @@ export default function PaymentReceipt({
   amount,
   unverifiedAsset,
   destination,
+  invoice,
   onchain,
   delivered,
   outcome,
@@ -105,10 +178,13 @@ export default function PaymentReceipt({
               </Text>
               {unverifiedAsset ? <UnverifiedBadge /> : null}
             </div>
-            {destination ? (
-              <Text centered small wrap>
-                {destination}
-              </Text>
+            {destination || invoice ? (
+              <ReceiptRecipient
+                key={destination ?? invoice}
+                destination={destination}
+                invoice={invoice}
+                delivered={delivered}
+              />
             ) : null}
             {keepOpen ? (
               <Text centered small wrap>

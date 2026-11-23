@@ -305,6 +305,7 @@ export const buildAssetSwapActivityTx = (
     amount: members[0]?.amount ?? 0,
     boardingTxid: '',
     createdAt: Math.floor(swap.createdAt / 1000),
+    ...(swap.paymentDestination ? { destination: swap.paymentDestination } : {}),
     explorable: undefined,
     preconfirmed: status === 'pending',
     redeemTxid: swap.spentTxid ?? swap.fundingTxid,
@@ -312,6 +313,7 @@ export const buildAssetSwapActivityTx = (
     settled: status !== 'pending',
     type: 'swap',
     assetSwap: {
+      ...(swap.paymentDestination ? { paymentDestination: swap.paymentDestination } : {}),
       fromAssetId: swap.fromAsset,
       fromTicker: quote?.fromTicker ?? derivedTicker(swap.fromAsset),
       fromDecimals: quote?.fromDecimals ?? derivedDecimals(swap.fromAsset),
