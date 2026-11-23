@@ -424,7 +424,6 @@ export const translations = {
       permissionDenied: 'Notifications permission denied',
     },
     receive: {
-      changeAsset: 'Change asset',
       addAmount: 'Add amount',
       addName: 'Add a name',
       amount: 'Amount',
@@ -1445,7 +1444,6 @@ export const translations = {
       permissionDenied: 'Permiso de notificaciones denegado',
     },
     receive: {
-      changeAsset: 'Cambiar activo',
       addAmount: 'Añadir monto',
       addName: 'Añadir un nombre',
       amount: 'Monto',
@@ -2473,7 +2471,6 @@ export const translations = {
       permissionDenied: 'Permissão para notificações negada',
     },
     receive: {
-      changeAsset: 'Mudar ativo',
       addAmount: 'Adicionar valor',
       addName: 'Adicionar nome',
       amount: 'Valor',

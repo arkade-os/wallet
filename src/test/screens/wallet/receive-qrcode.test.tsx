@@ -89,7 +89,7 @@ const mockNotificationsContextValue = {
 type RenderOverrides = {
   flow?: Partial<typeof mockFlowContextValue>
   wallet?: Partial<typeof mockWalletContextValue>
-  config?: Partial<typeof mockConfigContextValue>
+  config?: Partial<React.ContextType<typeof ConfigContext>>
   fiat?: Partial<typeof mockFiatContextValue>
   limits?: Partial<typeof mockLimitsContextValue>
   language?: Language
@@ -518,7 +518,7 @@ describe('Receive QR Code screen', () => {
       expect(screen.queryByRole('button', { name: /^Other formats/ })).not.toBeInTheDocument()
     })
 
-    it.each([false, true])('identifies the requested asset below the QR with icon approval %s', async (approved) => {
+    it.each([false, true])('identifies the requested asset above the QR with icon approval %s', async (approved) => {
       const assetId = 'ab'.repeat(34)
       const icon = 'https://assets.example.com/token.png'
       const fixture = tapFixture()
@@ -538,12 +538,13 @@ describe('Receive QR Code screen', () => {
       })
 
       const qr = await screen.findByRole('button', { name: 'Copy QR code' })
-      const identity = screen.getByText('Northstar (STAR)')
+      const picker = screen.getByRole('button', { name: 'Northstar' })
+      const badge = screen.getByText('Unverified')
       const copyId = screen.getByRole('button', { name: 'Copy Asset ID' })
-      expect(identity).toBeVisible()
-      expect(screen.getByText('Unverified')).toBeVisible()
-      expect(qr.compareDocumentPosition(identity) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-      expect(qr.compareDocumentPosition(copyId) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(within(picker).getByText('Northstar')).toBe(screen.getByText('Northstar'))
+      expect(picker.compareDocumentPosition(badge) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(badge.compareDocumentPosition(copyId) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(copyId.compareDocumentPosition(qr) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
       if (approved) {
         expect(qr.querySelector('img')).toHaveAttribute('src', icon)
         expect(qr.querySelector('img + span svg')).toBeInTheDocument()
@@ -570,7 +571,7 @@ describe('Receive QR Code screen', () => {
       })
 
       expect(await screen.findByText('No valid payment methods available for this amount')).toBeVisible()
-      expect(screen.getByText('Unverified').parentElement).toHaveTextContent('STAR')
+      expect(screen.getByRole('button', { name: 'STAR' })).toBeVisible()
       expect(screen.queryByRole('button', { name: 'Copy QR code' })).not.toBeInTheDocument()
       expect(screen.queryByTestId('bip21-address-copy')).not.toBeInTheDocument()
       expect(await copyFrom('receive-asset-id-copy')).toBe(assetId)
@@ -829,27 +830,57 @@ describe('Receive QR Code screen — asset pill', () => {
     await waitFor(async () => expect(await qr()).toContain(`assetid=${other}`))
   })
 
-  it('lists the asset it was opened for even with no balance, and switches back to Bitcoin', async () => {
+  it('keeps the asset it was opened for selectable from Bitcoin even with no balance', async () => {
     const setRecvInfo = vi.fn()
-    renderReceiveQrCode({
-      flow: { recvInfo: { ...tapFixture().flow!.recvInfo!, assetId }, setRecvInfo },
-      wallet: { svcWallet: mockSvcWallet as any, assetMetadataCache },
-    })
-    const picker = screen.getByRole('button', { name: 'Change asset' })
-    const qr = await screen.findByRole('button', { name: 'Copy QR code' })
-    const labels = screen.getAllByText(/^Token(?: \(TKN\))?$/)
-    expect(labels).toHaveLength(1)
-    expect(labels[0]).toHaveTextContent('Token (TKN)')
-    expect(qr.compareDocumentPosition(labels[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const wallet = { svcWallet: mockSvcWallet as any, assetMetadataCache }
+    const fromAsset = { ...prev, assetId }
+    const { rerender } = renderReceiveQrCode({ flow: { recvInfo: fromAsset, setRecvInfo }, wallet })
 
-    fireEvent.click(picker)
+    fireEvent.click(screen.getByRole('button', { name: 'Token' }))
     expect(screen.getByRole('radio', { name: /^Token/ })).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(screen.getByRole('radio', { name: /^Bitcoin/ }))
 
-    expect(setRecvInfo.mock.calls.at(-1)![0]({ ...prev, assetId })).toEqual({
+    const fromBitcoin = setRecvInfo.mock.calls.at(-1)![0](fromAsset)
+    expect(fromBitcoin).toEqual({
       ...emptyRecvInfo,
       offchainAddr: 'ark1testaddr',
       boardingAddr: 'bc1testaddr',
     })
+    await act(async () => rerender(buildTree({ flow: { recvInfo: fromBitcoin, setRecvInfo }, wallet })))
+    await pickAsset(/^Token/)
+    expect(setRecvInfo.mock.calls.at(-1)![0](fromBitcoin)).toMatchObject({ assetId })
+  })
+
+  it('offers assets pinned to Home with no balance and waits for metadata before accepting an amount', async () => {
+    const pinnedId = 'de'.repeat(34)
+    const hiddenId = 'ef'.repeat(34)
+    const config = {
+      config: {
+        ...mockConfigContextValue.config,
+        importedAssets: [pinnedId, hiddenId],
+        homeAssetVisibility: { [pinnedId]: true },
+      },
+    }
+    const setRecvInfo = vi.fn()
+    const fixture = tapFixture()
+    const recvInfo = fixture.flow!.recvInfo!
+    const { rerender } = renderReceiveQrCode({ ...fixture, flow: { recvInfo, setRecvInfo }, config })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bitcoin' }))
+    expect(screen.getAllByRole('radio')).toHaveLength(2)
+    fireEvent.click(screen.getByRole('radio', { name: /^dededededede/ }))
+
+    const selected = setRecvInfo.mock.calls.at(-1)![0](recvInfo)
+    expect(selected.assetId).toBe(pinnedId)
+    await act(async () => rerender(buildTree({ ...fixture, flow: { recvInfo: selected, setRecvInfo }, config })))
+    expect(screen.getByRole('button', { name: 'Add amount' })).toBeDisabled()
+    await act(async () => fireEvent.click(await screen.findByRole('button', { name: 'Copy QR code' })))
+    expect(copyToClipboardMock.mock.calls.at(-1)![0]).toContain(`assetid=${pinnedId}&amount=0`)
+
+    await pickAsset(/^Bitcoin/)
+    const backToBitcoin = setRecvInfo.mock.calls.at(-1)![0](selected)
+    await act(async () => rerender(buildTree({ ...fixture, flow: { recvInfo: backToBitcoin, setRecvInfo }, config })))
+    await pickAsset(/^dededededede/)
+    expect(setRecvInfo.mock.calls.at(-1)![0](backToBitcoin)).toMatchObject({ assetId: pinnedId })
   })
 })

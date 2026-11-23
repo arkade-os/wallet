@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
 import QrCode from '../../../components/QrCode'
@@ -15,6 +15,7 @@ import { LimitsContext } from '../../../providers/limits'
 import { Asset, Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
+import { assetVisibleOnHome, trackedAssetIds } from '../../../lib/assetLibrary'
 import { atomicToUnits, truncatedAssetId, unitsToAtomic } from '../../../lib/assets'
 import ErrorMessage from '../../../components/Error'
 import { getReceivingAddresses } from '../../../lib/asp'
@@ -39,7 +40,7 @@ import { isMobileBrowser } from '../../../lib/browser'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import { AssetOption, Currencies, Unit } from '../../../lib/types'
 import { EASE_OUT_QUINT } from '../../../lib/animations'
-import { rawAssetPresentation, walletAssetLabel, walletAssetPresentationForId } from '../../../lib/accountAssets'
+import { rawAssetPresentation, walletAssetPresentationForId } from '../../../lib/accountAssets'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { AspContext } from '../../../providers/asp'
@@ -166,6 +167,7 @@ export default function ReceiveQRCode() {
 
   // Receive methods
   const { boardingAddr, offchainAddr, satoshis, assetId, addressError } = recvInfo
+  const entryAssetId = useRef(assetId ?? '').current
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
   const isAssetReceive = assetId && assetId !== ''
   const hasError = Boolean(addressError)
@@ -348,7 +350,8 @@ export default function ReceiveQRCode() {
   const handleAmountConfirm = (value = amountTextValue, inputMode?: KeyboardInputMode) => {
     setShowKeys(false)
     setShowAmountSheet(false)
-    if (assetMeta) {
+    if (isAssetReceive) {
+      if (!assetMeta) return
       const decimals = assetMeta.metadata?.decimals
       const cents = unitsToAtomic(value, decimals)
       return setAssetAmount(cents)
@@ -387,7 +390,7 @@ export default function ReceiveQRCode() {
 
   const handleSheetAmountChange = (value: string) => {
     setAmountTextValue(value)
-    if (!assetMeta) setSheetSats(satsFromEntry(Number(value), fiatEntry, config.unit, fromFiat))
+    if (!isAssetReceive) setSheetSats(satsFromEntry(Number(value), fiatEntry, config.unit, fromFiat))
   }
 
   const handleEntryModeChange = (mode: InputAmountMode) => {
@@ -454,7 +457,6 @@ export default function ReceiveQRCode() {
   )
   const { name, ticker, icon } = rawAssetPresentation(assetMeta?.metadata, '')
   const assetName = name.trim() || ticker || t('mint.unknownAsset')
-  const assetLabel = walletAssetLabel({ name: assetName, ticker })
   const approvedIcon =
     assetId && icon && icon !== failedAssetIcon && iconApprovalManager.isApproved(assetId) && isValidUrl(icon)
       ? icon
@@ -483,12 +485,10 @@ export default function ReceiveQRCode() {
   const copyValue = addressesCurrent ? (target?.copy ?? '') : ''
   const copyDisabled = hasError || !addressesCurrent || !copyValue || generating || quoteExpired || noPaymentMethods
 
-  // Whether an amount is currently requested. Keyed off assetMeta to match how
-  // handleAmountConfirm/handleAmountClear decide between asset units and sats.
-  const hasAmount = assetMeta ? assetAmount > BigInt(0) : satoshis > 0
+  const hasAmount = isAssetReceive ? assetAmount > BigInt(0) : satoshis > 0
   const amountHeadline = !hasAmount
     ? ''
-    : assetMeta
+    : isAssetReceive
       ? `${atomicToUnits(assetAmount, assetOption.decimals)} ${ticker || assetName}`
       : useFiat && currencyConversionUseful
         ? prettyFiatAmount(toFiat(satoshis), config.currency, { bitcoinUnit: config.unit })
@@ -609,54 +609,39 @@ export default function ReceiveQRCode() {
   // Only a registered asset gets an official logo: a self-reported ticker could claim any.
   const assetRow = (id: string): FormatRow => {
     const p = id
-      ? walletAssetPresentationForId(aspInfo.network, id, isRegistered, assetMetadataCache.get(id)?.metadata, '')
+      ? rawAssetPresentation(assetMetadataCache.get(id)?.metadata, truncatedAssetId(id) || t('mint.unknownAsset'))
       : { name: t('send.bitcoin'), ticker: 'BTC' }
     const logo = !id ? 'BTC' : isRegistered(id) ? tokenLogoTickerForTicker(p.ticker) : undefined
     return {
       id,
-      title: p.name || p.ticker,
+      title: p.name.trim() || p.ticker,
       subtitle: p.ticker,
       icon: (
-        <span className='flex size-7 shrink-0 [&>svg]:size-full'>
+        <span aria-hidden='true' className='flex size-7 shrink-0 [&>svg]:size-full'>
           {logo ? <TokenLogo ticker={logo} /> : <AssetAvatar name={p.name} ticker={p.ticker} size={28} />}
         </span>
       ),
     }
   }
-  // An asset opened from its detail screen is listed even when the wallet holds none of it yet. A held one waits
-  // for its metadata: without it this screen would read an amount typed for it as sats.
-  const held = assetBalances.filter((a) => a.amount > 0 && assetMetadataCache.has(a.assetId)).map((a) => a.assetId)
-  const assetIds = new Set([assetId ?? '', ...held])
-  const assetRows = ['', ...[...assetIds].filter(Boolean)].map(assetRow)
-  const bitcoinRow = assetRows[0]
+  const visibleOnHome = (id: string, held: boolean) =>
+    assetVisibleOnHome(id, held, isVerifiedAsset(id), config.homeAssetVisibility)
+  const heldChoices = assetBalances
+    .filter(({ assetId: id, amount }) => (amount > 0 && assetMetadataCache.has(id)) || visibleOnHome(id, amount > 0))
+    .map(({ assetId: id }) => id)
+  const pinnedChoices = trackedAssetIds(config.importedAssets).filter((id) => visibleOnHome(id, false))
+  // Keep the asset that opened Receive available for this visit, including after switching to Bitcoin.
+  const assetRows = [...new Set(['', entryAssetId, assetId ?? '', ...heldChoices, ...pinnedChoices])].map(assetRow)
+  const current = assetRows.find((row) => row.id === (assetId ?? '')) ?? assetRows[0]
   const pill = (
     <>
-      {isAssetReceive ? null : bitcoinRow.icon}
-      <span className='truncate'>{isAssetReceive ? t('receive.changeAsset') : bitcoinRow.title}</span>
+      {current.icon}
+      <span className='truncate'>{isAssetReceive ? assetName : current.title}</span>
       {assetRows.length > 1 ? <ChevronDownIcon /> : null}
     </>
   )
-  const pillClass = `flex min-w-0 items-center gap-2 rounded-full bg-neutral-50 py-1.5 pr-4 font-semibold ${isAssetReceive ? 'pl-4' : 'pl-1.5'}`
+  const pillClass =
+    'flex min-w-0 max-w-full items-center gap-2 rounded-full bg-neutral-50 py-1.5 pr-4 pl-1.5 font-semibold'
   const showingQr = addressesCurrent && !hasError && !noPaymentMethods && Boolean(bip21Uri)
-  const assetIdentity = assetId ? (
-    <div className='flex w-full max-w-85 flex-col items-center'>
-      <div className='flex max-w-full items-center justify-center'>
-        <span className='truncate font-semibold' title={assetLabel}>
-          {assetLabel}
-        </span>
-        {isVerifiedAsset(assetId) ? null : <UnverifiedBadge />}
-      </div>
-      <div className='flex max-w-full items-center gap-1 text-muted-foreground'>
-        <span className='truncate font-mono text-xs'>{truncatedAssetId(assetId) || assetId}</span>
-        <CopyButton
-          label={t('receive.copyAria', { title: t('mint.assetId') })}
-          testId='receive-asset-id-copy'
-          done={copied === assetId}
-          onClick={() => handleCopy(assetId)}
-        />
-      </div>
-    </div>
-  ) : null
   const qrLogo =
     shown === 'token' && activeToken ? (
       railLogo(activeToken, '#ffffff')
@@ -677,7 +662,7 @@ export default function ReceiveQRCode() {
 
   return (
     <>
-      <div className='grid min-h-16 grid-cols-[1fr_auto_1fr] items-center gap-2 px-4'>
+      <div className='grid min-h-16 shrink-0 grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-start gap-2 px-4 py-3'>
         <button
           type='button'
           onClick={() => navigate(Pages.Wallet)}
@@ -687,21 +672,39 @@ export default function ReceiveQRCode() {
         >
           <CloseIcon />
         </button>
-        {assetRows.length > 1 ? (
-          <button
-            type='button'
-            onClick={() => setAssetsOpen(true)}
-            aria-haspopup='dialog'
-            data-testid='receive-asset-pill'
-            className={pillClass}
-          >
-            {pill}
-          </button>
-        ) : (
-          <span className={pillClass} data-testid='receive-asset-pill'>
-            {pill}
-          </span>
-        )}
+        <div className='flex min-w-0 flex-col items-center gap-1'>
+          {assetRows.length > 1 ? (
+            <button
+              type='button'
+              onClick={() => setAssetsOpen(true)}
+              aria-haspopup='dialog'
+              data-testid='receive-asset-pill'
+              className={pillClass}
+            >
+              {pill}
+            </button>
+          ) : (
+            <span className={pillClass} data-testid='receive-asset-pill'>
+              {pill}
+            </span>
+          )}
+          {assetId && !isVerifiedAsset(assetId) ? (
+            <span className='[&>span]:ml-0'>
+              <UnverifiedBadge />
+            </span>
+          ) : null}
+          {assetId ? (
+            <div className='flex max-w-full items-center gap-1 text-neutral-600'>
+              <span className='truncate font-mono text-xs'>{truncatedAssetId(assetId) || assetId}</span>
+              <CopyButton
+                label={t('receive.copyAria', { title: t('mint.assetId') })}
+                testId='receive-asset-id-copy'
+                done={copied === assetId}
+                onClick={() => handleCopy(assetId)}
+              />
+            </div>
+          ) : null}
+        </div>
       </div>
       <Content noFade>
         <Padded>
@@ -806,7 +809,6 @@ export default function ReceiveQRCode() {
                     </button>
                   )}
                 </div>
-                {assetIdentity}
                 <div
                   className='flex min-h-10 w-full max-w-85 flex-col items-center gap-1'
                   aria-hidden={generating}
@@ -840,7 +842,6 @@ export default function ReceiveQRCode() {
                 </div>
               </>
             )}
-            {showingQr ? null : assetIdentity}
             {showingQr ? <LnurlRailPanel rail={lnurlRail} /> : null}
             {/* In the flow, not a fixed footer: pinned, it covered the buttons on short phones. */}
             {showingQr && !isAssetReceive ? <FormatsCard onClick={() => setFormatsOpen(true)} /> : null}
@@ -866,7 +867,12 @@ export default function ReceiveQRCode() {
       </Content>
       <ButtonsOnBottom>
         <FlexRow gap='0.75rem'>
-          <Button label={amountLabel} onClick={openAmountEntry} secondary />
+          <Button
+            label={amountLabel}
+            onClick={openAmountEntry}
+            disabled={Boolean(isAssetReceive && !assetMeta)}
+            secondary
+          />
           <Button label={t('receive.share')} onClick={handleShare} disabled={shareDisabled} />
         </FlexRow>
       </ButtonsOnBottom>
