@@ -21,7 +21,7 @@ export function assetVisibleOnHome(
   verified: boolean,
   overrides?: Record<string, boolean>,
 ): boolean {
-  return verified && (overrides?.[normalizeAssetId(assetId)] ?? held)
+  return overrides?.[normalizeAssetId(assetId)] ?? (verified && held)
 }
 
 export function registryAssetMatches(

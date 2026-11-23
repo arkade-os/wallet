@@ -84,21 +84,19 @@ export default function AppAssets() {
             navigate(Pages.AppAssetDetail)
           }}
         />
-        {verified ? (
-          <div className='flex min-h-11 items-center justify-between gap-2 px-4 text-sm text-muted-foreground'>
-            <span>{t('assets.showOnHome')}</span>
-            <Switch
-              aria-label={t('assets.showAssetOnHome', { name: presentation.name || id })}
-              checked={assetVisibleOnHome(id, amount > 0n, verified, config.homeAssetVisibility)}
-              onCheckedChange={(show) =>
-                backupAndUpdateConfig({
-                  ...config,
-                  homeAssetVisibility: { ...config.homeAssetVisibility, [id]: show },
-                })
-              }
-            />
-          </div>
-        ) : null}
+        <div className='flex min-h-11 items-center justify-between gap-2 px-4 text-sm text-muted-foreground'>
+          <span>{t('assets.showOnHome')}</span>
+          <Switch
+            aria-label={t('assets.showAssetOnHome', { name: presentation.name || id })}
+            checked={assetVisibleOnHome(id, amount > 0n, verified, config.homeAssetVisibility)}
+            onCheckedChange={(show) =>
+              backupAndUpdateConfig({
+                ...config,
+                homeAssetVisibility: { ...config.homeAssetVisibility, [id]: show },
+              })
+            }
+          />
+        </div>
       </div>
     )
   }

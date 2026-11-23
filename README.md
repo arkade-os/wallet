@@ -20,7 +20,7 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
 
 Open **Settings → Advanced → Arkade Mint** to enable minting or resume a previous mint.
 Open **Home → Accounts → Manage** to find your existing assets or track new ones. Use **Show on Home** to set whether
-a verified asset appears under Accounts, including tracked assets with a zero balance.
+an asset appears under Accounts, including tracked assets with a zero balance. Unverified assets are hidden by default.
 
 Minting with a new control asset requires two separate issuances. The wallet saves a local recovery record before
 submitting each one and imports the control asset as soon as its issuance is known. If the control asset is not yet

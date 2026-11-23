@@ -131,7 +131,7 @@ describe('asset library', () => {
     expect(screen.getByRole('button', { name: 'Add asset' })).toBeVisible()
   })
 
-  it('manages Home visibility for verified held and tracked assets without opening their details', async () => {
+  it('manages Home visibility for held and tracked assets without opening their details', async () => {
     const user = userEvent.setup()
     const { backupAndUpdateConfig, navigate } = renderLibrary(<AppAssets />, {
       config: {
@@ -149,15 +149,17 @@ describe('asset library', () => {
 
     const held = screen.getByRole('switch', { name: 'Show on Home for DePix' })
     const tracked = screen.getByRole('switch', { name: 'Show on Home for Independent Dollar' })
+    const unverified = screen.getByRole('switch', { name: 'Show on Home for Northstar Asset' })
     expect(held).not.toBeChecked()
     expect(tracked).not.toBeChecked()
-    expect(screen.getAllByRole('switch')).toHaveLength(2)
+    expect(unverified).not.toBeChecked()
+    expect(screen.getAllByRole('switch')).toHaveLength(3)
 
-    await user.click(tracked)
+    await user.click(unverified)
     expect(backupAndUpdateConfig).toHaveBeenLastCalledWith(
       expect.objectContaining({
         importedAssets: [second, custom],
-        homeAssetVisibility: { [depix]: false, [second]: true },
+        homeAssetVisibility: { [depix]: false, [custom]: true },
       }),
     )
     expect(navigate).not.toHaveBeenCalled()
@@ -202,7 +204,7 @@ describe('asset library', () => {
     expect(navigate).toHaveBeenCalledWith(Pages.AppAssets)
   })
 
-  it('honors Home visibility only for verified IDs, including a pinned zero balance', () => {
+  it('honors Home visibility overrides and keeps the badge on a pinned unverified asset', () => {
     renderLibrary(<AssetsSection />, {
       config: {
         importedAssets: [custom, second],
@@ -212,13 +214,30 @@ describe('asset library', () => {
       registry: [depix, second],
       cache: [
         asset(depix, 'DePix', 'DEPIX'),
-        asset(custom, 'Northstar Asset', 'STAR'),
+        asset(custom, 'Northstar Asset', 'BRL'),
         asset(second, 'Independent Dollar', 'IND'),
       ],
     })
 
     expect(screen.getByText('Independent Dollar')).toBeInTheDocument()
     expect(screen.queryByText('BRL', { exact: true })).not.toBeInTheDocument()
+    const pinned = screen.getByTestId(`asset-row-BRL-${custom}`)
+    expect(within(pinned).getByText('Northstar Asset')).toBeVisible()
+    expect(within(pinned).getByText('Unverified')).toBeVisible()
+    expect(pinned.querySelector('.asset-card__logo, .asset-card__value')).toBeNull()
+  })
+
+  it('keeps unverified assets off Home by default even with a positive balance', () => {
+    renderLibrary(<AssetsSection />, {
+      holdings: [
+        { assetId: depix, amount: 9500n },
+        { assetId: custom, amount: 1000n },
+      ],
+      registry: [depix],
+      cache: [asset(depix, 'DePix', 'DEPIX'), asset(custom, 'Northstar Asset', 'BRL')],
+    })
+
+    expect(screen.getByText('BRL', { exact: true })).toBeVisible()
     expect(screen.queryByText('Northstar Asset')).not.toBeInTheDocument()
   })
 
@@ -274,23 +293,26 @@ describe('asset library', () => {
     expect(goBack).toHaveBeenCalledOnce()
   })
 
-  it('offers Home visibility for a held asset without offering to stop tracking or remove it', async () => {
-    const user = userEvent.setup()
-    const selected = asset(depix, 'DePix', 'DEPIX')
-    const { backupAndUpdateConfig } = renderLibrary(<AppAssetDetail />, {
-      selected,
-      config: { importedAssets: [depix] },
-      holdings: [{ assetId: depix, amount: 100n }],
-      registry: [depix],
-      cache: [selected],
-    })
+  it.each([true, false])(
+    'offers Home visibility for a held asset (verified: %s) without offering to stop tracking',
+    async (verified) => {
+      const user = userEvent.setup()
+      const selected = asset(depix, 'DePix', 'DEPIX')
+      const { backupAndUpdateConfig } = renderLibrary(<AppAssetDetail />, {
+        selected,
+        config: { importedAssets: [depix] },
+        holdings: [{ assetId: depix, amount: 100n }],
+        registry: verified ? [depix] : [],
+        cache: [selected],
+      })
 
-    const showOnHome = await screen.findByRole('switch', { name: 'Show on Home' })
-    expect(showOnHome).toBeChecked()
-    expect(screen.queryByRole('button', { name: 'Stop tracking' })).not.toBeInTheDocument()
-    await user.click(showOnHome)
-    expect(backupAndUpdateConfig).toHaveBeenCalledWith(
-      expect.objectContaining({ importedAssets: [depix], homeAssetVisibility: { [depix]: false } }),
-    )
-  })
+      const showOnHome = await screen.findByRole('switch', { name: 'Show on Home' })
+      expect(showOnHome).toHaveAttribute('aria-checked', String(verified))
+      expect(screen.queryByRole('button', { name: 'Stop tracking' })).not.toBeInTheDocument()
+      await user.click(showOnHome)
+      expect(backupAndUpdateConfig).toHaveBeenCalledWith(
+        expect.objectContaining({ importedAssets: [depix], homeAssetVisibility: { [depix]: !verified } }),
+      )
+    },
+  )
 })

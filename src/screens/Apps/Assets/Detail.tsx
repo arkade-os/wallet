@@ -18,7 +18,7 @@ import { FlowContext, emptyRecvInfo, emptySendInfo } from '../../../providers/fl
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import type { AssetDetails } from '@arkade-os/sdk'
-import { prettyAssetAmount } from '../../../lib/assets'
+import { isValidAssetId, prettyAssetAmount } from '../../../lib/assets'
 import { assetVisibleOnHome, normalizeAssetId, trackedAssetIds } from '../../../lib/assetLibrary'
 import { BackupContext } from '@/providers/backup'
 import { useTranslation } from '../../../providers/language'
@@ -223,7 +223,7 @@ export default function AppAssetDetail() {
                 secondary
               />
             ) : null}
-            {verified ? (
+            {isValidAssetId(id) ? (
               <div className='settings-row-group w-full'>
                 <div className='settings-row'>
                   <span id={showOnHomeLabelId} className='settings-row__label'>
