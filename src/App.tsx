@@ -106,6 +106,7 @@ export default function App() {
   const [bootExitMode, setBootExitMode] = useState<'fly-to-target' | 'fly-up'>('fly-up')
   const [offlineBootFailed, setOfflineBootFailed] = useState(false)
 
+  const operatorUnreachable = useRef(aspInfo.unreachable)
   const passwordlessBootAttempted = useRef(false)
   const passwordlessReloadTimer = useRef<ReturnType<typeof setTimeout>>()
   const devAutoInitHomeRedirected = useRef(false)
@@ -221,6 +222,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    operatorUnreachable.current = aspInfo.unreachable
     if (aspInfo.unreachable) return
     setOfflineBootFailed(false)
     passwordlessBootAttempted.current = false
@@ -241,10 +243,11 @@ export default function App() {
     passwordlessBootAttempted.current = true
     unlockWallet(defaultPassword).catch((err) => {
       consoleError(err, 'error auto-initializing passwordless wallet')
-      if (aspInfo.unreachable) {
+      if (operatorUnreachable.current) {
         setOfflineBootFailed(true)
         return
       }
+      if (aspInfo.unreachable) return
       try {
         if (sessionStorage.getItem(PASSWORDLESS_AUTO_RELOAD_KEY)) return
         sessionStorage.setItem(PASSWORDLESS_AUTO_RELOAD_KEY, 'true')

@@ -35,7 +35,7 @@ import { NavigationContext, Pages } from './navigation'
 import { canOpenWithCachedOperator, getBalance, getUnrolledVtxos, getVtxos, settleVtxos } from '../lib/asp'
 import { decodeArkAddress } from '../lib/address'
 import { resolveExits, subtractExitedAssets, type ExitRecord } from '../lib/exitHistory'
-import { AspContext, type AspInfo } from './asp'
+import { AspContext } from './asp'
 import { AssetsContext } from './assets'
 import { NotificationsContext } from './notifications'
 import { FlowContext } from './flow'
@@ -140,6 +140,7 @@ interface WalletContextProps {
   /** The worker's first contract sync since setup has not landed: balances and history are stored data. */
   syncing?: boolean
   revalidatingOperator?: boolean
+  operatorRevalidationFailed?: boolean
   satsPreview?: number
   booting?: boolean
   loadError: string | null
@@ -228,7 +229,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
   const [dataReady, setDataReady] = useState(false)
   const [syncing, setSyncing] = useState(() => Boolean(wallet.pubkey))
-  const [revalidatingOperator, setRevalidatingOperator] = useState(false)
+  const [operatorRevalidation, setOperatorRevalidation] = useState<'ready' | 'checking' | 'failed'>('ready')
+  const revalidatingOperator = operatorRevalidation !== 'ready'
   const [booting, setBooting] = useState(() => Boolean(wallet.pubkey))
   const [loadError, setLoadError] = useState<string | null>(null)
   const [authState, setAuthState] = useState<WalletAuthState>('unknown')
@@ -287,7 +289,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const lnurlResyncRef = useRef<ReturnType<typeof lnurlResyncOnPayment>>()
   const swMessageHandlerRef = useRef<(event: MessageEvent) => void>()
   const reinitInProgress = useRef(false)
-  const restartForSigner = useRef<AspInfo>()
+  const restartForSigner = useRef<string>()
   const initAbortRef = useRef<AbortController | null>(null)
   const reinitSvcWalletRef = useRef<((identity: Identity) => Promise<void>) | null>(null)
   // reloadWallet runs from long-lived listeners (service-worker messages, the
@@ -877,7 +879,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       setInitialized(walletInitialized)
       setSyncing(true)
       if (providerConnectionState?.mode === 'degraded' && providerConnectionState.provider === 'arkade') {
-        setRevalidatingOperator(true)
+        setOperatorRevalidation('checking')
       }
 
       // Safe on every unlock: watches are keyed by txid and the confirmation queue ignores a key it already holds.
@@ -1131,7 +1133,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!svcWallet) return
     if (aspInfo.unreachable) {
-      setRevalidatingOperator(true)
+      setOperatorRevalidation('checking')
       return
     }
     if (!revalidatingOperator || !aspInfo.signerPubkey) return
@@ -1139,19 +1141,30 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const validateSigner = async () => {
       const { serverPubKey } = decodeArkAddress(await svcWallet.getAddress())
       if (cancelled) return
-      if (serverPubKey === toXOnlySignerHex(aspInfo.signerPubkey)) {
-        setRevalidatingOperator(false)
-      } else if (restartForSigner.current !== aspInfo) {
-        restartForSigner.current = aspInfo
-        await restartWallet()
+      const signer = toXOnlySignerHex(aspInfo.signerPubkey)
+      if (serverPubKey === signer) {
+        restartForSigner.current = undefined
+        setOperatorRevalidation('ready')
+        return
       }
+      const scope = `${wallet.pubkey}:${aspInfo.url}:${signer}`
+      if (restartForSigner.current === scope) {
+        setOperatorRevalidation('failed')
+        return
+      }
+      restartForSigner.current = scope
+      setOperatorRevalidation('checking')
+      await restartWallet()
     }
-    validateSigner().catch((error) => consoleError(error, 'Error revalidating the operator signer'))
+    validateSigner().catch((error) => {
+      if (!cancelled) setOperatorRevalidation('failed')
+      consoleError(error, 'Error revalidating the operator signer')
+    })
     return () => {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aspInfo, revalidatingOperator, svcWallet])
+  }, [aspInfo, revalidatingOperator, svcWallet, wallet.pubkey])
 
   // Self-heal when the SW dies: re-run setup with the existing identity so
   // SwapsProvider and other consumers re-bind via setSvcWallet, instead of
@@ -1240,7 +1253,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const settlePreconfirmed = async () => {
-    if (aspInfo.unreachable || revalidatingOperator) throw new Error(t('init.arkadeServerUnreachable'))
+    if (aspInfo.unreachable) throw new Error(t('init.arkadeServerUnreachable'))
+    if (revalidatingOperator) {
+      throw new Error(t(operatorRevalidation === 'failed' ? 'wallet.operatorSignerUnverified' : 'wallet.syncing'))
+    }
     if (!svcWallet || !vtxoManager) throw new Error('Service worker not initialized')
     await settleVtxos(svcWallet, vtxoManager, aspInfo.dust, wallet.thresholdMs, aspInfo.fees?.intentFee)
     notifyTxSettled()
@@ -1295,8 +1311,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         dataReady,
         satsPreview,
         booting,
-        syncing: syncing && !aspInfo.unreachable,
+        syncing: !aspInfo.unreachable && (syncing || operatorRevalidation === 'checking'),
         revalidatingOperator,
+        operatorRevalidationFailed: operatorRevalidation === 'failed',
         loadError,
         dismissLoadError,
         reloadWallet,

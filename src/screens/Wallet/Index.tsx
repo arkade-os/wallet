@@ -29,7 +29,7 @@ import { useTranslation } from '../../providers/language'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
-  const { revalidatingOperator } = useContext(WalletContext)
+  const { revalidatingOperator, operatorRevalidationFailed } = useContext(WalletContext)
   const { announcement } = useContext(AnnouncementContext)
   const { config } = useContext(ConfigContext)
   const { backupAndUpdateConfig } = useContext(BackupContext)
@@ -125,8 +125,12 @@ export default function Wallet() {
             <PortfolioHero ref={balanceRef} collapseProgress={balanceCollapseProgress} />
             <div role='status'>
               <ErrorMessage
-                error={aspInfo.unreachable}
-                text={aspErrorText(aspInfo, t('wallet.showingLastSyncedData'), t('errors.outdatedWallet'))}
+                error={aspInfo.unreachable || Boolean(operatorRevalidationFailed)}
+                text={
+                  aspInfo.unreachable
+                    ? aspErrorText(aspInfo, t('wallet.showingLastSyncedData'), t('errors.outdatedWallet'))
+                    : t('wallet.operatorSignerUnverified')
+                }
               />
             </div>
           </WalletStaggerChild>

@@ -964,6 +964,7 @@ export const translations = {
       scan: 'Scan',
       send: 'Send',
       showingLastSyncedData: 'Arkade server unreachable. Showing last synced wallet data.',
+      operatorSignerUnverified: 'The current Arkade signer could not be verified. Payments are paused.',
       swap: 'Swap',
       syncing: 'Syncing...',
       tapToGoHome: 'Tap to go home.',
@@ -1946,6 +1947,7 @@ export const translations = {
       send: 'Enviar',
       showingLastSyncedData:
         'No se puede conectar con el servidor de Arkade. Se muestran los últimos datos sincronizados.',
+      operatorSignerUnverified: 'No se pudo verificar el firmante actual de Arkade. Los pagos están en pausa.',
       swap: 'Intercambiar',
       syncing: 'Sincronizando...',
       tapToGoHome: 'Toca para ir a la pantalla de inicio.',
@@ -2921,6 +2923,7 @@ export const translations = {
       send: 'Enviar',
       showingLastSyncedData:
         'Não foi possível conectar ao servidor da Arkade. Exibindo os últimos dados sincronizados.',
+      operatorSignerUnverified: 'Não foi possível verificar o assinante atual da Arkade. Os pagamentos estão pausados.',
       swap: 'Trocar',
       syncing: 'Sincronizando...',
       tapToGoHome: 'Toque para ir à tela inicial.',

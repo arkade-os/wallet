@@ -317,7 +317,7 @@ export async function fundWallet(page: Page, amount: number = 5000): Promise<num
   await faucetOffchain(arkAddress, amount)
   await waitForPaymentReceived(page)
   await navigateHome(page)
-  await page.getByText(tr.transaction.received).waitFor({ timeout: 10000 })
+  await page.getByText(tr.transaction.received).first().waitFor({ timeout: 10000 })
   const balanceText = await page.getByTestId('main-balance').innerText()
   const normalized = balanceText.replace(/[^\d.-]/g, '')
   const num = Number(normalized)

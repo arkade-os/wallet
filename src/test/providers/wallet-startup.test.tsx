@@ -2,9 +2,10 @@ import { act, render, waitFor } from '@testing-library/react'
 import { useContext } from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { WalletContext, WalletProvider } from '../../providers/wallet'
-import { AspContext } from '../../providers/asp'
+import { AspContext, type AspInfo } from '../../providers/asp'
 import { ConfigContext } from '../../providers/config'
 import { mockAspContextValue, mockConfigContextValue } from '../screens/mocks'
+import fixtures from '../fixtures.json'
 
 // A fresh service per test: a provider outlives its test (its status ping keeps running), and must
 // not count toward the next test's reloads.
@@ -16,6 +17,7 @@ const makeService = () => {
     getVtxoManager: vi.fn().mockResolvedValue({ renewVtxos: async () => {} }),
     getStatus: vi.fn().mockResolvedValue({ walletInitialized: true }),
     getVtxos: vi.fn().mockResolvedValue([]),
+    getAddress: vi.fn<() => Promise<string>>(),
     getContractManager: vi.fn(async () => ({ getSyncState: () => sync.state })),
   }
 }
@@ -43,16 +45,18 @@ function Capture() {
 }
 
 const startWallet = async () => {
-  render(
-    <AspContext.Provider value={mockAspContextValue}>
+  const tree = (aspInfo: AspInfo) => (
+    <AspContext.Provider value={{ ...mockAspContextValue, aspInfo }}>
       <ConfigContext.Provider value={mockConfigContextValue}>
         <WalletProvider>
           <Capture />
         </WalletProvider>
       </ConfigContext.Provider>
-    </AspContext.Provider>,
+    </AspContext.Provider>
   )
+  const { rerender } = render(tree(mockAspContextValue.aspInfo))
   await act(() => wallet.initWallet({ privateKey: new Uint8Array(32).fill(1) }))
+  return (aspInfo: AspInfo) => rerender(tree(aspInfo))
 }
 
 // reloadWallet is the only caller of an unfiltered getVtxos()
@@ -82,6 +86,30 @@ it('reports syncing until the worker finishes its first sync, then reloads', asy
 
   await vi.waitFor(() => expect(wallet.syncing).toBe(false), { timeout: 3000 })
   await vi.waitFor(() => expect(reloads()).toBe(before + 1), { timeout: 3000 })
+})
+
+it('tries one restart for a persistent signer mismatch and resumes after the signer matches', async () => {
+  const updateOperator = await startWallet()
+  const [oldAddress, newAddress] = fixtures.lib.address.ark
+  const { getAddress } = mocks.current.service
+  getAddress.mockResolvedValue(oldAddress.address)
+  const operator = { ...mockAspContextValue.aspInfo, signerPubkey: newAddress.serverPubKey }
+
+  updateOperator({ ...operator, unreachable: true })
+  expect(wallet.revalidatingOperator).toBe(true)
+  updateOperator(operator)
+  await waitFor(() => expect(mocks.setup).toHaveBeenCalledTimes(2))
+
+  updateOperator({ ...operator })
+  await waitFor(() => expect(wallet.operatorRevalidationFailed).toBe(true))
+  expect(wallet.revalidatingOperator).toBe(true)
+  expect(mocks.setup).toHaveBeenCalledTimes(2)
+
+  getAddress.mockResolvedValue(newAddress.address)
+  updateOperator({ ...operator })
+  await waitFor(() => expect(wallet.revalidatingOperator).toBe(false))
+  expect(wallet.operatorRevalidationFailed).toBe(false)
+  expect(mocks.setup).toHaveBeenCalledTimes(2)
 })
 
 it.each(['vtxo_received', 'vtxo_spent'])('reloads when a contract event reports %s', async (eventType) => {

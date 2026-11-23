@@ -49,15 +49,22 @@ export default function SendDetails() {
   const { calcOnchainOutputFee, intentFee } = useContext(FeesContext)
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
-  const { assetMetadataCache, availableBalance, balance, reloadWallet, svcWallet, revalidatingOperator } =
-    useContext(WalletContext)
+  const {
+    assetMetadataCache,
+    availableBalance,
+    balance,
+    reloadWallet,
+    svcWallet,
+    revalidatingOperator,
+    operatorRevalidationFailed,
+  } = useContext(WalletContext)
   const { aspInfo } = useContext(AspContext)
   const { sendRouter } = useContext(SwapsContext)
   const { t } = useTranslation()
   const operatorError = aspInfo.unreachable
     ? aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))
     : revalidatingOperator
-      ? t('wallet.syncing')
+      ? t(operatorRevalidationFailed ? 'wallet.operatorSignerUnverified' : 'wallet.syncing')
       : ''
 
   const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
@@ -425,7 +432,12 @@ export default function SendDetails() {
         ) : (
           <Padded>
             <FlexCol>
-              <ErrorMessage error={Boolean(operatorError || error || notice)} text={operatorError || error || notice} />
+              <div role='status'>
+                <ErrorMessage
+                  error={Boolean(operatorError || error || notice)}
+                  text={operatorError || error || notice}
+                />
+              </div>
               {details && amountDisplay ? (
                 <TransactionAmountSummary amount={amountDisplay} label={t('send.amountToSend')} />
               ) : null}
