@@ -17,6 +17,10 @@ import { EmptyAssetsList } from '../../../components/Empty'
 import { AspContext } from '../../../providers/asp'
 import AssetCard from '../../../components/AssetCard'
 import { useTranslation } from '../../../providers/language'
+import { OrderBookContext, quotedAssetIds } from '../../../providers/orderBook'
+import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
+import { displayPrice, pairKeyOf } from '../../../lib/book'
+import { prettyAssetNumber } from '../../../lib/assets'
 
 interface AssetListItem {
   assetId: string
@@ -34,9 +38,16 @@ export default function AppAssets() {
   const { setAssetInfo } = useContext(FlowContext)
   const { aspInfo } = useContext(AspContext)
   const { t } = useTranslation()
+  const { bookFor, orders } = useContext(OrderBookContext)
 
   const [assets, setAssets] = useState<AssetListItem[]>([])
   const [loading, setLoading] = useState(true)
+
+  const bestAsk = (assetId: string, decimals = 0): string | undefined => {
+    const ask = bookFor(pairKeyOf(assetId, BTC_ASSET_ID)).asks[0]
+    if (!ask) return undefined
+    return prettyAssetNumber(displayPrice(ask.price, decimals, 0))
+  }
 
   useEffect(() => {
     const loadAssets = async () => {
@@ -48,6 +59,7 @@ export default function AppAssets() {
       const allIds = new Set<string>()
       for (const ab of assetBalances) allIds.add(ab.assetId)
       for (const id of config.importedAssets) allIds.add(id)
+      for (const id of quotedAssetIds(orders)) allIds.add(id)
 
       const missingIds = [...allIds].filter((id) => !assetMetadataCache.get(id))
       const results = await Promise.allSettled(missingIds.map((id) => svcWallet.assetManager.getAssetDetails(id)))
@@ -73,12 +85,16 @@ export default function AppAssets() {
         }
       })
 
+      items.sort(
+        (a, b) =>
+          Number(bestAsk(b.assetId, b.decimals) !== undefined) - Number(bestAsk(a.assetId, a.decimals) !== undefined),
+      )
       setAssets(items)
       setLoading(false)
     }
 
     loadAssets()
-  }, [svcWallet, assetBalances, config.importedAssets])
+  }, [svcWallet, assetBalances, config.importedAssets, orders])
 
   const handleAssetClick = (assetId: string) => {
     setAssetInfo({ assetId, supply: BigInt(0) })
@@ -108,6 +124,10 @@ export default function AppAssets() {
                     ticker={asset.ticker}
                     icon={asset.icon}
                     decimals={asset.decimals}
+                    fiatText={(() => {
+                      const price = bestAsk(asset.assetId, asset.decimals)
+                      return price ? t('book.bestAsk', { price }) : undefined
+                    })()}
                     onClick={() => handleAssetClick(asset.assetId)}
                   />
                 ))
