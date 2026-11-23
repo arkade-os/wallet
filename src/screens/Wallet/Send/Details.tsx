@@ -47,7 +47,9 @@ import { saveTransactionActivityMetadata } from '../../../lib/storage'
 import { lnurlSends, recordLnurlSend, watchLnurlConfirmation } from '../../../lib/lnurlSends'
 import { useTranslation } from '../../../providers/language'
 import { rememberSentDestination } from '../../../lib/contacts'
-import { readOpenOfferPolicy, saveOnchainSendPreference } from '../../../lib/openOfferPolicy'
+import { readOpenOfferPolicy, readOpenOffersFirst, saveOnchainSendPreference } from '../../../lib/openOfferPolicy'
+import { isValidAssetId } from '../../../lib/assets'
+import { swapAssetId } from '../../../lib/swapMarkets'
 import {
   getSolverRoutingVersion,
   readSolverRouting,
@@ -120,17 +122,25 @@ export default function SendDetails() {
     if (!arkAddress && !lnurlRoute && invoice && sendInfo.reviewId)
       return { kind: 'lightning', invoice, amount: satoshis }
   }, [allowOffchain, arkAddress, invoice, lnurlRoute, satoshis, assetPayment, sendInfo.reviewId])
-  const review = usePaymentQuoteReview(firmRequest, network)
   const routeVersion = useSyncExternalStore(subscribeSolverRouting, getSolverRoutingVersion)
   const openOfferPolicy = useMemo(() => readOpenOfferPolicy(network), [network, routeVersion])
+  const enableDiscovery = Boolean(firmRequest && openOfferPolicy !== 'off')
+  // The route preference sets the start of a new review. An already reviewed quote survives edits in another tab.
+  const routePrefersOpenOffers = useMemo(() => {
+    if (!firmRequest || (firmRequest.kind === 'asset' && !isValidAssetId(firmRequest.assetId))) return false
+    const take = firmRequest.kind === 'asset' ? swapAssetId(network, firmRequest.assetId) : btcOn('bolt11', network)
+    return readOpenOffersFirst(network, JSON.stringify([network, btcOn('arkade', network), take]))
+  }, [firmRequest, network])
+  const openOffersFirst = enableDiscovery && routePrefersOpenOffers
+  const review = usePaymentQuoteReview(firmRequest, network, openOffersFirst)
   const offerDisabled = Boolean(review.reviewed?.offer && openOfferPolicy === 'off')
   const firm = offerDisabled ? undefined : review.reviewed?.quote
   const firmMarket = firm && quoteProviderMarket(firm)
   const firmTotal = firm ? Number(firm.give.amount) : undefined
   const firmFee = firm && firm.fee.asset === firm.give.asset ? Number(firm.fee.amount) : undefined
-  const enableDiscovery = Boolean(firmRequest && openOfferPolicy !== 'off')
   const automaticFallback = enableDiscovery && openOfferPolicy === 'when-needed' && review.quoteError === 'no-provider'
-  const showSavedQuoteReview = !automaticFallback && !(enableDiscovery && routePicker)
+  const initialOpenOffers = openOffersFirst && !firm && !review.loading && !review.quoteError
+  const showSavedQuoteReview = !initialOpenOffers && !automaticFallback && !(enableDiscovery && routePicker)
 
   useEffect(() => {
     automaticDiscovery.current = false
@@ -138,7 +148,7 @@ export default function SendDetails() {
     setSearchOnOpen(undefined)
     setRememberedRoute(undefined)
     setRememberChoice(false)
-  }, [firmRequest, network])
+  }, [firmRequest, network, openOffersFirst])
 
   const loadSavedQuote = review.load
   useEffect(() => {
@@ -146,12 +156,12 @@ export default function SendDetails() {
   }, [loadSavedQuote, offerDisabled])
 
   useEffect(() => {
-    if (automaticFallback && !automaticDiscovery.current && !commitStarted.current) {
+    if ((initialOpenOffers || automaticFallback) && !automaticDiscovery.current && !commitStarted.current) {
       automaticDiscovery.current = true
-      setSearchOnOpen('automatic')
+      setSearchOnOpen(openOfferPolicy === 'when-needed' ? 'automatic' : undefined)
       setRoutePicker(true)
     }
-  }, [automaticFallback])
+  }, [initialOpenOffers, automaticFallback, openOfferPolicy])
   const amountDisplay = buildTransactionAmountDisplay({
     ...displayContext,
     assets: assetPayment
@@ -690,7 +700,8 @@ export default function SendDetails() {
     : providerName
   const showRemember = canChooseOnchain || otherCandidates.length > 0
   const hasRouteOptions = showRemember || enableDiscovery
-  const findOffersDirectly = enableDiscovery && !firm && !onchainQuote && Boolean(review.quoteError)
+  const findOffersDirectly =
+    enableDiscovery && !firm && !onchainQuote && (initialOpenOffers || Boolean(review.quoteError))
   const togglePicker = (open: boolean) => {
     setRoutePicker(open)
     setSearchOnOpen(undefined)

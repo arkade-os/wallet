@@ -27,7 +27,14 @@ import {
 } from '@/lib/solverRouting'
 import { prettyLongText } from '@/lib/format'
 import { solverHealth } from '@/lib/solverHealth'
-import { readOnchainSendPreference, saveOnchainSendPreference } from '@/lib/openOfferPolicy'
+import { isValidAssetId } from '@/lib/assets'
+import {
+  readOnchainSendPreference,
+  readOpenOfferPolicy,
+  readOpenOffersFirst,
+  saveOnchainSendPreference,
+  saveOpenOffersFirst,
+} from '@/lib/openOfferPolicy'
 import FlexCol from '@/components/FlexCol'
 import Text, { TextSecondary } from '@/components/Text'
 import ErrorMessage from '@/components/Error'
@@ -76,6 +83,19 @@ const isWalletOnchainRoute = ({ card, give }: Candidate) => {
     marketCorridor(card, take) === 'bitcoin' &&
     marketLegId(card.base_asset) === BTC_ASSET_ID &&
     marketLegId(card.quote_asset) === BTC_ASSET_ID
+  )
+}
+
+const supportsOpenOffers = ({ card, give }: Candidate): boolean => {
+  if (marketCorridor(card, give) !== 'arkade') return false
+  const take = give === 'base' ? 'quote' : 'base'
+  const takeRail = marketCorridor(card, take)
+  const giveId = marketLegId(give === 'base' ? card.base_asset : card.quote_asset)
+  const takeId = marketLegId(take === 'base' ? card.base_asset : card.quote_asset)
+  if (takeRail === 'bolt11') return giveId === BTC_ASSET_ID && takeId === BTC_ASSET_ID
+  return (
+    takeRail === 'arkade' &&
+    (giveId === BTC_ASSET_ID ? isValidAssetId(takeId) : takeId === BTC_ASSET_ID && isValidAssetId(giveId))
   )
 }
 
@@ -255,12 +275,38 @@ function DirectionRouting({
   const tickerOf = useMarketTicker(network)
   const directionLabel = directionLabelOf(candidates[0], tickerOf)
   const orderLabel = t(prefs.preferFirst ? 'solvers.remainingOrder' : 'solvers.orderBy')
+  const openOffersOff = readOpenOfferPolicy(network) === 'off'
   const preferredMissing =
     prefs.preferFirst && !candidates.some(({ card }) => solverId(card, network) === prefs.preferFirst)
   return (
     <FlexCol gap='12px'>
       <RouteLegs {...routeLegsOf(candidates[0], tickerOf)} />
       {isWalletOnchainRoute(candidates[0]) ? <OnchainPaymentMethod network={network} /> : null}
+      {supportsOpenOffers(candidates[0]) ? (
+        <div className='flex min-h-11 w-full items-center justify-between gap-3'>
+          <div className='min-w-0'>
+            <div id={`${listId}-open-offers-first`}>{t('solvers.openOffersFirst')}</div>
+            <div id={`${listId}-open-offers-first-hint`} className='text-xs text-muted-foreground'>
+              {t(openOffersOff ? 'solvers.openOffersFirstOff' : 'solvers.openOffersFirstHint')}
+            </div>
+          </div>
+          <Switch
+            size='lg'
+            checked={readOpenOffersFirst(network, direction)}
+            disabled={openOffersOff}
+            aria-labelledby={`${listId}-open-offers-first`}
+            aria-describedby={`${listId}-open-offers-first-hint`}
+            onCheckedChange={(enabled) => {
+              try {
+                saveOpenOffersFirst(network, direction, enabled)
+                setError('')
+              } catch {
+                setError(t('solvers.failedSave'))
+              }
+            }}
+          />
+        </div>
+      ) : null}
       <TextSecondary>{t('solvers.pauseHint')}</TextSecondary>
       {enabledOrder.length === 0 ? <TextSecondary>{t('solvers.noneEnabled')}</TextSecondary> : null}
       <label className='flex w-full items-center justify-between gap-3'>
@@ -403,6 +449,7 @@ export default function SolverRouting({ network }: { network: string }) {
   const { allMarkets = [] } = useContext(SwapsContext)
   const { t } = useTranslation()
   const tickerOf = useMarketTicker(network)
+  const openOffersEnabled = readOpenOfferPolicy(network) !== 'off'
   const version = useSyncExternalStore(subscribeSolverRouting, getSolverRoutingVersion, getSolverRoutingVersion)
   const [cooling, setCooling] = useState<Record<string, string[]>>({})
   const [activeDirection, setActiveDirection] = useState<string>()
@@ -483,12 +530,20 @@ export default function SolverRouting({ network }: { network: string }) {
               solverSummary = t('solvers.preferredUnavailableSummary', { mode: modeLabel })
             }
             const exitFirst = direction === onchainGroup?.[0] && readOnchainSendPreference(network) === 'exit'
+            const openOffersFirst =
+              openOffersEnabled && supportsOpenOffers(candidates[0]) && readOpenOffersFirst(network, direction)
             return (
               <RouteRow
                 key={direction}
                 {...routeLegsOf(candidates[0], tickerOf)}
                 label={label}
-                summary={exitFirst ? t('solvers.onchainMethodExit') : solverSummary}
+                summary={
+                  exitFirst
+                    ? t('solvers.onchainMethodExit')
+                    : openOffersFirst
+                      ? t('solvers.openOffersFirstSummary')
+                      : solverSummary
+                }
                 count={
                   enabledCount === candidates.length
                     ? t(candidates.length === 1 ? 'solvers.solverCountSingular' : 'solvers.solverCountPlural', {

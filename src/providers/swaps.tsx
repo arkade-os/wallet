@@ -45,18 +45,10 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import {
-  asset,
-  btcTarget,
-  type Asset,
-  type IntentFeeConfig,
-  type NetworkName,
-  type PaymentRouter,
-} from '@arkade-os/sdk'
+import { btcTarget, type Asset, type IntentFeeConfig, type NetworkName, type PaymentRouter } from '@arkade-os/sdk'
 import { generateSecretKey } from 'nostr-tools'
 import { BTC_ASSET_ID, findMarket, ONCHAIN_DUST_SATS } from '@arkade-os/swap/protocol'
 import {
-  arkadeAsset,
   assetSwapIdOf,
   btcOn,
   claimFeeSats,
@@ -81,7 +73,7 @@ import {
 } from '@arkade-os/solver-discovery'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
-import { discoverMarkets, marketAssetDisplay, marketLegId, watchSwapMarkets } from '../lib/swapMarkets'
+import { discoverMarkets, marketAssetDisplay, marketLegId, swapAssetId, watchSwapMarkets } from '../lib/swapMarkets'
 import { getSolverCardsVersion, subscribeSolverCards } from '../lib/solverCards'
 import { createSendRouter, isLightningMarket } from '../lib/sendRouter'
 import { claimFeeRate } from '../lib/claimFee'
@@ -813,14 +805,6 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
   // ----------------------------------------------------------- asset swaps
 
-  /** The composer's asset ids are discovery's; the client's are CAIP-19. */
-  const assetIdFor = (network: NetworkName, discoveryId: string): AssetId =>
-    discoveryId.includes('/')
-      ? (discoveryId as AssetId)
-      : discoveryId === BTC_ASSET_ID
-        ? btcOn('arkade', network)
-        : arkadeAsset(network, asset.AssetId.fromString(discoveryId))
-
   /** The market is the client's to select, so only the plan reaches the tab that will fund this. */
   const quoteExchange = (plan: OfferPlan): Promise<Quote> => runOnDriver('quoteExchange', [plan])
 
@@ -851,8 +835,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     const network = aspInfo.network as NetworkName
     return openAuction(
       {
-        give: assetIdFor(network, from),
-        take: assetIdFor(network, to),
+        give: swapAssetId(network, from),
+        take: swapAssetId(network, to),
         amount,
         amountOn: 'give',
         ...(destination ? { to: destination } : {}),
@@ -1135,8 +1119,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     const network = aspInfo.network as NetworkName
     const issuer = held.current
     const client = await driving()
-    const give = assetIdFor(network, plan.deposit.asset.id)
-    const take = assetIdFor(network, plan.receive.asset.id)
+    const give = swapAssetId(network, plan.deposit.asset.id)
+    const take = swapAssetId(network, plan.receive.asset.id)
     const quoted = await client.quote({ give, take, amount: plan.deposit.atomic, amountOn: 'give' })
     // A client replaced mid-quote was disposed with this quote's preparation.
     if (held.current !== issuer) throw new QuoteUnavailable()

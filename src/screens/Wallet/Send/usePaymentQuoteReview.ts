@@ -38,11 +38,15 @@ function classifyQuoteError(error: unknown, quote: Quote | undefined, solverId?:
   return 'unavailable'
 }
 
-export default function usePaymentQuoteReview(request: PaymentQuoteRequest | undefined, network: NetworkName) {
+export default function usePaymentQuoteReview(
+  request: PaymentQuoteRequest | undefined,
+  network: NetworkName,
+  openOffersFirst = false,
+) {
   const { quotePaymentRoute, paymentRouteCandidates } = useContext(SwapsContext)
   const api = useRef({ quotePaymentRoute, paymentRouteCandidates })
   api.current = { quotePaymentRoute, paymentRouteCandidates }
-  const scope = useMemo(() => ({ request, network }), [request, network])
+  const scope = useMemo(() => ({ request, network, openOffersFirst }), [request, network, openOffersFirst])
   const currentScope = useRef(scope)
   currentScope.current = scope
   const [reviewScope, setReviewScope] = useState(scope)
@@ -50,7 +54,7 @@ export default function usePaymentQuoteReview(request: PaymentQuoteRequest | und
   const previous = useRef<Quote>()
   const [reviewed, setReviewed] = useState<ReviewedQuote>()
   const [candidates, setCandidates] = useState<{ id: string; name: string }[]>([])
-  const [loading, setLoading] = useState(Boolean(request))
+  const [loading, setLoading] = useState(Boolean(request) && !openOffersFirst)
   const [quoteError, setQuoteError] = useState<QuoteReviewError>()
   const [termsChanged, setTermsChanged] = useState(false)
 
@@ -113,12 +117,18 @@ export default function usePaymentQuoteReview(request: PaymentQuoteRequest | und
         if (active) setCandidates(routes)
       })
       .catch(() => undefined)
-    void load()
+    if (openOffersFirst) {
+      setReviewScope(scope)
+      setReviewed(undefined)
+      setQuoteError(undefined)
+      setTermsChanged(false)
+      setLoading(false)
+    } else void load()
     return () => {
       active = false
       generation.current += 1
     }
-  }, [request, load])
+  }, [request, load, openOffersFirst, scope])
 
   const chooseOpenQuote = (quote: Quote, offer: OpenRfqOffer) => {
     validate(quote)

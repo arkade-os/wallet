@@ -4,7 +4,7 @@ import { arkadeAsset, assetSwapIdOf, btcOn, type OpenRfqAuction, type OpenRfqOff
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ContextType } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { saveOpenOfferPolicy } from '../../../lib/openOfferPolicy'
+import { saveOpenOfferPolicy, saveOpenOffersFirst } from '../../../lib/openOfferPolicy'
 import type { PaymentQuoteRequest } from '../../../lib/paymentQuotes'
 import { readSolverRouting, saveSolverRouting } from '../../../lib/solverRouting'
 import { Unit } from '../../../lib/types'
@@ -397,6 +397,52 @@ describe('reviewing a solver payment', () => {
     expect(await screen.findByTestId('Total')).toHaveTextContent('2,200')
     expect(openPaymentQuotes).toHaveBeenCalledTimes(1)
     expect(acceptPaymentQuote).not.toHaveBeenCalled()
+  })
+
+  it('starts with open offers only on the selected payment direction', async () => {
+    saveOpenOffersFirst(network, assetAuction.pair, true)
+    paymentRouteCandidates.mockResolvedValue([{ id: bayId, name: bay.solver }])
+    openPaymentQuotes.mockResolvedValue(assetAuction)
+    quotePaymentRoute.mockResolvedValue(lightningQuote('saved-lightning-route', 2_120))
+    const view = render(review(assetSendInfo))
+
+    const dialog = within(await screen.findByRole('dialog', { name: 'Change route' }))
+    expect(await dialog.findByRole('button', { name: 'Select Bay' })).toBeVisible()
+    expect(quotePaymentRoute).not.toHaveBeenCalled()
+    expect(openPaymentQuotes).toHaveBeenCalledExactlyOnceWith(assetRequest, expect.any(String), false)
+    expect(chooseSwapQuote).not.toHaveBeenCalled()
+    expect(acceptPaymentQuote).not.toHaveBeenCalled()
+
+    view.rerender(review())
+    expect(await screen.findByTestId('Total')).toHaveTextContent('2,120')
+    expect(quotePaymentRoute).toHaveBeenCalledExactlyOnceWith(lightningRequest, undefined)
+    expect(openPaymentQuotes).toHaveBeenCalledTimes(1)
+  })
+
+  it('honors Ask first when a route starts with open offers', async () => {
+    saveOpenOfferPolicy(network, 'ask')
+    saveOpenOffersFirst(network, assetAuction.pair, true)
+    openPaymentQuotes.mockResolvedValue(assetAuction)
+    render(review(assetSendInfo))
+
+    const dialog = within(await screen.findByRole('dialog', { name: 'Change route' }))
+    expect(quotePaymentRoute).not.toHaveBeenCalled()
+    expect(openPaymentQuotes).not.toHaveBeenCalled()
+    fireEvent.click(dialog.getByRole('button', { name: 'Find open offers' }))
+    expect(await dialog.findByRole('button', { name: 'Select Bay' })).toBeVisible()
+    expect(openPaymentQuotes).toHaveBeenCalledExactlyOnceWith(assetRequest, expect.any(String), true)
+  })
+
+  it('uses providers when wallet-wide open offers are off', async () => {
+    saveOpenOfferPolicy(network, 'off')
+    saveOpenOffersFirst(network, assetAuction.pair, true)
+    quotePaymentRoute.mockResolvedValue(assetQuote('saved-asset-route'))
+    render(review(assetSendInfo))
+
+    expect(await screen.findByTestId('Total')).toHaveTextContent('2,200')
+    expect(quotePaymentRoute).toHaveBeenCalledExactlyOnceWith(assetRequest, undefined)
+    expect(openPaymentQuotes).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it.each([

@@ -29,13 +29,13 @@ import ChevronDownIcon from '../../../icons/ChevronDown'
 import InfoIcon from '../../../icons/Info'
 import SwapIcon from '../../../icons/Swap'
 import { EASE_IN_OUT_QUINT_TUPLE, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
-import { atomicToUnits, unitsToAtomic } from '../../../lib/assets'
+import { atomicToUnits, isValidAssetId, unitsToAtomic } from '../../../lib/assets'
 import { extractError } from '../../../lib/error'
 import { formatFiatAmountParts, normalizeBitcoinUnit, prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
 import { swapRouteTicker } from '../../../lib/swapDisplay'
 import { BTC_ASSET_ID, findMarket, l1ScriptForAddress, validatePlan } from '@arkade-os/swap/protocol'
-import { marketLegId, preFeeDisplayRate } from '../../../lib/swapMarkets'
+import { marketLegId, preFeeDisplayRate, swapAssetId } from '../../../lib/swapMarkets'
 import { type AssetSwapQuoteSnapshot } from '../../../lib/swapRepository'
 import { Currencies, Unit } from '../../../lib/types'
 import { AspContext } from '../../../providers/asp'
@@ -52,7 +52,7 @@ import { useTranslation } from '../../../providers/language'
 import { readSolverCards, saveSolverCards } from '../../../lib/solverCards'
 import { l1NetworkOf } from '../../../lib/onchainPayout'
 import { getSolverRoutingVersion, isSolverEnabled, subscribeSolverRouting } from '../../../lib/solverRouting'
-import { readOpenOfferPolicy } from '../../../lib/openOfferPolicy'
+import { readOpenOfferPolicy, readOpenOffersFirst } from '../../../lib/openOfferPolicy'
 import QuoteChoices, { formatQuoteAmount } from './QuoteChoices'
 
 type AssetTarget = 'from' | 'to'
@@ -486,11 +486,31 @@ export default function WalletSwap() {
         return route?.market && isSolverEnabled(market, route.give, aspInfo.network)
       }),
   )
+  const pairedAssetId =
+    fromAsset.assetId === BTC_ASSET_ID
+      ? toAsset?.assetId
+      : toAsset?.assetId === BTC_ASSET_ID
+        ? fromAsset.assetId
+        : undefined
+  const openOffersFirst = Boolean(
+    solverNetwork &&
+      toAsset &&
+      !toAsset.external &&
+      pairedAssetId &&
+      isValidAssetId(pairedAssetId) &&
+      readOpenOffersFirst(
+        solverNetwork,
+        JSON.stringify([
+          solverNetwork,
+          swapAssetId(solverNetwork, fromAsset.assetId),
+          swapAssetId(solverNetwork, toAsset.assetId),
+        ]),
+      ),
+  )
   const searchOpenByDefault = Boolean(
     openOfferPolicy !== 'off' &&
-      discoveryReady &&
       canViewQuotes &&
-      (!hasSavedSolver || (currentPlan && solvable === false)),
+      (openOffersFirst || (discoveryReady && (!hasSavedSolver || (currentPlan && solvable === false)))),
   )
   // The market's pre-fee rate beside the firm fee (spread plus any unreturned carrier) and amount.
   const firmDisplay = (estimate: OfferPlan, firm: Quote): SwapQuote => {
@@ -893,7 +913,9 @@ export default function WalletSwap() {
                   ) : null}
                   <Keypad amount={amount} onPress={pressKey} />
                   {searchOpenByDefault ? (
-                    <p className='text-sm text-muted-foreground'>{t('swap.noSavedSolverOffers')}</p>
+                    <p className='text-sm text-muted-foreground'>
+                      {t(openOffersFirst ? 'swap.openOffersPrivacy' : 'swap.noSavedSolverOffers')}
+                    </p>
                   ) : null}
                   <Button label={t('swap.viewQuotes')} disabled={!canViewQuotes} onClick={() => openDrawer('quotes')} />
                 </motion.section>

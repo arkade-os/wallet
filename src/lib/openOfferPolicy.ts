@@ -25,6 +25,24 @@ export const saveOpenOfferPolicy = (network: string, policy: OpenOfferPolicy): v
   notifySolverRouting()
 }
 
+const openOffersFirstKey = (network: string, direction: string): string =>
+  `${PAYMENT_ROUTE_POLICY_PREFIX}openOffersFirst:${JSON.stringify([network, direction])}`
+
+export const readOpenOffersFirst = (network: string, direction: string): boolean => {
+  try {
+    return localStorage.getItem(openOffersFirstKey(network, direction)) === 'true'
+  } catch {
+    return false
+  }
+}
+
+export const saveOpenOffersFirst = (network: string, direction: string, enabled: boolean): void => {
+  const routeKey = openOffersFirstKey(network, direction)
+  if (enabled) localStorage.setItem(routeKey, 'true')
+  else localStorage.removeItem(routeKey)
+  notifySolverRouting()
+}
+
 export const readOnchainSendPreference = (network: string): OnchainSendPreference =>
   read(network, 'onchain') === 'exit' ? 'exit' : 'solver'
 

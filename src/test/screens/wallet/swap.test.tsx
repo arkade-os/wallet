@@ -19,7 +19,7 @@ import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import type { WalletAssetSwap as AssetSwap } from '../../../lib/swapRepository'
 import { Currencies, Unit } from '../../../lib/types'
-import { readOpenOfferPolicy, saveOpenOfferPolicy } from '../../../lib/openOfferPolicy'
+import { readOpenOfferPolicy, saveOpenOfferPolicy, saveOpenOffersFirst } from '../../../lib/openOfferPolicy'
 import { saveSolverRouting } from '../../../lib/solverRouting'
 import {
   mockAspContextValue,
@@ -879,6 +879,32 @@ describe('Wallet swap flow', () => {
       expect(quoteExchange).not.toHaveBeenCalled()
     },
   )
+
+  it('starts open offers for the configured pair even when a saved solver is eligible', async () => {
+    const network = 'mutinynet'
+    const direction = solverDirectionKey(btcUsdt, 'base', network)
+    const openSwapQuotes = vi.fn().mockResolvedValue({ id: 'configured-open-first', bids: [] })
+    saveOpenOffersFirst(network, direction, true)
+    const view = renderSwap({
+      config: { currency: Currencies.BTC, unit: Unit.SATS },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+      wallet: NO_ASSETS,
+      swap: { openSwapQuotes },
+    })
+    try {
+      fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+      fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+      for (const key of ['1', '0', '0', '0', '0']) fireEvent.click(screen.getByRole('button', { name: key }))
+      expect(screen.getByText('Searching shares your pair and amount publicly.')).toBeVisible()
+      expect(openSwapQuotes).not.toHaveBeenCalled()
+      fireEvent.click(screen.getByRole('button', { name: 'View quotes' }))
+      await waitFor(() => expect(openSwapQuotes).toHaveBeenCalledOnce())
+      expect(quoteExchange).not.toHaveBeenCalled()
+    } finally {
+      view.unmount()
+      saveOpenOffersFirst(network, direction, false)
+    }
+  })
 
   it('keeps open offers off when no saved provider serves the pair', async () => {
     const previousPolicy = readOpenOfferPolicy('mutinynet')
