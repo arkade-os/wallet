@@ -345,6 +345,7 @@ describe('Transaction screen', () => {
       </BackupContext.Provider>,
     )
 
+    if (payment) expect(screen.getByRole('heading', { name: 'Payment sent' })).toBeInTheDocument()
     expect(screen.getByTestId('Destination')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Save as contact' }))
     fireEvent.change(screen.getByLabelText('Name (optional)'), { target: { value: 'Alice' } })

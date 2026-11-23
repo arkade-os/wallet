@@ -18,6 +18,7 @@ import TokenLogo, { tokenLogoTickerForTicker, trustedAssetTickers } from './Toke
 import { PrivacyAmount } from './PrivacyAmount'
 import SwapRouteIcon from './SwapRouteIcon'
 import {
+  isCompletedAssetPayment,
   lnSwapLabel,
   lnurlLabel,
   swapRouteLabel,
@@ -116,6 +117,7 @@ const TransactionLine = ({
     (contactName && !swapPayment ? t('settings.contactSent', { name: contactName }) : undefined) ??
     lnSwapKind ??
     lnurlLabel(tx, t) ??
+    (isCompletedAssetPayment(tx) ? t('send.paymentSent') : undefined) ??
     (swap
       ? swapStatus === 'pending'
         ? t('transaction.swapPending')
@@ -139,7 +141,10 @@ const TransactionLine = ({
 
   const swapRoute = swap ? swapRouteLabel(tx) : ''
   const payee = swapPayment ? contactName || prettyLongText(contactAddress, 7) : ''
-  const When = () => <span className='activity-row__meta'>{[payee, swapRoute, date].filter(Boolean).join(' · ')}</span>
+  const recipient = swap && payee ? t('transaction.toRecipient', { recipient: payee }) : payee
+  const When = () => (
+    <span className='activity-row__meta'>{[recipient, swapRoute, date].filter(Boolean).join(' · ')}</span>
+  )
 
   const RawAmounts = () => {
     const configured = amountDisplay?.configured

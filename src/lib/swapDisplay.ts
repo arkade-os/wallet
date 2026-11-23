@@ -39,6 +39,10 @@ export function swapStatusForTx(tx: Tx): SwapStatus {
   return tx.settled ? 'completed' : 'pending'
 }
 
+export function isCompletedAssetPayment(tx: Tx): boolean {
+  return tx.type === 'swap' && tx.assetSwap?.status === 'completed' && Boolean(tx.assetSwap.paymentDestination)
+}
+
 export type Translate = (key: string, params?: Record<string, string | number>) => string
 
 export function swapStatusLabel(tx: Tx, t: Translate): string {
