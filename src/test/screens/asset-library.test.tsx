@@ -131,6 +131,41 @@ describe('asset library', () => {
     expect(screen.getByRole('button', { name: 'Add asset' })).toBeVisible()
   })
 
+  it('manages Home visibility for verified held and tracked assets without opening their details', async () => {
+    const user = userEvent.setup()
+    const { backupAndUpdateConfig, navigate } = renderLibrary(<AppAssets />, {
+      config: {
+        importedAssets: [second, custom],
+        homeAssetVisibility: { [depix]: false },
+      },
+      holdings: [{ assetId: depix, amount: 9500n }],
+      registry: [depix, second],
+      cache: [
+        asset(depix, 'DePix', 'DEPIX'),
+        asset(second, 'Independent Dollar', 'IND'),
+        asset(custom, 'Northstar Asset', 'STAR'),
+      ],
+    })
+
+    const held = screen.getByRole('switch', { name: 'Show on Home for DePix' })
+    const tracked = screen.getByRole('switch', { name: 'Show on Home for Independent Dollar' })
+    expect(held).not.toBeChecked()
+    expect(tracked).not.toBeChecked()
+    expect(screen.getAllByRole('switch')).toHaveLength(2)
+
+    await user.click(tracked)
+    expect(backupAndUpdateConfig).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        importedAssets: [second, custom],
+        homeAssetVisibility: { [depix]: false, [second]: true },
+      }),
+    )
+    expect(navigate).not.toHaveBeenCalled()
+
+    await user.click(screen.getByTestId(`asset-row-DEPIX-${depix}`))
+    expect(navigate).toHaveBeenCalledWith(Pages.AppAssetDetail)
+  })
+
   it('launches minting from the dedicated screen when enabled and funded', async () => {
     const user = userEvent.setup()
     const { navigate } = renderLibrary(<AppAssetsSettings />, {

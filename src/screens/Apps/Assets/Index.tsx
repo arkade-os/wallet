@@ -8,19 +8,23 @@ import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import { ConfigContext } from '../../../providers/config'
+import { BackupContext } from '../../../providers/backup'
 import { FlowContext } from '../../../providers/flow'
 import { consoleError } from '../../../lib/logs'
 import { EmptyAssetsList } from '../../../components/Empty'
 import AssetCard from '../../../components/AssetCard'
+import { Switch } from '../../../components/ui/switch'
 import { truncatedAssetId } from '../../../lib/assets'
-import { normalizeAssetId, trackedAssetIds } from '../../../lib/assetLibrary'
+import { assetVisibleOnHome, normalizeAssetId, trackedAssetIds } from '../../../lib/assetLibrary'
 import { rawAssetPresentation } from '../../../lib/accountAssets'
 import { useTranslation } from '../../../providers/language'
 
 export default function AppAssets() {
   const { navigate } = useContext(NavigationContext)
-  const { assetBalances, balance, svcWallet, assetMetadataCache, setCacheEntry } = useContext(WalletContext)
+  const { assetBalances, balance, svcWallet, assetMetadataCache, setCacheEntry, isVerifiedAsset } =
+    useContext(WalletContext)
   const { config } = useContext(ConfigContext)
+  const { backupAndUpdateConfig } = useContext(BackupContext)
   const { setAssetInfo } = useContext(FlowContext)
   const { t } = useTranslation()
   const [loading, setLoading] = useState(false)
@@ -66,18 +70,36 @@ export default function AppAssets() {
     const details = assetMetadataCache.get(id)
     const meta = details?.metadata
     const presentation = rawAssetPresentation(meta, truncatedAssetId(id) || t('mint.unknownAsset'))
+    const amount = balances.get(id) ?? 0n
+    const verified = isVerifiedAsset(id)
     return (
-      <AssetCard
-        key={id}
-        assetId={id}
-        balance={balances.get(id) ?? 0n}
-        {...presentation}
-        decimals={meta?.decimals}
-        onClick={() => {
-          setAssetInfo(details ?? { assetId: id, supply: 0n })
-          navigate(Pages.AppAssetDetail)
-        }}
-      />
+      <div key={id}>
+        <AssetCard
+          assetId={id}
+          balance={amount}
+          {...presentation}
+          decimals={meta?.decimals}
+          onClick={() => {
+            setAssetInfo(details ?? { assetId: id, supply: 0n })
+            navigate(Pages.AppAssetDetail)
+          }}
+        />
+        {verified ? (
+          <div className='flex min-h-11 items-center justify-between gap-2 px-4 text-sm text-muted-foreground'>
+            <span>{t('assets.showOnHome')}</span>
+            <Switch
+              aria-label={t('assets.showAssetOnHome', { name: presentation.name || id })}
+              checked={assetVisibleOnHome(id, amount > 0n, verified, config.homeAssetVisibility)}
+              onCheckedChange={(show) =>
+                backupAndUpdateConfig({
+                  ...config,
+                  homeAssetVisibility: { ...config.homeAssetVisibility, [id]: show },
+                })
+              }
+            />
+          </div>
+        ) : null}
+      </div>
     )
   }
 
