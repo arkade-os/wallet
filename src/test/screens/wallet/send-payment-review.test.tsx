@@ -185,6 +185,10 @@ const review = (info: SendInfo = sendInfo) => (
 
 const button = (name: string) => screen.getByRole('button', { name })
 const pay = () => button('Pay')
+const noProvider = () =>
+  Object.assign(new Error('unsupported route: no market serves this pair on the active discovery snapshot'), {
+    name: 'UnsupportedRoute',
+  })
 
 describe('reviewing a solver payment', () => {
   beforeEach(() => {
@@ -221,7 +225,8 @@ describe('reviewing a solver payment', () => {
   })
 
   it('keeps Pay disabled when saved routing fails and asks before publishing an open offer request', async () => {
-    quotePaymentRoute.mockRejectedValue(new Error('No saved route can quote'))
+    saveOpenOfferPolicy(network, 'ask')
+    quotePaymentRoute.mockRejectedValue(noProvider())
     openPaymentQuotes.mockResolvedValue({
       id: 'auction',
       input: { to: invoice },
@@ -356,21 +361,58 @@ describe('reviewing a solver payment', () => {
     expect(setSendInfo).toHaveBeenCalledWith(expect.objectContaining({ openOffer: assetBid, txid: 'funding-txid' }))
   })
 
-  it('searches automatically for an exact asset payment only after saved quoting fails when permitted', async () => {
-    saveOpenOfferPolicy(network, 'when-needed')
+  it('searches automatically for an exact asset payment when providers are unavailable', async () => {
     let failQuote!: (error: Error) => void
     quotePaymentRoute.mockReturnValueOnce(new Promise<Quote>((_, reject) => (failQuote = reject)))
-    openPaymentQuotes.mockResolvedValue(assetAuction)
+    let finishAuction!: (auction: OpenRfqAuction) => void
+    openPaymentQuotes.mockReturnValueOnce(new Promise<OpenRfqAuction>((resolve) => (finishAuction = resolve)))
+    chooseSwapQuote.mockResolvedValue(assetQuote('automatic-asset-quote'))
     render(review(assetSendInfo))
 
     expect(await screen.findByRole('button', { name: 'Getting quote' })).toBeDisabled()
     expect(openPaymentQuotes).not.toHaveBeenCalled()
-    await act(async () => failQuote(new Error('No saved route')))
-    await screen.findByRole('dialog', { name: 'Change route' })
+    await act(async () => failQuote(noProvider()))
+    const dialog = within(await screen.findByRole('dialog', { name: 'Change route' }))
+    expect(dialog.getByRole('status')).toHaveTextContent('Waiting for solver offers')
     await waitFor(() =>
       expect(openPaymentQuotes).toHaveBeenCalledExactlyOnceWith(assetRequest, expect.any(String), false),
     )
+    expect(screen.queryByText('No provider could quote this payment.')).toBeNull()
+    expect(screen.queryByText('Refresh quote')).toBeNull()
+    expect(screen.queryByText('Swap and pay')).toBeNull()
+    await act(async () => finishAuction(assetAuction))
+    expect(chooseSwapQuote).not.toHaveBeenCalled()
+    fireEvent.click(await dialog.findByRole('button', { name: 'Select Bay' }))
+    expect(await screen.findByTestId('Total')).toHaveTextContent('2,200')
+    expect(openPaymentQuotes).toHaveBeenCalledTimes(1)
     expect(acceptPaymentQuote).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['QuoteExpired', 'quote expired'],
+    ['QuoteVerificationFailed', 'invalid quote'],
+    ['UnsupportedRoute', 'unsupported route: Arkade network changed'],
+    ['Error', 'the swap client is not running'],
+  ])('offers direct quote recovery when the error is %s', async (name, message) => {
+    quotePaymentRoute.mockRejectedValue(Object.assign(new Error(message), { name }))
+    render(review(assetSendInfo))
+
+    expect(await screen.findByRole('button', { name: 'Refresh quote' })).toBeEnabled()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(openPaymentQuotes).not.toHaveBeenCalled()
+    expect(acceptPaymentQuote).not.toHaveBeenCalled()
+  })
+
+  it('respects turning off open offers when no provider can quote', async () => {
+    saveOpenOfferPolicy(network, 'off')
+    quotePaymentRoute.mockRejectedValue(noProvider())
+    render(review(assetSendInfo))
+
+    expect(await screen.findByText('No provider could quote this payment.')).toBeVisible()
+    expect(button('Refresh quote')).toBeEnabled()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Find open offers' })).toBeNull()
+    expect(openPaymentQuotes).not.toHaveBeenCalled()
   })
 
   it.each(['the picker closes', 'the linked amount changes'])(

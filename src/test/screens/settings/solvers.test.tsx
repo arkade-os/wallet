@@ -134,30 +134,30 @@ describe('Solvers screen', () => {
 
   it('keeps open-offer consent separate for each wallet network', () => {
     const view = renderSolvers('mutinynet', [], 'priority')
-    fireEvent.click(screen.getByRole('button', { name: 'Open offers Ask first' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open offers When needed' }))
     const dialog = within(screen.getByRole('dialog', { name: 'Open offers' }))
     expect(dialog.getByText('Searching shares your pair and amount publicly.')).toBeInTheDocument()
-    expect(dialog.getByRole('button', { name: /^Ask first/ })).toHaveAttribute('aria-pressed', 'true')
-    fireEvent.click(dialog.getByRole('button', { name: /^When needed/ }))
-    expect(readOpenOfferPolicy('mutinynet')).toBe('when-needed')
-    expect(readOpenOfferPolicy('bitcoin')).toBe('ask')
+    expect(dialog.getByRole('button', { name: /^When needed/ })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(dialog.getByRole('button', { name: /^Ask first/ }))
+    expect(readOpenOfferPolicy('mutinynet')).toBe('ask')
+    expect(readOpenOfferPolicy('bitcoin')).toBe('when-needed')
     view.unmount()
     renderSolvers('mutinynet', [], 'priority')
-    expect(screen.getByRole('button', { name: 'Open offers When needed' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('button', { name: 'Open offers Ask first' })).toHaveAttribute('aria-expanded', 'false')
   })
 
   it('keeps the open-offer settings available when saving fails', () => {
     renderSolvers('mutinynet', [], 'priority')
-    fireEvent.click(screen.getByRole('button', { name: 'Open offers Ask first' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open offers When needed' }))
     const dialog = within(screen.getByRole('dialog', { name: 'Open offers' }))
     const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('full')
     })
     try {
-      fireEvent.click(dialog.getByRole('button', { name: /^When needed/ }))
+      fireEvent.click(dialog.getByRole('button', { name: /^Ask first/ }))
       expect(dialog.getByText(/Failed to save/)).toBeInTheDocument()
-      expect(dialog.getByRole('button', { name: /^Ask first/ })).toHaveAttribute('aria-pressed', 'true')
-      expect(readOpenOfferPolicy('mutinynet')).toBe('ask')
+      expect(dialog.getByRole('button', { name: /^When needed/ })).toHaveAttribute('aria-pressed', 'true')
+      expect(readOpenOfferPolicy('mutinynet')).toBe('when-needed')
     } finally {
       write.mockRestore()
     }

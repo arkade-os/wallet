@@ -237,9 +237,9 @@ For BTC from Arkade to Bitcoin, **First payment method** lets you try a saved so
 
 On the send review, **Change route** shows the current provider and other eligible saved providers. For an address-only Bitcoin send it also offers collaborative exit. Tick **Remember this next time** in the picker before choosing a route to save that choice after funding.
 
-**Open offers** starts at **Ask first**. Choose **When needed** to allow public searches when a compatible saved route cannot quote or **Off** to disable them. Public searches share the pair and amount.
+**Open offers** starts at **When needed**. If saved providers cannot quote a payment, review opens a public search for the pair and amount. Choose **Ask first** to approve searches as they come up or **Off** to disable them.
 
-An asset payment link fixes the recipient, asset, and amount. **Pay with** offers direct payment when the wallet holds enough of the requested asset, or a Bitcoin-funded swap. If a saved provider cannot quote the swap, review can search Open offers. Only the selected provider gets the recipient address for its firm quote.
+An asset payment link names the recipient and asset, and may also fix the amount. **Pay with** offers direct payment when the wallet holds enough of the requested asset, or a Bitcoin-funded swap. You choose an open offer before reviewing its firm quote. Only the selected provider gets the recipient address.
 
 Payment swap receipts and Activity details show the recorded payee. Use **Save as contact** for a reusable address. One-time Lightning invoices appear in the receipt for reference.
 

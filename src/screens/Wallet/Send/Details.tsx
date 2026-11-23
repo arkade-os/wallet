@@ -129,6 +129,7 @@ export default function SendDetails() {
   const firmTotal = firm ? Number(firm.give.amount) : undefined
   const firmFee = firm && firm.fee.asset === firm.give.asset ? Number(firm.fee.amount) : undefined
   const enableDiscovery = Boolean(firmRequest && openOfferPolicy !== 'off')
+  const automaticFallback = enableDiscovery && openOfferPolicy === 'when-needed' && review.quoteError === 'no-provider'
 
   useEffect(() => {
     automaticDiscovery.current = false
@@ -144,18 +145,12 @@ export default function SendDetails() {
   }, [loadSavedQuote, offerDisabled])
 
   useEffect(() => {
-    if (
-      enableDiscovery &&
-      openOfferPolicy === 'when-needed' &&
-      review.quoteError &&
-      !automaticDiscovery.current &&
-      !commitStarted.current
-    ) {
+    if (automaticFallback && !automaticDiscovery.current && !commitStarted.current) {
       automaticDiscovery.current = true
       setSearchOnOpen('automatic')
       setRoutePicker(true)
     }
-  }, [enableDiscovery, openOfferPolicy, review.quoteError])
+  }, [automaticFallback])
   const amountDisplay = buildTransactionAmountDisplay({
     ...displayContext,
     assets: assetPayment
@@ -657,7 +652,7 @@ export default function SendDetails() {
           ? t('swap.offerExpired')
           : review.quoteError === 'unverified'
             ? t('send.paymentQuoteUnverified')
-            : review.quoteError === 'unavailable'
+            : review.quoteError === 'unavailable' || (review.quoteError === 'no-provider' && !automaticFallback)
               ? t('send.noPaymentQuote')
               : firmTotal !== undefined && firmTotal > availableBalance
                 ? t('send.insufficientFunds')
@@ -763,16 +758,22 @@ export default function SendDetails() {
       <ButtonsOnBottom>
         {sending ? null : firmRequest ? (
           <>
-            <Button
-              onClick={handleContinue}
-              label={
-                review.loading || pricing
-                  ? t('send.gettingQuote')
-                  : t(firmRequest.kind === 'asset' ? 'send.swapAndPay' : 'send.pay')
-              }
-              disabled={!verifiedQuoteReady || Boolean(error) || commitStarted.current}
-            />
-            {!pricing && !review.loading && !commitStarted.current && (!firm || review.expired || Boolean(error)) ? (
+            {automaticFallback ? null : (
+              <Button
+                onClick={handleContinue}
+                label={
+                  review.loading || pricing
+                    ? t('send.gettingQuote')
+                    : t(firmRequest.kind === 'asset' ? 'send.swapAndPay' : 'send.pay')
+                }
+                disabled={!verifiedQuoteReady || Boolean(error) || commitStarted.current}
+              />
+            )}
+            {!automaticFallback &&
+            !pricing &&
+            !review.loading &&
+            !commitStarted.current &&
+            (!firm || review.expired || Boolean(error)) ? (
               <Button
                 label={t('send.retryQuote')}
                 secondary
@@ -795,7 +796,7 @@ export default function SendDetails() {
             }
           />
         )}
-        {!sending && !pricing && !review.loading && !commitStarted.current && hasRouteOptions ? (
+        {!sending && !pricing && !review.loading && !commitStarted.current && hasRouteOptions && !routePicker ? (
           <>
             {findOffersDirectly ? (
               <p className='px-2 text-center text-xs text-muted-foreground'>{t('swap.openOffersPrivacy')}</p>

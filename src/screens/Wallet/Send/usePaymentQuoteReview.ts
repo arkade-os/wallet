@@ -11,12 +11,30 @@ import { SwapsContext } from '../../../providers/swaps'
 
 export type ReviewedQuote = { quote: Quote; offer?: OpenRfqOffer; solverId?: string }
 
-type QuoteReviewError = 'expired' | 'unverified' | 'unavailable'
+type QuoteReviewError = 'expired' | 'unverified' | 'no-provider' | 'unavailable'
 
-function classifyQuoteError(error: unknown, quote?: Quote): QuoteReviewError {
-  const name = error instanceof Error ? error.name : undefined
-  if (name === 'QuoteExpired' || (quote && paymentQuoteExpiry(quote) * 1000 <= Date.now())) return 'expired'
-  if (quote || name === 'QuoteVerificationFailed') return 'unverified'
+function classifyQuoteError(error: unknown, quote: Quote | undefined, solverId?: string): QuoteReviewError {
+  const { name, message } = error instanceof Error ? error : {}
+  const refusal = name === 'SwapRefusal' && error instanceof Error && 'reason' in error ? error.reason : undefined
+  if (
+    name === 'QuoteExpired' ||
+    refusal === 'invoice_expired' ||
+    (quote && paymentQuoteExpiry(quote) * 1000 <= Date.now())
+  )
+    return 'expired'
+  if (quote || name === 'QuoteVerificationFailed' || name === 'SolverResponseInvalid') return 'unverified'
+  if (
+    solverId === undefined &&
+    (name === 'SolverRoutesUnavailable' ||
+      name === 'SolverUnavailable' ||
+      name === 'DiscoverySnapshotUnavailable' ||
+      (name === 'UnsupportedRoute' && message?.startsWith('unsupported route: no market serves ')) ||
+      (typeof refusal === 'string' &&
+        ['unsupported_pair', 'amount_out_of_range', 'exposure_cap', 'pricing_unavailable', 'rate_limited'].includes(
+          refusal,
+        )))
+  )
+    return 'no-provider'
   return 'unavailable'
 }
 
@@ -76,7 +94,7 @@ export default function usePaymentQuoteReview(request: PaymentQuoteRequest | und
         validate(quote)
         publish({ quote, solverId })
       } catch (error) {
-        if (isCurrent()) setQuoteError(classifyQuoteError(error, quote))
+        if (isCurrent()) setQuoteError(classifyQuoteError(error, quote, solverId))
       } finally {
         if (isCurrent()) setLoading(false)
       }
