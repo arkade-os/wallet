@@ -67,6 +67,9 @@ export type DriverOp =
   | 'quotePaymentRoute'
   | 'paymentRouteCandidates'
   | 'acceptPaymentQuote'
+  | 'quoteChainedPayment'
+  | 'startChainedPayment'
+  | 'finishChainedPayment'
 
 /** What the holder runs on a follower's behalf. */
 export type DriverHandler = (op: DriverOp, args: unknown[]) => Promise<unknown>

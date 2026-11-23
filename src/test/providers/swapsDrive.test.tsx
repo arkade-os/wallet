@@ -1,15 +1,23 @@
-import { useContext, useState } from 'react'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { useContext, useState, type PropsWithChildren } from 'react'
+import { act, render, renderHook, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { asset } from '@arkade-os/sdk'
 import {
+  arkadeAsset,
+  assetSwapIdOf,
+  btcOn,
   claimFeeSats,
+  type CorridorSwapRecord,
+  type OfferSwapRecord,
   type OpenRfqAuction,
   type Outcome,
   type Quote,
   type Swap,
+  type SwapRecord,
   type SwapUpdate,
 } from '@arkade-os/swap'
+import { recordEndpoint, recordLeg, swapOf } from '@arkade-os/swap/advanced'
 import { AspContext } from '../../providers/asp'
 import { WalletContext } from '../../providers/wallet'
 import { SwapsContext, SwapsProvider } from '../../providers/swaps'
@@ -17,6 +25,9 @@ import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
 import { MUTINYNET_USDT_ASSET_ID } from '../../lib/accountAssets'
 import { createSendRouter } from '../../lib/sendRouter'
 import { makeSwapClient } from '../../lib/swapClient'
+import { checkpointPaymentRecord, type PaymentFundingAttempt } from '../../lib/paymentFunding'
+import { assetSwapRepository } from '../../lib/swapRepository'
+import fixtures from '../fixtures.json'
 
 const success = vi.hoisted(() => vi.fn())
 vi.mock('../../components/Toast', async (importOriginal) => ({
@@ -88,7 +99,13 @@ vi.mock('../../lib/sendRouter', async (importOriginal) => {
 
 vi.mock('../../lib/swapRepository', async () => {
   const { InMemoryAssetSwapRepository: InMemory } = await import('@arkade-os/swap')
-  return { assetSwapRepository: new InMemory() }
+  class Repository extends InMemory {
+    async saveSwapRecord(record: SwapRecord) {
+      await super.saveSwapRecord(record)
+      await checkpointPaymentRecord(record.id)
+    }
+  }
+  return { assetSwapRepository: new Repository() }
 })
 
 vi.mock('../../lib/swapMarkets', async (importOriginal) => ({
@@ -242,6 +259,7 @@ function Harness({ tab = 'a' }: { tab?: string }) {
 }
 
 let reloadWallet = vi.fn()
+const getSpendableVtxos = vi.fn()
 
 const wrap = (children: React.ReactNode, network = 'mutinynet') => (
   <AspContext.Provider
@@ -258,8 +276,9 @@ const wrap = (children: React.ReactNode, network = 'mutinynet') => (
           ...mockWalletContextValue,
           dataReady: true,
           txs: [],
+          wallet: { ...mockWalletContextValue.wallet, pubkey: 'test-wallet' },
           reloadWallet,
-          svcWallet: { identity: {} },
+          svcWallet: { identity: {}, getSpendableVtxos },
           isVerifiedAsset: () => true,
         } as never
       }
@@ -285,28 +304,28 @@ const renderProvider = () =>
  * point, since an abort cannot release a lock already granted.
  */
 const fakeLocks = () => {
-  const tails = new Map<string, Promise<void>>()
+  const waiting = new Map<string, Promise<void>>()
   return {
-    request: (name: string, options: { signal?: AbortSignal }, callback: () => Promise<void>) => {
-      const tail = tails.get(name) ?? Promise.resolve()
+    request: <T,>(
+      name: string,
+      options: { signal?: AbortSignal; ifAvailable?: boolean },
+      callback: (lock: { name: string } | null) => Promise<T>,
+    ) => {
+      const active = waiting.get(name)
+      if (active && options.ifAvailable) return callback(null)
+      const tail = active ?? Promise.resolve()
       let settle = () => {}
       const held = new Promise<void>((resolve) => {
         settle = resolve
       })
-      tails.set(
-        name,
-        tail.then(() => held),
-      )
+      const queued = tail.then(() => held)
+      waiting.set(name, queued)
       return tail.then(async () => {
-        if (options.signal?.aborted) {
-          settle()
-          const aborted = new Error('lock request aborted')
-          aborted.name = 'AbortError'
-          throw aborted
-        }
         try {
-          await callback()
+          if (options.signal?.aborted) throw new DOMException('lock request aborted', 'AbortError')
+          return await callback({ name })
         } finally {
+          if (waiting.get(name) === queued) waiting.delete(name)
           settle()
         }
       })
@@ -346,6 +365,7 @@ beforeEach(() => {
   dispose.mockReset().mockResolvedValue(undefined)
   accept.mockReset().mockResolvedValue(monitored('funded'))
   clientQuote.mockReset()
+  getSpendableVtxos.mockReset().mockResolvedValue([])
   clientCandidates.mockReset().mockResolvedValue([])
   openRfq.mockReset()
   quoteBid.mockReset()
@@ -374,6 +394,289 @@ const renderTwoTabs = () =>
       </>,
     ),
   )
+
+const now = 1734606756
+const { invoice, paymentHash, amountSats } = fixtures.lib.bolt11
+const request = { kind: 'lightning', invoice, amount: amountSats } as const
+const btc = btcOn('arkade', 'bitcoin')
+const ln = btcOn('bolt11', 'bitcoin')
+const token = arkadeAsset('bitcoin', asset.AssetId.fromString(MUTINYNET_USDT_ASSET_ID))
+const debit = BigInt(amountSats) + 35n
+const carrier = mockAspContextValue.aspInfo.dust
+const script = `5120${'aa'.repeat(32)}`
+const payout = { txid: 'conversion-fill', vout: 1, script, value: Number(debit) }
+const assetInput = {
+  txid: 'wallet-asset',
+  vout: 0,
+  script,
+  value: Number(carrier),
+  assets: [{ assetId: MUTINYNET_USDT_ASSET_ID, amount: 20n }],
+}
+
+const lightningQuote = (id = 'chained-ln', expiresAt = now + 60): Quote => ({
+  id,
+  route: {
+    give: { corridor: 'arkade', asset: btc, instrument: { kind: 'wallet' } },
+    take: {
+      corridor: 'lightning',
+      asset: ln,
+      instrument: { kind: 'invoice', bolt11: invoice, paymentHash, expiresAt: now + 120 },
+    },
+  },
+  give: { asset: btc, amount: debit },
+  take: { asset: ln, amount: BigInt(amountSats) },
+  fee: { asset: btc, amount: 35n },
+  expiresAt,
+  market: { kind: 'restored', backend: 'rfq' },
+})
+
+const conversionQuote = (id = 'chained-conversion'): Quote & { carrierSats: bigint } => ({
+  id,
+  route: {
+    give: { corridor: 'arkade', asset: token, instrument: { kind: 'wallet' } },
+    take: { corridor: 'arkade', asset: btc, instrument: { kind: 'wallet' } },
+  },
+  give: { asset: token, amount: 20n },
+  take: { asset: btc, amount: debit },
+  fee: { asset: btc, amount: 10n },
+  expiresAt: now + 90,
+  market: { kind: 'restored', backend: 'rfq' },
+  carrierSats: carrier,
+})
+
+const recordTerms = (quote: Quote) => ({
+  id: quote.id,
+  route: { give: recordEndpoint(quote.route.give), take: recordEndpoint(quote.route.take) },
+  give: recordLeg(quote.give),
+  take: recordLeg(quote.take),
+  fee: recordLeg(quote.fee),
+  market: quote.market,
+  expiresAt: quote.expiresAt,
+  createdAt: now,
+  updatedAt: now,
+})
+
+const assetRecord = (quote: Quote): OfferSwapRecord => ({
+  ...recordTerms(quote),
+  family: 'offer',
+  status: 'pending',
+  swapAddress: 'asset-lockup',
+  swapPkScript: script,
+  binding: {
+    version: 'asset-swap-directed-nonce',
+    receiverPkScript: script,
+    amount: String(debit),
+    offerAsset: MUTINYNET_USDT_ASSET_ID,
+    userPublicKey: 'aa'.repeat(32),
+    serverPublicKey: 'bb'.repeat(32),
+    emulatorPublicKey: 'cc'.repeat(32),
+  },
+  fundingTxid: 'conversion-deposit',
+})
+
+const lightningRecord = (quote: Quote): CorridorSwapRecord => ({
+  ...recordTerms(quote),
+  family: 'rfq',
+  kind: 'lightning_send',
+  state: 'pending',
+  rfqId: 'invoice-rfq',
+  lockupAddress: 'invoice-lockup',
+  lockupPkScript: script,
+  lock: { hash: paymentHash },
+  refundLocktime: now + 600,
+  profile: {},
+  fundingTxid: 'lightning-deposit',
+})
+
+const attempts = new Map<IDBValidKey, PaymentFundingAttempt>()
+
+// Run the real funding lock and checkpoint logic against an in-memory store.
+const fundingStore = {
+  open: () => {
+    const open = {
+      onsuccess: () => {},
+      result: {
+        transaction: () => {
+          const tx = {
+            oncomplete: () => {},
+            objectStore: () => ({
+              get: (key: IDBValidKey) => {
+                const read = { result: undefined as PaymentFundingAttempt | undefined, onsuccess: () => {} }
+                queueMicrotask(() => {
+                  read.result = attempts.get(key)
+                  read.onsuccess()
+                  tx.oncomplete()
+                })
+                return read
+              },
+              put: (value: PaymentFundingAttempt, key: IDBValidKey) => attempts.set(key, value),
+              delete: (key: IDBValidKey) => attempts.delete(key),
+            }),
+          }
+          return tx
+        },
+      },
+    }
+    queueMicrotask(() => open.onsuccess())
+    return open
+  },
+}
+
+const mountChainedPayment = async () => {
+  const clients = ready.mock.calls.length
+  const hook = renderHook(() => useContext(SwapsContext), {
+    wrapper: ({ children }: PropsWithChildren) => wrap(<SwapsProvider>{children}</SwapsProvider>, 'bitcoin'),
+  })
+  await waitFor(() => expect(ready).toHaveBeenCalledTimes(clients + 1))
+  return hook
+}
+
+describe('SwapsProvider chained Lightning payments', () => {
+  beforeEach(() => {
+    vi.spyOn(Date, 'now').mockReturnValue(now * 1000)
+    attempts.clear()
+    getSpendableVtxos.mockResolvedValue([assetInput])
+    vi.stubGlobal('indexedDB', fundingStore)
+  })
+
+  afterEach(async () => {
+    vi.unstubAllGlobals()
+    await assetSwapRepository.clear()
+  })
+
+  it('fences direct pay during conversion and funds Lightning once from the exact credited output', async () => {
+    const lightning = lightningQuote()
+    const conversion = conversionQuote()
+    const replacement = lightningQuote('replacement-ln')
+    clientQuote.mockResolvedValueOnce(lightning).mockResolvedValueOnce(conversion).mockResolvedValueOnce(replacement)
+    const { result } = await mountChainedPayment()
+    await expect(result.current.quotePaymentRoute(request)).resolves.toEqual(lightning)
+    await expect(result.current.quoteChainedPayment(MUTINYNET_USDT_ASSET_ID, lightning, request)).resolves.toEqual(
+      conversion,
+    )
+    await expect(result.current.quotePaymentRoute(request)).resolves.toEqual(replacement)
+    expect(clientQuote).toHaveBeenNthCalledWith(2, { give: token, take: btc, amount: debit, amountOn: 'take' })
+    expect(accept).not.toHaveBeenCalled()
+    getSpendableVtxos.mockResolvedValueOnce([])
+    await expect(
+      result.current.startChainedPayment(MUTINYNET_USDT_ASSET_ID, conversion, lightning, request),
+    ).rejects.toMatchObject({ name: 'PaymentNotSubmitted' })
+    await expect(result.current.getChainedPayment(request)).resolves.toBeUndefined()
+    expect(accept).not.toHaveBeenCalled()
+
+    const deposit = assetRecord(conversion)
+    const gate = Promise.withResolvers<void>()
+    accept.mockImplementationOnce(async () => {
+      await assetSwapRepository.saveSwapRecord(deposit)
+      await gate.promise
+      return swapOf(deposit, 'open')
+    })
+    const started = result.current.startChainedPayment(MUTINYNET_USDT_ASSET_ID, conversion, lightning, request)
+    try {
+      await waitFor(() => expect(accept).toHaveBeenCalledTimes(1))
+      await expect(result.current.acceptPaymentQuote(replacement, request)).rejects.toMatchObject({
+        name: 'PaymentNotSubmitted',
+      })
+    } finally {
+      await act(async () => {
+        gate.resolve()
+        await started
+      })
+    }
+    const swapId = assetSwapIdOf('offer', conversion.id)
+    expect(accept).toHaveBeenNthCalledWith(1, conversion, {
+      validUntil: lightning.expiresAt,
+      maxChangeFee: 0,
+      selectedVtxos: [assetInput],
+    })
+    await expect(result.current.getChainedPayment(request)).resolves.toEqual({
+      phase: 'converting',
+      swapId,
+      sats: debit,
+    })
+    await expect(result.current.acceptPaymentQuote(replacement, request)).rejects.toMatchObject({
+      name: 'PaymentSubmissionPending',
+      reason: swapId,
+    })
+    await expect(result.current.finishChainedPayment(lightning, request)).rejects.toThrow('not ready')
+    await result.current.startChainedPayment(MUTINYNET_USDT_ASSET_ID, conversion, lightning, request)
+    expect(accept).toHaveBeenCalledTimes(1)
+
+    await assetSwapRepository.saveSwapRecord({ ...deposit, spentTxid: payout.txid, status: 'fulfilled' })
+    await expect(result.current.finishChainedPayment(replacement, request)).rejects.toThrow('not ready')
+    getSpendableVtxos.mockResolvedValue([{ ...payout, txid: 'unrelated-btc' }])
+    await expect(result.current.finishChainedPayment(lightning, request)).rejects.toMatchObject({
+      name: 'PaymentNotSubmitted',
+    })
+    expect(accept).toHaveBeenCalledTimes(1)
+
+    getSpendableVtxos.mockResolvedValue([payout])
+    await expect(result.current.getChainedPayment(request)).resolves.toEqual({
+      phase: 'credited',
+      swapId,
+      sats: debit,
+      spendable: true,
+    })
+    const final = lightningRecord(lightning)
+    accept.mockImplementationOnce(async () => {
+      await assetSwapRepository.saveSwapRecord(final)
+      return swapOf(final, 'funding')
+    })
+    await act(async () => {
+      await expect(result.current.finishChainedPayment(lightning, request)).resolves.toMatchObject({
+        fundingTxid: final.fundingTxid,
+      })
+    })
+    expect(accept).toHaveBeenNthCalledWith(2, lightning, {
+      validUntil: lightning.expiresAt,
+      maxChangeFee: 0,
+      selectedVtxos: [payout],
+    })
+    getSpendableVtxos.mockResolvedValue([])
+    await expect(result.current.finishChainedPayment(lightning, request)).resolves.toMatchObject({
+      fundingTxid: final.fundingTxid,
+    })
+    await expect(result.current.acceptPaymentQuote(replacement, request)).resolves.toMatchObject({
+      fundingTxid: final.fundingTxid,
+    })
+    expect(accept).toHaveBeenCalledTimes(2)
+  })
+
+  it('retains a checkpointed conversion fence across a driver restart when the SDK record goes missing', async () => {
+    const lightning = lightningQuote()
+    const conversion = conversionQuote()
+    clientQuote.mockResolvedValueOnce(lightning).mockResolvedValueOnce(conversion)
+    const first = await mountChainedPayment()
+    await first.result.current.quotePaymentRoute(request)
+    await first.result.current.quoteChainedPayment(MUTINYNET_USDT_ASSET_ID, lightning, request)
+    accept.mockImplementationOnce(async () => {
+      await assetSwapRepository.saveSwapRecord({ ...assetRecord(conversion), fundingTxid: undefined })
+      await assetSwapRepository.removeSwapRecord(conversion.id)
+      throw new Error('wallet disconnected during funding')
+    })
+    await expect(
+      first.result.current.startChainedPayment(MUTINYNET_USDT_ASSET_ID, conversion, lightning, request),
+    ).rejects.toMatchObject({ name: 'PaymentSubmissionPending' })
+    first.unmount()
+
+    const replacement = lightningQuote('replacement-ln')
+    const requoted = conversionQuote('replacement-conversion')
+    clientQuote.mockResolvedValueOnce(replacement).mockResolvedValueOnce(requoted)
+    const { result } = await mountChainedPayment()
+    await result.current.quotePaymentRoute(request)
+    await result.current.quoteChainedPayment(MUTINYNET_USDT_ASSET_ID, replacement, request)
+    const swapId = assetSwapIdOf('offer', conversion.id)
+    await expect(result.current.getChainedPayment(request)).resolves.toMatchObject({ phase: 'converting', swapId })
+    await expect(
+      result.current.startChainedPayment(MUTINYNET_USDT_ASSET_ID, requoted, replacement, request),
+    ).rejects.toMatchObject({ name: 'PaymentSubmissionPending', reason: swapId })
+    await expect(result.current.acceptPaymentQuote(replacement, request)).rejects.toMatchObject({
+      name: 'PaymentSubmissionPending',
+      reason: swapId,
+    })
+    expect(accept).toHaveBeenCalledTimes(1)
+  })
+})
 
 describe('SwapsProvider single-driver rule', () => {
   it('sends an exact asset payment request to the holder-owned auction', async () => {

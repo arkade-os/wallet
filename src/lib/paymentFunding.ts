@@ -3,12 +3,14 @@ import type { CorridorSwapRecord, LockupSpendIndexer } from '@arkade-os/swap'
 import { readLockupFate } from '@arkade-os/swap/protocol'
 
 const STORE = 'attempts'
+const lockName = (key: string) => `arkade-payment-funding:${key}`
 
 export interface PaymentFundingAttempt {
   quoteId: string
   swapId: string
   guarded?: true
   recordSaved?: true
+  chain?: { lightningQuoteId: string; sats: bigint }
 }
 
 export class PaymentSubmissionPending extends Error {
@@ -85,12 +87,17 @@ async function updateAttempt<T>(
 /** Hold this until SDK acceptance finishes, even if the swap driver hands off mid-call. */
 export async function withPaymentFundingLock<T>(key: string, run: (guarded: boolean) => Promise<T>): Promise<T> {
   if (!navigator.locks) return run(false)
-  return await navigator.locks.request(`arkade-payment-funding:${key}`, { ifAvailable: true }, async (lock) => {
+  return await navigator.locks.request(lockName(key), { ifAvailable: true }, async (lock) => {
     if (lock) return run(true)
     const attempt = await readPaymentFunding(key)
     if (attempt) throw new PaymentSubmissionPending(attempt.swapId)
     throw new PaymentNotSubmitted(new Error('Another tab is preparing this payment'))
   })
+}
+
+export async function withPaymentFundingStatus<T>(key: string, read: (guarded: boolean) => Promise<T>): Promise<T> {
+  if (!navigator.locks) return read(false)
+  return navigator.locks.request(lockName(key), { ifAvailable: true }, (lock) => read(Boolean(lock)))
 }
 
 export function canReplaceMissingPaymentRecord(attempt: PaymentFundingAttempt, guarded: boolean): boolean {

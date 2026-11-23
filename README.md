@@ -16,6 +16,18 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
   </tr>
 </table>
 
+## Paying a Lightning invoice with an Arkade asset
+
+Open **Send**, enter an amount-bearing Lightning invoice, and continue to review. Choose **Pay with an asset**
+to check whether a held asset can cover the payment. Review the asset amount, BTC deposit carrier, intermediate
+BTC payout, and exact invoice amount before confirming.
+
+The asset swap credits your wallet with the exact BTC needed for the reviewed Lightning swap. Keep the review
+open while it converts so the wallet can fund the invoice from that payout while the reviewed quote is live.
+If you close the review or the quote expires after conversion, the BTC is in your wallet. Review the invoice
+again to pay from BTC if it is still valid. Wallet activity shows the asset swap and the Lightning payment as
+they settle. Asset-funded payments use a secure browser context with Web Locks support.
+
 ## Recovering an asset mint
 
 Open **Settings → Advanced → Arkade Mint** to enable minting or resume a previous mint.

@@ -269,6 +269,36 @@ describe('starting a Lightning send', () => {
     expect(routerAsked).toBe(0)
     expect(discovered).not.toHaveBeenCalled()
   })
+
+  it('lets a wallet with spendable assets review the fixed invoice when its BTC balance is too low', async () => {
+    const originalLocks = Object.getOwnPropertyDescriptor(navigator, 'locks')
+    Object.defineProperty(navigator, 'locks', { value: { request: vi.fn() }, configurable: true })
+    try {
+      setSendInfo.mockClear()
+      const assetId = '12'.repeat(32) + '0000'
+      const holdings = [{ assetId, amount: 50n }]
+      renderForm(
+        { invoice: INVOICE, satoshis: INVOICE_SATS },
+        {
+          balance: 330,
+          availableBalance: 330,
+          assetBalances: holdings as never,
+          availableAssetBalances: holdings as never,
+        },
+      )
+      const proceed = await screen.findByRole('button', { name: 'Continue' })
+      expect(proceed).toBeEnabled()
+      fireEvent.click(proceed)
+      await waitFor(() =>
+        expect(setSendInfo).toHaveBeenCalledWith(
+          expect.objectContaining({ invoice: INVOICE, satoshis: INVOICE_SATS, reviewId: expect.any(String) }),
+        ),
+      )
+    } finally {
+      if (originalLocks) Object.defineProperty(navigator, 'locks', originalLocks)
+      else Reflect.deleteProperty(navigator, 'locks')
+    }
+  })
 })
 
 describe('starting an exact asset payment', () => {

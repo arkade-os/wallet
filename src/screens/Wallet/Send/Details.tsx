@@ -35,7 +35,7 @@ import { extractError } from '../../../lib/error'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError, consoleLog } from '../../../lib/logs'
 import type { NetworkName, RouteQuote } from '@arkade-os/sdk'
-import { assetSwapIdOf, btcOn, type OpenRfqOffer, type Quote } from '@arkade-os/swap'
+import { assetSwapIdOf, btcOn, type OpenRfqOffer, type Quote, type Swap } from '@arkade-os/swap'
 import { solverId } from '@arkade-os/solver-discovery'
 import { lnurlQuoteMeta } from '@arkade-os/lnurl-client/arkade'
 import { LimitsContext } from '../../../providers/limits'
@@ -59,6 +59,8 @@ import {
 import { paymentQuoteExpiry, quoteProviderMarket, type PaymentQuoteRequest } from '../../../lib/paymentQuotes'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import QuoteChoices from '../Swap/QuoteChoices'
+import ChainedPaymentReview from './ChainedPaymentReview'
+import useChainedPaymentReview from './useChainedPaymentReview'
 import usePaymentQuoteReview from './usePaymentQuoteReview'
 
 type RememberedRoute = { kind: 'provider'; id: string } | { kind: 'onchain'; railId: string; solverId?: string }
@@ -70,7 +72,8 @@ export default function SendDetails() {
   const { calcOnchainOutputFee, intentFee } = useContext(FeesContext)
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
-  const { assetMetadataCache, availableBalance, balance, reloadWallet, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, availableAssetBalances, availableBalance, balance, reloadWallet, svcWallet, wallet } =
+    useContext(WalletContext)
   const { aspInfo } = useContext(AspContext)
   const { sendRouter, onchainPaymentRouteCandidates } = useContext(SwapsContext)
   const readOnchainCandidates = useRef(onchainPaymentRouteCandidates)
@@ -155,13 +158,6 @@ export default function SendDetails() {
     if (offerDisabled && !commitStarted.current) void loadSavedQuote()
   }, [loadSavedQuote, offerDisabled])
 
-  useEffect(() => {
-    if ((initialOpenOffers || automaticFallback) && !automaticDiscovery.current && !commitStarted.current) {
-      automaticDiscovery.current = true
-      setSearchOnOpen(openOfferPolicy === 'when-needed' ? 'automatic' : undefined)
-      setRoutePicker(true)
-    }
-  }, [initialOpenOffers, automaticFallback, openOfferPolicy])
   const amountDisplay = buildTransactionAmountDisplay({
     ...displayContext,
     assets: assetPayment
@@ -414,10 +410,22 @@ export default function SendDetails() {
     setSendDone(true)
   }
 
-  const payReviewedQuote = async (quote: Quote, request: PaymentQuoteRequest) => {
-    review.validate(quote)
-    const swap = await acceptPaymentQuote(quote, request, sendInfo.reviewId)
-    const reviewedSwap = swap.id === assetSwapIdOf(request.kind === 'asset' ? 'offer' : 'rfq', quote.id)
+  const handleReviewedFundingError = (failure: unknown) => {
+    setSending(false)
+    const reason = (failure as Error)?.name
+    const pending = reason === 'PaymentSubmissionPending'
+    setSubmissionPending(pending)
+    if (reason === 'PaymentRequiresNewInvoice') {
+      setError(t('send.paymentRequiresNewInvoice'))
+      if (lnurlTarget) setSendInfo((previous) => ({ ...previous, lnurlInvoice: undefined }))
+      return
+    }
+    setError(pending ? t('send.submissionPending') : extractError(failure))
+    if (['PaymentNotSubmitted', 'QuoteUnavailable', 'QuoteExpired'].includes(reason)) commitStarted.current = false
+  }
+
+  const reportReviewedSwap = (swap: Swap, quote: Quote, kind: PaymentQuoteRequest['kind']) => {
+    const reviewedSwap = swap.id === assetSwapIdOf(kind === 'asset' ? 'offer' : 'rfq', quote.id)
     if (
       reviewedSwap &&
       firmMarket &&
@@ -440,10 +448,57 @@ export default function SendDetails() {
       swap.fundingTxid,
       Number(swap.give.amount),
       swap.fee.asset === swap.give.asset ? Number(swap.fee.amount) : undefined,
-      request.kind === 'asset' ? ASSET_SWAP_PAYMENT_RAIL : LIGHTNING_RAIL,
+      kind === 'asset' ? ASSET_SWAP_PAYMENT_RAIL : LIGHTNING_RAIL,
       swap.id,
       reviewedSwap ? review.reviewed?.offer : undefined,
     )
+  }
+
+  const lightningRequest = firmRequest?.kind === 'lightning' ? firmRequest : undefined
+  const chain = useChainedPaymentReview(
+    lightningRequest,
+    `${network}:${wallet.pubkey}`,
+    firm,
+    (swap, quote) => {
+      commitStarted.current = true
+      setError('')
+      setSending(true)
+      reportReviewedSwap(swap, quote, 'lightning')
+    },
+    handleReviewedFundingError,
+  )
+  const chainActive = chain.busy || chain.blocking || chain.awaitingFill
+  useEffect(() => {
+    if (
+      (initialOpenOffers || automaticFallback) &&
+      !chainActive &&
+      !chain.checking &&
+      !automaticDiscovery.current &&
+      !commitStarted.current
+    ) {
+      automaticDiscovery.current = true
+      setSearchOnOpen(openOfferPolicy === 'when-needed' ? 'automatic' : undefined)
+      setRoutePicker(true)
+    }
+  }, [initialOpenOffers, automaticFallback, openOfferPolicy, chainActive, chain.checking])
+  const assetChoiceOpen = Boolean(firm && chain.choosing && chain.canPick && !chainActive)
+  const assetSourceBalance = availableAssetBalances.find(({ assetId }) => assetId === chain.selectedId)?.amount ?? 0n
+  const carrier = chain.conversion?.carrierSats
+  const chainReady =
+    Boolean(chain.conversion && chain.conversion.give.amount <= assetSourceBalance) &&
+    carrier !== undefined &&
+    carrier <= BigInt(availableBalance) &&
+    !chain.expired &&
+    !chain.startFailure &&
+    !review.expired &&
+    !review.loading &&
+    !chainActive &&
+    Boolean(svcWallet)
+
+  const payReviewedQuote = async (quote: Quote, request: PaymentQuoteRequest) => {
+    review.validate(quote)
+    const swap = await acceptPaymentQuote(quote, request, sendInfo.reviewId)
+    reportReviewedSwap(swap, quote, request.kind)
   }
 
   /** Fund the covenant, then return; both swap rails end here. Funding IS
@@ -544,25 +599,21 @@ export default function SendDetails() {
   const handleContinue = async () => {
     if (!details || !svcWallet || pricing || commitStarted.current) return
     if (firmRequest) {
-      if (!firm || review.loading || review.expired || !firmTotal || firmTotal > availableBalance) return
+      if (
+        chainActive ||
+        chain.checking ||
+        assetChoiceOpen ||
+        !firm ||
+        review.loading ||
+        review.expired ||
+        !firmTotal ||
+        firmTotal > availableBalance
+      )
+        return
       if (paymentQuoteExpiry(firm) * 1000 <= Date.now()) return
       commitStarted.current = true
       setSending(true)
-      void payReviewedQuote(firm, firmRequest).catch((failure) => {
-        setSending(false)
-        const reason = (failure as Error)?.name
-        const pending = reason === 'PaymentSubmissionPending'
-        setSubmissionPending(pending)
-        if (reason === 'PaymentRequiresNewInvoice') {
-          setError(t('send.paymentRequiresNewInvoice'))
-          if (lnurlTarget) setSendInfo((previous) => ({ ...previous, lnurlInvoice: undefined }))
-          return
-        }
-        setError(pending ? t('send.submissionPending') : extractError(failure))
-        if (['PaymentNotSubmitted', 'QuoteUnavailable', 'QuoteExpired'].includes(reason)) {
-          commitStarted.current = false
-        }
-      })
+      void payReviewedQuote(firm, firmRequest).catch(handleReviewedFundingError)
       return
     }
     if (!isAssetSend && (!details.total || !details.satoshis)) return
@@ -654,11 +705,17 @@ export default function SendDetails() {
 
   const isOnchain = Boolean(address && details?.destination === address)
   const verifiedQuoteReady = Boolean(
-    firm && !review.loading && !review.expired && firmTotal !== undefined && firmTotal <= availableBalance,
+    firm &&
+      !review.loading &&
+      !review.expired &&
+      !chainActive &&
+      !chain.checking &&
+      firmTotal !== undefined &&
+      firmTotal <= availableBalance,
   )
   const statusMessage = firmRequest
     ? error ||
-      (review.loading || !showSavedQuoteReview
+      (review.loading || !showSavedQuoteReview || chainActive || assetChoiceOpen
         ? ''
         : review.expired || review.quoteError === 'expired'
           ? t('swap.offerExpired')
@@ -723,7 +780,14 @@ export default function SendDetails() {
   const displayedDetails = details && {
     ...details,
     amountDisplay,
-    ...(firmRequest ? { solver: providerName, swapFeeSats: firmFee, total: firmTotal, fees: undefined } : {}),
+    ...(firmRequest
+      ? {
+          solver: assetChoiceOpen ? undefined : providerName,
+          swapFeeSats: assetChoiceOpen ? undefined : firmFee,
+          total: assetChoiceOpen ? undefined : firmTotal,
+          fees: undefined,
+        }
+      : {}),
     ...(isAssetSend && !firmRequest ? { total: undefined } : {}),
     ...(isOnchain && onchainQuote
       ? {
@@ -739,7 +803,7 @@ export default function SendDetails() {
     <>
       <Header
         text={firmRequest ? t('send.reviewPayment') : t('send.signTransaction')}
-        back={!sending && !submissionPending}
+        back={!sending && !submissionPending && !chain.busy}
       />
       <Content>
         {sending ? (
@@ -764,6 +828,16 @@ export default function SendDetails() {
                 />
               ) : null}
               <Details details={displayedDetails} />
+              {lightningRequest && !submissionPending ? (
+                <ChainedPaymentReview
+                  chain={chain}
+                  lightning={firm}
+                  providerName={providerName}
+                  canChangeSource={Boolean(
+                    firm && paymentQuoteExpiry(firm) * 1_000 > Date.now() && !routePicker && !commitStarted.current,
+                  )}
+                />
+              ) : null}
             </FlexCol>
           </Padded>
         )}
@@ -771,7 +845,29 @@ export default function SendDetails() {
       <ButtonsOnBottom>
         {sending ? null : firmRequest ? (
           <>
-            {showSavedQuoteReview ? (
+            {assetChoiceOpen ? (
+              <>
+                <Button
+                  label={t('send.swapAndPay')}
+                  disabled={!chainReady}
+                  onClick={() => {
+                    setError('')
+                    void chain.begin()
+                  }}
+                />
+                {chain.quoteFailed || chain.expired || chain.startFailure ? (
+                  <Button
+                    label={t('send.retryQuote')}
+                    secondary
+                    onClick={() => {
+                      if (review.expired || chain.lightningUnavailable) void review.load(review.reviewed?.solverId)
+                      chain.retry()
+                    }}
+                  />
+                ) : null}
+                <Button label={t('send.chainPayWithBitcoin')} clear onClick={chain.close} />
+              </>
+            ) : showSavedQuoteReview && !chainActive ? (
               <Button
                 onClick={handleContinue}
                 label={
@@ -783,6 +879,8 @@ export default function SendDetails() {
               />
             ) : null}
             {showSavedQuoteReview &&
+            !assetChoiceOpen &&
+            !chainActive &&
             !pricing &&
             !review.loading &&
             !commitStarted.current &&
@@ -809,7 +907,14 @@ export default function SendDetails() {
             }
           />
         )}
-        {!sending && !pricing && !review.loading && !commitStarted.current && hasRouteOptions && !routePicker ? (
+        {!sending &&
+        !pricing &&
+        !review.loading &&
+        !commitStarted.current &&
+        !assetChoiceOpen &&
+        !chainActive &&
+        hasRouteOptions &&
+        !routePicker ? (
           <>
             {findOffersDirectly ? (
               <p className='px-2 text-center text-xs text-muted-foreground'>{t('swap.openOffersPrivacy')}</p>
@@ -824,7 +929,7 @@ export default function SendDetails() {
             />
           </>
         ) : null}
-        {submissionPending ? (
+        {submissionPending || (chain.status && !sending && !chain.busy) ? (
           <Button label={t('send.viewPaymentActivity')} secondary onClick={() => navigate(Pages.Activity)} />
         ) : null}
       </ButtonsOnBottom>

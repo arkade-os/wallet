@@ -768,6 +768,19 @@ export default function SendForm() {
         ({ min, max }) => (sendInfo.satoshis ?? 0) >= min && (sendInfo.satoshis ?? 0) <= max,
       ),
   )
+  const lnUrlArkMethodAvailable = Boolean(
+    lnUrlResponse?.payRequest.transferAmounts?.some((method) => method.method === 'Ark' && method.available),
+  )
+  const usesStandardLightning = lnUrlResponse
+    ? !lnUrlArkMethodAvailable && !sendAll && lnUrlResponse.payRequest.paymentOptions === undefined
+    : Boolean(sendInfo.invoice)
+  const canUseAssetForLightning =
+    !isAssetSend &&
+    !sendInfo.arkAddress &&
+    vtxoTxsAllowed() &&
+    typeof navigator.locks?.request === 'function' &&
+    availableAssetBalances.some(({ assetId, amount }) => isValidAssetId(assetId) && amount > 0n) &&
+    usesStandardLightning
 
   // manage button label and errors
   useEffect(() => {
@@ -782,7 +795,7 @@ export default function SendForm() {
     }
     const satoshis = sendInfo.satoshis ?? 0
     setLabel(
-      satoshis > liquidBalance
+      satoshis > liquidBalance && !canUseAssetForLightning
         ? t('send.insufficientFunds')
         : lnUrlResponse?.minSendable && satoshis < lnUrlResponse.minSendable
           ? t('send.amountBelowLnurlMin')
@@ -808,6 +821,7 @@ export default function SendForm() {
     linkedFundingAvailable,
     lnUrlResponse,
     lnurlAmountUnavailable,
+    canUseAssetForLightning,
   ])
 
   // manage server unreachable error
@@ -972,10 +986,6 @@ export default function SendForm() {
     if (!canSaveRecipient) return
     setSendInfo((prev) => ({ ...prev, saveAsContact: !prev.saveAsContact }))
   }
-  const lnUrlArkMethodAvailable = Boolean(
-    lnUrlResponse?.payRequest.transferAmounts?.some((method) => method.method === 'Ark' && method.available),
-  )
-
   const handleContinue = async () => {
     setProcessing(true)
     const satoshis = sendInfo.satoshis ?? 0
@@ -1197,7 +1207,7 @@ export default function SendForm() {
         lnurlAmountUnavailable ||
         amountIsAboveMaxLimit(satoshis) ||
         amountIsBelowMinLimit(satoshis) ||
-        satoshis > liquidBalance ||
+        (satoshis > liquidBalance && !canUseAssetForLightning) ||
         aspInfo.unreachable ||
         Boolean(error) ||
         satoshis < 1 ||
