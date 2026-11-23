@@ -239,7 +239,7 @@ On the send review, **Change route** shows the current provider and other eligib
 
 **Open offers** starts at **When needed**. If saved providers cannot quote a payment, review opens a public search for the pair and amount. Choose **Ask first** to approve searches as they come up or **Off** to disable them.
 
-On supported routes, **Start with Open offers** opens the public offer picker first for that direction. The providers enabled for the route can still bid. The wallet-wide **Open offers** setting controls when the search starts.
+On supported routes, **Open offers** is an entry in the solver list. Choose **Try first** on that entry to open the public offer picker before requesting a saved quote for that direction. Enabled providers can still bid. The wallet-wide **Open offers** setting controls when the search starts.
 
 An asset payment link names the recipient and asset, and may also fix the amount. **Pay with** offers direct payment when the wallet holds enough of the requested asset, or a Bitcoin-funded swap. You choose an open offer before reviewing its firm quote. Only the selected provider gets the recipient address.
 

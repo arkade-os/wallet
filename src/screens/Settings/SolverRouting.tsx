@@ -24,6 +24,7 @@ import {
   effectiveSolverRouting,
   isSolverGloballyEnabled,
   enableSolverGlobally,
+  type WalletSolverRoutingPreferences,
 } from '@/lib/solverRouting'
 import { prettyLongText } from '@/lib/format'
 import { solverHealth } from '@/lib/solverHealth'
@@ -246,7 +247,7 @@ function DirectionRouting({
   })
   const disabled = new Set(effectiveSolverRouting(network, direction, candidates).disabled)
   const enabledOrder = ordered.map(({ card }) => solverId(card, network)).filter((id) => !disabled.has(id))
-  const save = (next: SolverRoutingPreferences) => {
+  const save = (next: WalletSolverRoutingPreferences) => {
     try {
       saveSolverRouting(network, direction, next)
       setError('')
@@ -274,39 +275,19 @@ function DirectionRouting({
   }
   const tickerOf = useMarketTicker(network)
   const directionLabel = directionLabelOf(candidates[0], tickerOf)
-  const orderLabel = t(prefs.preferFirst ? 'solvers.remainingOrder' : 'solvers.orderBy')
+  const routeSupportsOffers = supportsOpenOffers(candidates[0])
   const openOffersOff = readOpenOfferPolicy(network) === 'off'
+  const openOffersFirst = routeSupportsOffers && !openOffersOff && readOpenOffersFirst(network, direction)
+  const orderLabel = t(openOffersFirst || prefs.preferFirst ? 'solvers.remainingOrder' : 'solvers.orderBy')
+  const routeOrder = openOffersFirst ? [undefined, ...ordered] : routeSupportsOffers ? [...ordered, undefined] : ordered
   const preferredMissing =
-    prefs.preferFirst && !candidates.some(({ card }) => solverId(card, network) === prefs.preferFirst)
+    !openOffersFirst &&
+    prefs.preferFirst &&
+    !candidates.some(({ card }) => solverId(card, network) === prefs.preferFirst)
   return (
     <FlexCol gap='12px'>
       <RouteLegs {...routeLegsOf(candidates[0], tickerOf)} />
       {isWalletOnchainRoute(candidates[0]) ? <OnchainPaymentMethod network={network} /> : null}
-      {supportsOpenOffers(candidates[0]) ? (
-        <div className='flex min-h-11 w-full items-center justify-between gap-3'>
-          <div className='min-w-0'>
-            <div id={`${listId}-open-offers-first`}>{t('solvers.openOffersFirst')}</div>
-            <div id={`${listId}-open-offers-first-hint`} className='text-xs text-muted-foreground'>
-              {t(openOffersOff ? 'solvers.openOffersFirstOff' : 'solvers.openOffersFirstHint')}
-            </div>
-          </div>
-          <Switch
-            size='lg'
-            checked={readOpenOffersFirst(network, direction)}
-            disabled={openOffersOff}
-            aria-labelledby={`${listId}-open-offers-first`}
-            aria-describedby={`${listId}-open-offers-first-hint`}
-            onCheckedChange={(enabled) => {
-              try {
-                saveOpenOffersFirst(network, direction, enabled)
-                setError('')
-              } catch {
-                setError(t('solvers.failedSave'))
-              }
-            }}
-          />
-        </div>
-      ) : null}
       <TextSecondary>{t('solvers.pauseHint')}</TextSecondary>
       {enabledOrder.length === 0 ? <TextSecondary>{t('solvers.noneEnabled')}</TextSecondary> : null}
       <label className='flex w-full items-center justify-between gap-3'>
@@ -342,16 +323,53 @@ function DirectionRouting({
         text={error || (usageError ? t('solvers.usageUnavailable') : '')}
       />
       <ul className='m-0 w-full list-none divide-y divide-[var(--neutral-100)] p-0'>
-        {ordered.map(({ card, give }, index) => {
+        {routeOrder.map((candidate, rowIndex) => {
+          if (!candidate) {
+            return (
+              <li key='open-offers' className='flex items-center gap-3 py-3'>
+                {!openOffersOff && prefs.mode !== 'cost' ? (
+                  <span aria-hidden='true' className='w-4 shrink-0 text-sm tabular-nums text-[var(--neutral-500)]'>
+                    {openOffersFirst ? 1 : enabledOrder.length + 1}
+                  </span>
+                ) : null}
+                <div className='min-w-0 flex-1' id={`${listId}-open-offers`}>
+                  <Text wrap>{t('swap.openOffers')}</Text>
+                  {openOffersFirst ? <TextSecondary>{t('solvers.firstChoice')}</TextSecondary> : null}
+                  <TextSecondary>
+                    {t(openOffersOff ? 'solvers.openOffersFirstOff' : 'swap.openOffersPrivacy')}
+                  </TextSecondary>
+                  <button
+                    type='button'
+                    className='pill-base mt-2 min-h-11 px-3 text-xs'
+                    aria-label={`${t(openOffersFirst ? 'solvers.clearFirstChoice' : 'solvers.preferFirst')}: ${t('swap.openOffers')}`}
+                    aria-describedby={`${listId}-open-offers`}
+                    disabled={openOffersOff}
+                    onClick={() => {
+                      try {
+                        saveOpenOffersFirst(network, direction, !openOffersFirst)
+                        setError('')
+                      } catch {
+                        setError(t('solvers.failedSave'))
+                      }
+                    }}
+                  >
+                    {t(openOffersFirst ? 'settings.clear' : 'solvers.preferFirst')}
+                  </button>
+                </div>
+              </li>
+            )
+          }
+          const { card, give } = candidate
+          const index = rowIndex - Number(openOffersFirst)
           const id = solverId(card, network)
           const globallyEnabled = isSolverGloballyEnabled(card, network)
           const enabled = !disabled.has(id)
-          const preferred = id === prefs.preferFirst
+          const preferred = !openOffersFirst && id === prefs.preferFirst
           return (
             <li key={id} className='flex items-center gap-3 py-3'>
               {enabled && prefs.mode !== 'cost' ? (
                 <span aria-hidden='true' className='w-4 shrink-0 text-sm tabular-nums text-[var(--neutral-500)]'>
-                  {enabledOrder.indexOf(id) + 1}
+                  {enabledOrder.indexOf(id) + 1 + Number(openOffersFirst)}
                 </span>
               ) : null}
               <div className='min-w-0 flex-1' id={`${listId}-${index}`}>
@@ -391,7 +409,13 @@ function DirectionRouting({
                     className='pill-base mt-2 min-h-11 px-3 text-xs'
                     aria-label={`${t(preferred ? 'solvers.clearFirstChoice' : 'solvers.preferFirst')}: ${card.solver}`}
                     aria-describedby={`${listId}-${index}`}
-                    onClick={() => save({ ...prefs, preferFirst: preferred ? undefined : id })}
+                    onClick={() =>
+                      save({
+                        ...prefs,
+                        preferFirst: preferred ? undefined : id,
+                        ...(!preferred && routeSupportsOffers ? { openOffersFirst: false } : {}),
+                      })
+                    }
                   >
                     {t(preferred ? 'settings.clear' : 'solvers.preferFirst')}
                   </button>

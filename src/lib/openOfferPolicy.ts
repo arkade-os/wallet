@@ -1,4 +1,4 @@
-import { notifySolverRouting, PAYMENT_ROUTE_POLICY_PREFIX } from './solverRouting'
+import { notifySolverRouting, PAYMENT_ROUTE_POLICY_PREFIX, readSolverRouting, saveSolverRouting } from './solverRouting'
 
 export type OpenOfferPolicy = 'ask' | 'when-needed' | 'off'
 export type OnchainSendPreference = 'solver' | 'exit'
@@ -29,7 +29,10 @@ const openOffersFirstKey = (network: string, direction: string): string =>
   `${PAYMENT_ROUTE_POLICY_PREFIX}openOffersFirst:${JSON.stringify([network, direction])}`
 
 export const readOpenOffersFirst = (network: string, direction: string): boolean => {
+  const choice = readSolverRouting(network, direction).openOffersFirst
+  if (choice !== undefined) return choice
   try {
+    // Earlier builds stored the route's Open offers preference separately from its order.
     return localStorage.getItem(openOffersFirstKey(network, direction)) === 'true'
   } catch {
     return false
@@ -37,10 +40,7 @@ export const readOpenOffersFirst = (network: string, direction: string): boolean
 }
 
 export const saveOpenOffersFirst = (network: string, direction: string, enabled: boolean): void => {
-  const routeKey = openOffersFirstKey(network, direction)
-  if (enabled) localStorage.setItem(routeKey, 'true')
-  else localStorage.removeItem(routeKey)
-  notifySolverRouting()
+  saveSolverRouting(network, direction, { ...readSolverRouting(network, direction), openOffersFirst: enabled })
 }
 
 export const readOnchainSendPreference = (network: string): OnchainSendPreference =>

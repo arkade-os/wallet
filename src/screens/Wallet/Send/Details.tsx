@@ -430,6 +430,7 @@ export default function SendDetails() {
         saveSolverRouting(network, direction, {
           ...readSolverRouting(network, direction),
           preferFirst: rememberedRoute.id,
+          openOffersFirst: false,
         })
       } catch (failure) {
         consoleError(failure, 'could not save preferred payment provider')

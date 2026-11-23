@@ -168,20 +168,32 @@ describe('Solvers screen', () => {
     }
   })
 
-  it('starts with open offers only for the selected route and keeps its provider enabled', () => {
+  it('moves open offers between first and fallback on the selected route', () => {
     const network = 'mutinynet'
     const direction = solverDirectionKey(btcUsdt, 'base', network)
     const reverse = solverDirectionKey(btcUsdt, 'quote', network)
-    const order = { mode: 'cost' as const, preferFirst: solverId(btcUsdt, network) }
+    const order = { mode: 'manual' as const, preferFirst: solverId(btcUsdt, network) }
     saveSolverRouting(network, direction, order)
     const forwardName = 'Arkade BTC → Arkade USDT'
     const reverseName = 'Arkade USDT → Arkade BTC'
     const view = renderSolvers(network, [btcUsdt], 'priority')
     fireEvent.click(screen.getByRole('button', { name: forwardName }))
-    const openOffers = () => within(screen.getByRole('dialog')).getByRole('switch', { name: 'Start with Open offers' })
-    expect(openOffers()).not.toBeChecked()
-    fireEvent.click(openOffers())
-    expect(openOffers()).toBeChecked()
+    const dialog = () => within(screen.getByRole('dialog'))
+    const rows = () => dialog().getAllByRole('listitem')
+    const tryOpenOffers = () => dialog().getByRole('button', { name: 'Try first: Open offers' })
+    const clearOpenOffers = () => dialog().getByRole('button', { name: 'Clear first choice: Open offers' })
+    const expectOpenOffersFirst = () => {
+      expect(rows()[0]).toHaveTextContent('Open offers')
+      expect(rows()[0].firstElementChild).toHaveTextContent(/^1$/)
+      expect(rows()[1]).toHaveTextContent(btcUsdt.solver)
+      expect(rows()[1].firstElementChild).toHaveTextContent(/^2$/)
+      expect(dialog().getAllByText('First choice')).toHaveLength(1)
+      expect(clearOpenOffers()).toBeEnabled()
+    }
+    expect(rows()[0]).toHaveTextContent(btcUsdt.solver)
+    expect(rows()[1]).toHaveTextContent('Open offers')
+    fireEvent.click(tryOpenOffers())
+    expectOpenOffersFirst()
     expect(readOpenOffersFirst(network, direction)).toBe(true)
     expect(readOpenOffersFirst(network, reverse)).toBe(false)
     expect(readOpenOffersFirst('bitcoin', direction)).toBe(false)
@@ -192,19 +204,28 @@ describe('Solvers screen', () => {
     renderSolvers(network, [btcUsdt], 'priority')
     expect(screen.getByRole('button', { name: forwardName })).toHaveTextContent('Open offers first')
     fireEvent.click(screen.getByRole('button', { name: reverseName }))
-    expect(openOffers()).not.toBeChecked()
+    expect(tryOpenOffers()).toBeEnabled()
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     fireEvent.click(screen.getByRole('button', { name: forwardName }))
-    expect(openOffers()).toBeChecked()
+    expectOpenOffersFirst()
 
     act(() => saveOpenOfferPolicy(network, 'off'))
-    expect(openOffers()).toHaveAttribute('aria-disabled', 'true')
+    expect(tryOpenOffers()).toBeDisabled()
     expect(readOpenOffersFirst(network, direction)).toBe(true)
     act(() => saveOpenOfferPolicy(network, 'when-needed'))
-    expect(openOffers()).not.toHaveAttribute('aria-disabled', 'true')
-    expect(openOffers()).toBeChecked()
-    fireEvent.click(openOffers())
+    expectOpenOffersFirst()
+
+    fireEvent.click(dialog().getByRole('button', { name: `Try first: ${btcUsdt.solver}` }))
     expect(readOpenOffersFirst(network, direction)).toBe(false)
+    expect(readSolverRouting(network, direction)).toMatchObject(order)
+    expect(rows()[0]).toHaveTextContent(btcUsdt.solver)
+    expect(rows()[1]).toHaveTextContent('Open offers')
+    expect(isSolverEnabled(btcUsdt, 'base', network)).toBe(true)
+
+    fireEvent.click(tryOpenOffers())
+    fireEvent.click(clearOpenOffers())
+    expect(readOpenOffersFirst(network, direction)).toBe(false)
+    expect(rows()[0]).toHaveTextContent(btcUsdt.solver)
   })
 
   it('shows the wallet exit without a solver and keeps method selection separate from solver order', () => {
@@ -224,7 +245,7 @@ describe('Solvers screen', () => {
     renderSolvers('mutinynet', [market], 'priority')
     fireEvent.click(screen.getByRole('button', { name: routeName }))
     const dialog = screen.getByRole('dialog')
-    expect(within(dialog).queryByRole('switch', { name: 'Start with Open offers' })).not.toBeInTheDocument()
+    expect(within(dialog).queryByRole('button', { name: 'Try first: Open offers' })).not.toBeInTheDocument()
     const method = within(dialog).getByRole('combobox', { name: 'First payment method' })
     expect(method).toHaveValue('solver')
     expect(within(dialog).getAllByRole('listitem')).toHaveLength(1)
@@ -597,7 +618,7 @@ describe('Solvers screen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Arkade BTC → Lightning BTC' }))
     expect(within(screen.getByRole('dialog')).getByText('BTC · Arkade')).toBeInTheDocument()
     expect(within(screen.getByRole('dialog')).getByText('BTC · Lightning')).toBeInTheDocument()
-    expect(within(screen.getByRole('dialog')).getByRole('switch', { name: 'Start with Open offers' })).not.toBeChecked()
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Try first: Open offers' })).toBeEnabled()
     expect(screen.queryByText(solverDirectionKey(lightning, 'base', 'mutinynet'))).not.toBeInTheDocument()
     expect(screen.getByText(/30 bps \+ 500 sats/)).toBeInTheDocument()
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }))

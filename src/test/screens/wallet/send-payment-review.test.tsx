@@ -4,7 +4,7 @@ import { arkadeAsset, assetSwapIdOf, btcOn, type OpenRfqAuction, type OpenRfqOff
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ContextType } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { saveOpenOfferPolicy, saveOpenOffersFirst } from '../../../lib/openOfferPolicy'
+import { readOpenOffersFirst, saveOpenOfferPolicy, saveOpenOffersFirst } from '../../../lib/openOfferPolicy'
 import type { PaymentQuoteRequest } from '../../../lib/paymentQuotes'
 import { readSolverRouting, saveSolverRouting } from '../../../lib/solverRouting'
 import { Unit } from '../../../lib/types'
@@ -261,30 +261,37 @@ describe('reviewing a solver payment', () => {
     expect(acceptPaymentQuote).not.toHaveBeenCalled()
   })
 
-  it('quotes the chosen saved provider, displays its total, and remembers it only after payment', async () => {
+  it.each([false, true])('remembers a provider after payment (open first: %s)', async (firstOpen) => {
     const first = lightningQuote('harbor-quote', 2_110)
     const alternate = lightningQuote('bay-quote', 2_150, bay)
-    quotePaymentRoute.mockResolvedValueOnce(first).mockResolvedValueOnce(alternate)
+    quotePaymentRoute.mockImplementation(async (_, provider) => (provider === bayId ? alternate : first))
     paymentRouteCandidates.mockResolvedValue([
       { id: harborId, name: harbor.solver },
       { id: bayId, name: bay.solver },
     ])
     saveSolverRouting(network, direction, { mode: 'cost', priority: [harborId] })
+    if (firstOpen) {
+      saveOpenOffersFirst(network, direction, true)
+      saveOpenOfferPolicy(network, 'ask')
+    }
     render(review())
 
-    expect(await screen.findByTestId('Total')).toHaveTextContent('2,110')
-    expect(screen.queryByRole('checkbox', { name: 'Remember this next time' })).toBeNull()
-    fireEvent.click(button('Change route'))
+    if (!firstOpen) {
+      expect(await screen.findByTestId('Total')).toHaveTextContent('2,110')
+      expect(screen.queryByRole('checkbox', { name: 'Remember this next time' })).toBeNull()
+      fireEvent.click(button('Change route'))
+    }
     const routes = await screen.findByRole('dialog', { name: 'Change route' })
     expect(within(routes).getByRole('button', { name: 'Find open offers' })).toBeVisible()
     expect(openPaymentQuotes).not.toHaveBeenCalled()
-    fireEvent.click(within(routes).getByRole('checkbox', { name: 'Remember this next time' }))
-    fireEvent.click(within(routes).getByRole('button', { name: bay.solver }))
+    fireEvent.click(await within(routes).findByRole('checkbox', { name: 'Remember this next time' }))
+    fireEvent.click(await within(routes).findByRole('button', { name: bay.solver }))
 
     await waitFor(() => expect(screen.getByTestId('Total')).toHaveTextContent('2,150'))
     expect(quotePaymentRoute).toHaveBeenLastCalledWith(lightningRequest, bayId)
     expect(acceptPaymentQuote).not.toHaveBeenCalled()
     expect(readSolverRouting(network, direction).preferFirst).toBeUndefined()
+    expect(readOpenOffersFirst(network, direction)).toBe(firstOpen)
     fireEvent.click(pay())
 
     await waitFor(() =>
@@ -295,6 +302,7 @@ describe('reviewing a solver payment', () => {
       priority: [harborId],
       preferFirst: bayId,
     })
+    expect(readOpenOffersFirst(network, direction)).toBe(false)
     expect(openPaymentQuotes).not.toHaveBeenCalled()
   })
 
