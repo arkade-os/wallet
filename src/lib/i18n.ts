@@ -993,6 +993,8 @@ export const translations = {
     },
     wallet: {
       accounts: 'Accounts',
+      manage: 'Manage',
+      manageAssets: 'Manage assets',
       activity: 'Activity',
       addArkadeToHome: 'Add Arkade to your home screen',
       install: 'Install',
@@ -2013,6 +2015,8 @@ export const translations = {
     },
     wallet: {
       accounts: 'Cuentas',
+      manage: 'Gestionar',
+      manageAssets: 'Gestionar activos',
       activity: 'Actividad',
       addArkadeToHome: 'Añadir Arkade a tu pantalla de inicio',
       install: 'Instalar',
@@ -3027,6 +3031,8 @@ export const translations = {
     },
     wallet: {
       accounts: 'Contas',
+      manage: 'Gerenciar',
+      manageAssets: 'Gerenciar ativos',
       activity: 'Atividade',
       addArkadeToHome: 'Adicionar Arkade à tela inicial',
       install: 'Instalar',

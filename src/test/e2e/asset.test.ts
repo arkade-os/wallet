@@ -12,8 +12,11 @@ import { translations } from '../../lib/i18n'
 
 const tr = translations.en
 
-test('opens the asset library independently of minting', async ({ page }) => {
+test('opens the asset library from Home and keeps minting in Advanced', async ({ page }) => {
   await createWallet(page)
+  await expect(page.getByText(tr.wallet.accounts, { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Manage assets', exact: true })).toHaveText('Manage')
+  await expect(page.getByTestId('top-right-assets').or(page.getByTestId('desktop-nav-assets'))).toHaveCount(0)
   await expect(page.getByRole('button', { name: tr.assets.add, exact: true })).not.toBeVisible()
   await navigateToAssets(page)
 

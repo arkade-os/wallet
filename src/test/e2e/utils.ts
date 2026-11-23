@@ -83,8 +83,8 @@ export async function navigateToActivity(page: Page): Promise<void> {
 
 export async function navigateToAssets(page: Page): Promise<void> {
   if (await page.getByTestId('header-title-assets').isVisible()) return
-  if (!isDesktop(page)) await navigateHome(page)
-  await navLocator(page, 'assets').click()
+  await navigateHome(page)
+  await page.getByTestId('home-manage-assets').click()
   await page.getByTestId('header-title-assets').waitFor({ state: 'visible' })
 }
 

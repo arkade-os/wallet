@@ -155,6 +155,18 @@ describe('asset library', () => {
     expect(replace.mock.invocationCallOrder[0]).toBeLessThan(navigate.mock.invocationCallOrder[0])
   })
 
+  it('opens the asset library from Accounts with no tracked assets', async () => {
+    const user = userEvent.setup()
+    const { navigate } = renderLibrary(<AssetsSection />, { balance: 0 })
+
+    const accounts = screen.getByText('Accounts').parentElement!
+    const manage = within(accounts).getByRole('button', { name: 'Manage assets' })
+    expect(manage).toHaveTextContent('Manage')
+    await user.click(manage)
+
+    expect(navigate).toHaveBeenCalledWith(Pages.AppAssets)
+  })
+
   it('honors Home visibility only for verified IDs, including a pinned zero balance', () => {
     renderLibrary(<AssetsSection />, {
       config: {

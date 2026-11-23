@@ -61,18 +61,6 @@ const HomeHeader = forwardRef<HTMLDivElement, HomeHeaderProps>(function HomeHead
         <div className='home-header__mobile-actions flex items-center gap-1'>
           <button
             type='button'
-            onClick={() => {
-              hapticLight()
-              navigate(Pages.AppAssets)
-            }}
-            data-testid='top-right-assets'
-            disabled={homeBusy}
-            className={`${actionClassName} !w-auto px-2 text-sm`}
-          >
-            {t('assets.title')}
-          </button>
-          <button
-            type='button'
             onClick={handleActivity}
             aria-label={t('wallet.viewRecentActivity')}
             data-testid='top-right-activity'
@@ -96,7 +84,7 @@ const HomeHeader = forwardRef<HTMLDivElement, HomeHeaderProps>(function HomeHead
         </div>
         {balance ? (
           <div
-            className='pointer-events-none absolute inset-y-0 left-16 right-44 flex min-w-0 items-center justify-center text-center'
+            className='pointer-events-none absolute inset-y-0 right-28 left-16 flex min-w-0 items-center justify-center text-center'
             aria-hidden={clampedBalanceProgress < 0.5}
             data-testid='sticky-balance'
           >

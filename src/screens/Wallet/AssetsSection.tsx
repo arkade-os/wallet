@@ -12,6 +12,8 @@ import { AspContext } from '../../providers/asp'
 import { rawAssetPresentation, verifiedDesignatedCurrency } from '../../lib/accountAssets'
 import { assetVisibleOnHome, normalizeAssetId, trackedAssetIds } from '../../lib/assetLibrary'
 import { truncatedAssetId } from '../../lib/assets'
+import { hapticLight } from '../../lib/haptics'
+import ArrowIcon from '../../icons/Arrow'
 
 export default function AssetsSection() {
   const { config } = useContext(ConfigContext)
@@ -21,6 +23,7 @@ export default function AssetsSection() {
   const { aspInfo } = useContext(AspContext)
   const { assetMetadataCache, booting, dataReady, isVerifiedAsset } = useContext(WalletContext)
   const { t } = useTranslation()
+  const homeBusy = Boolean(booting) && !dataReady
 
   const { rows } = usePortfolioFiat()
   const accountRows = rows.filter(
@@ -64,7 +67,7 @@ export default function AssetsSection() {
   }
 
   const handleAssetClick = (row: PortfolioRow) => {
-    if (Boolean(booting) && !dataReady) return
+    if (homeBusy) return
     if (row.assetId === 'btc') {
       navigate(Pages.BitcoinDetail)
     } else if (row.fiatCurrency && row.balance > 0) {
@@ -80,6 +83,20 @@ export default function AssetsSection() {
     <section className='home-section'>
       <div className='flex w-full items-center justify-between px-1'>
         <span className='home-section-label'>{t('wallet.accounts')}</span>
+        <button
+          type='button'
+          aria-label={t('wallet.manageAssets')}
+          data-testid='home-manage-assets'
+          className='home-section-action -my-3 min-h-11 touch-manipulation disabled:opacity-50'
+          disabled={homeBusy}
+          onClick={() => {
+            hapticLight()
+            navigate(Pages.AppAssets)
+          }}
+        >
+          {t('wallet.manage')}
+          <ArrowIcon small />
+        </button>
       </div>
       <div className='home-section__content'>
         {accountRows.map((row) => (
