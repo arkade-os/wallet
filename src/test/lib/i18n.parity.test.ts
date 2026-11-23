@@ -28,6 +28,8 @@ const keepEnglishTermAllowList = new Set([
   'receive.methodLightning',
   'receive.methodArkade',
   'receive.methodBitcoin',
+  'receive.methodStablecoins',
+  'receive.partLnurl',
   'send.bitcoin',
   'settings.arkadeMint',
   'settings.auto',
