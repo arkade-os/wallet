@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeHandle } from '@arkade-os/sdk'
@@ -286,14 +287,92 @@ describe('starting an exact asset payment', () => {
     fireEvent.change(recipient, { target: { value: request } })
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled())
+    expect(screen.getByText('Pay with')).toBeInTheDocument()
+    expect(screen.getByTestId('asset-selector')).toHaveTextContent('Bitcoin')
+    expect(screen.getByText('Recipient gets')).toBeInTheDocument()
+    expect(container.querySelector('input[name="send-amount"]')).toHaveValue(1.23)
+    expect(container.querySelector('input[name="send-amount"]')).toHaveAttribute('readonly')
+    await cont()
+    expect(setSendInfo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipient: request,
+        assetPayment: { address: ARK_ADDRESS, assetId, amount, fromAssetId: 'btc' },
+        reviewId: expect.any(String),
+      }),
+    )
+  })
+
+  it.each(['requested asset', 'Bitcoin'])('keeps the recipient amount fixed when paying with %s', async (source) => {
+    setSendInfo.mockClear()
+    const assetId = '12'.repeat(32) + '0000'
+    const metadata = { assetId, supply: 10_000n, metadata: { name: 'Test asset', ticker: 'TST', decimals: 2 } }
+    const amount = 123n
+    const request = encodeBip21Asset(ARK_ADDRESS, assetId, amount, 2)
+    const holdings = [{ assetId, amount: 300n }] as never
+    const { container } = renderForm(
+      { ...emptySendInfo, recipient: request, reviewId: 'existing-review' },
+      {
+        assetBalances: holdings,
+        availableAssetBalances: holdings,
+        assetMetadataCache: new Map([[assetId, metadata]]),
+        svcWallet: { ...formWallet, getAddress: async () => ARK_ADDRESS } as never,
+      },
+    )
+    const user = userEvent.setup()
+    const picker = await screen.findByTestId('asset-selector')
+    expect(picker).toHaveTextContent(/TST/)
+    if (source === 'Bitcoin') {
+      await user.click(picker)
+      await user.click(await screen.findByRole('menuitem', { name: /Bitcoin/ }))
+      expect(picker).toHaveTextContent('Bitcoin')
+    }
     expect(container.querySelector('input[name="send-amount"]')).toHaveValue(1.23)
     await cont()
     expect(setSendInfo).toHaveBeenCalledWith(
       expect.objectContaining({
         recipient: request,
-        assetPayment: { address: ARK_ADDRESS, assetId, amount },
-        reviewId: expect.any(String),
+        assets: [{ assetId, amount }],
+        assetPayment: source === 'Bitcoin' ? { address: ARK_ADDRESS, assetId, amount, fromAssetId: 'btc' } : undefined,
+        reviewId: 'existing-review',
       }),
+    )
+  })
+
+  it('discards a stale asset-link parse when the recipient changes during metadata lookup', async () => {
+    setSendInfo.mockClear()
+    const oldAssetId = '12'.repeat(32) + '0000'
+    const assetId = '34'.repeat(32) + '0000'
+    const amount = 20n
+    const old = { assetId: oldAssetId, supply: 10_000n, metadata: { name: 'Old token', ticker: 'OLD', decimals: 0 } }
+    const current = { assetId, supply: 10_000n, metadata: { name: 'New token', ticker: 'NEW', decimals: 0 } }
+    const request = encodeBip21Asset(ARK_ADDRESS, assetId, amount, 0)
+    let resolveOld!: (metadata: typeof old) => void
+    const fetchOld = vi.fn(
+      () =>
+        new Promise<typeof old>((resolve) => {
+          resolveOld = resolve
+        }),
+    )
+    const { container } = renderForm(
+      { ...emptySendInfo, recipient: encodeBip21Asset(ARK_ADDRESS, oldAssetId, 30n, 0), reviewId: 'old-review' },
+      {
+        assetMetadataCache: new Map([[assetId, current]]),
+        svcWallet: {
+          ...formWallet,
+          getAddress: async () => ARK_ADDRESS,
+          assetManager: { getAssetDetails: fetchOld },
+        } as never,
+      },
+    )
+    await waitFor(() => expect(fetchOld).toHaveBeenCalledWith(oldAssetId))
+    fireEvent.change(container.querySelector('input[name="send-address"]')!, { target: { value: request } })
+    await act(async () => resolveOld(old))
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled())
+    expect(container.querySelector('input[name="send-amount"]')).toHaveValue(20)
+    await cont()
+    expect(setSendInfo).toHaveBeenCalledWith(
+      expect.objectContaining({ assetPayment: { address: ARK_ADDRESS, assetId, amount, fromAssetId: 'btc' } }),
     )
   })
 })

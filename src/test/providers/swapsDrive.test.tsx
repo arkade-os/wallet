@@ -139,6 +139,7 @@ function Harness({ tab = 'a' }: { tab?: string }) {
     sendRouter,
     onchainPaymentRouteCandidates,
     openSwapQuotes,
+    openPaymentQuotes,
     chooseSwapQuote,
     acceptSwapQuote,
   } = useContext(SwapsContext)
@@ -160,6 +161,21 @@ function Harness({ tab = 'a' }: { tab?: string }) {
             .catch((err: Error) => setRejected(err.message))
         }
       >{`Offers ${tab}`}</button>
+      <button
+        onClick={() =>
+          void openPaymentQuotes(
+            {
+              kind: 'asset',
+              address: 'tark1recipient',
+              assetId: MUTINYNET_USDT_ASSET_ID,
+              amount: 20n,
+              fromAssetId: 'btc',
+            },
+            'asset-request',
+            true,
+          ).catch((err: Error) => setRejected(err.message))
+        }
+      >{`Asset payment offers ${tab}`}</button>
       <button
         disabled={!auction}
         onClick={() =>
@@ -360,6 +376,24 @@ const renderTwoTabs = () =>
   )
 
 describe('SwapsProvider single-driver rule', () => {
+  it('sends an exact asset payment request to the holder-owned auction', async () => {
+    openRfq.mockResolvedValue({ id: 'payment-offers', bids: [] })
+    renderTwoTabs()
+    await waitFor(() => expect(ready).toHaveBeenCalledTimes(1))
+
+    await userEvent.click(within(screen.getByTestId('tab-b')).getByText('Asset payment offers b'))
+
+    await waitFor(() => expect(openRfq).toHaveBeenCalledTimes(1))
+    expect(openRfq.mock.calls[0][0]).toEqual({
+      give: 'arkade:mutinynet/slip44:1',
+      take: `arkade:mutinynet/asset:${MUTINYNET_USDT_ASSET_ID}`,
+      amount: 20n,
+      amountOn: 'take',
+      assetPayment: { receiveAddress: 'tark1recipient' },
+    })
+    expect(accept).not.toHaveBeenCalled()
+  })
+
   it('closes and accepts a follower choice using only the holder-owned auction and quote', async () => {
     const auction = {
       id: 'open-1',

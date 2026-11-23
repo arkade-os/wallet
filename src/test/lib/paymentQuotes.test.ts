@@ -102,6 +102,15 @@ describe('payment quotes', () => {
     })
     const quote = assetQuote()
     expect(() => assertAssetPaymentQuote(quote, assetRequest, network)).not.toThrow()
+    expect(assetPaymentQuoteInput({ ...assetRequest, fromAssetId: 'btc' }, network)).toEqual(
+      assetPaymentQuoteInput(assetRequest, network),
+    )
+    expect(() => assetPaymentQuoteInput({ ...assetRequest, fromAssetId: assetRequest.assetId }, network)).toThrow(
+      'Only Bitcoin can fund a swap',
+    )
+    expect(() =>
+      assertAssetPaymentQuote(quote, { ...assetRequest, fromAssetId: assetRequest.assetId }, network),
+    ).toThrow('Only Bitcoin can fund a swap')
     expect(() => assertAssetPaymentQuote(quote, { ...assetRequest, address: 'ark1different' }, network)).toThrow(
       'does not deliver the requested asset amount to the recipient',
     )
@@ -116,6 +125,7 @@ describe('payment quotes', () => {
     expect(key(invoiceRequest, 'first')).toBe(key(invoiceRequest, 'second'))
     expect(key(invoiceRequest, 'first')).not.toBe(key(invoiceRequest, 'first', 'other-wallet'))
     expect(key(assetRequest, 'first')).not.toBe(key(assetRequest, 'second'))
+    expect(key(assetRequest, 'first')).toBe(key({ ...assetRequest, fromAssetId: 'btc' }, 'first'))
     expect(key(assetRequest, 'first')).not.toBe(key({ ...assetRequest, amount: 21n }, 'first'))
     expect(key(assetRequest, 'first')).not.toBe(key({ ...assetRequest, address: 'ark1different' }, 'first'))
   })

@@ -4,17 +4,18 @@ import type { DiscoveredMarket } from '@arkade-os/solver-discovery'
 import { toInvoiceFacts } from './lnSwap'
 import { isValidAssetId } from './assets'
 
-export type OpenPaymentRequest = { kind: 'lightning'; invoice: string; amount?: number }
+type LightningPaymentRequest = { kind: 'lightning'; invoice: string; amount?: number }
 
 export interface AssetPaymentRequest {
   address: string
   assetId: string
   amount: bigint
+  fromAssetId?: string
 }
 
-export type PaymentQuoteRequest = OpenPaymentRequest | ({ kind: 'asset' } & AssetPaymentRequest)
+export type PaymentQuoteRequest = LightningPaymentRequest | ({ kind: 'asset' } & AssetPaymentRequest)
 
-function invoiceFacts(request: OpenPaymentRequest, network: NetworkName) {
+function invoiceFacts(request: LightningPaymentRequest, network: NetworkName) {
   const invoice = invoiceTarget(request.invoice)
   if (!invoice) throw new Error('Enter a valid Lightning invoice')
   const facts = toInvoiceFacts(invoice, network)
@@ -24,11 +25,12 @@ function invoiceFacts(request: OpenPaymentRequest, network: NetworkName) {
   return facts
 }
 
-export function openPaymentQuoteInput(request: OpenPaymentRequest, network: NetworkName): QuoteInput {
+export function openPaymentQuoteInput(request: LightningPaymentRequest, network: NetworkName): QuoteInput {
   return { to: invoiceFacts(request, network).raw }
 }
 
 export function assetPaymentQuoteInput(request: AssetPaymentRequest, network: NetworkName): QuoteInput {
+  assertAssetPaymentSource(request)
   if (!isValidAssetId(request.assetId) || typeof request.amount !== 'bigint' || request.amount <= 0n) {
     throw new Error('Enter a valid asset ID and a positive amount')
   }
@@ -39,6 +41,11 @@ export function assetPaymentQuoteInput(request: AssetPaymentRequest, network: Ne
     amountOn: 'take',
     assetPayment: { receiveAddress: request.address },
   }
+}
+
+function assertAssetPaymentSource(request: AssetPaymentRequest): void {
+  if (request.fromAssetId !== undefined && request.fromAssetId !== 'btc')
+    throw new Error('Only Bitcoin can fund a swap for this asset payment')
 }
 
 export function paymentQuoteExpiry(quote: Quote): number {
@@ -98,7 +105,7 @@ function assertWalletPaymentQuote(quote: Quote, network: NetworkName) {
   }
 }
 
-export function assertOpenPaymentQuote(quote: Quote, request: OpenPaymentRequest, network: NetworkName): void {
+export function assertOpenPaymentQuote(quote: Quote, request: LightningPaymentRequest, network: NetworkName): void {
   assertWalletPaymentQuote(quote, network)
   const receiver = quote.route.take.instrument
   const invoice = invoiceFacts(request, network)
@@ -115,6 +122,7 @@ export function assertOpenPaymentQuote(quote: Quote, request: OpenPaymentRequest
 }
 
 export function assertAssetPaymentQuote(quote: Quote, request: AssetPaymentRequest, network: NetworkName): void {
+  assertAssetPaymentSource(request)
   assertWalletPaymentQuote(quote, network)
   const receiver = quote.route.take.instrument
   if (

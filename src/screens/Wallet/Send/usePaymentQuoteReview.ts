@@ -1,7 +1,6 @@
-import { useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { NetworkName } from '@arkade-os/sdk'
 import type { OpenRfqOffer, Quote } from '@arkade-os/swap'
-import { extractError } from '../../../lib/error'
 import {
   assertAssetPaymentQuote,
   assertOpenPaymentQuote,
@@ -12,16 +11,29 @@ import { SwapsContext } from '../../../providers/swaps'
 
 export type ReviewedQuote = { quote: Quote; offer?: OpenRfqOffer; solverId?: string }
 
+type QuoteReviewError = 'expired' | 'unverified' | 'unavailable'
+
+function classifyQuoteError(error: unknown, quote?: Quote): QuoteReviewError {
+  const name = error instanceof Error ? error.name : undefined
+  if (name === 'QuoteExpired' || (quote && paymentQuoteExpiry(quote) * 1000 <= Date.now())) return 'expired'
+  if (quote || name === 'QuoteVerificationFailed') return 'unverified'
+  return 'unavailable'
+}
+
 export default function usePaymentQuoteReview(request: PaymentQuoteRequest | undefined, network: NetworkName) {
   const { quotePaymentRoute, paymentRouteCandidates } = useContext(SwapsContext)
   const api = useRef({ quotePaymentRoute, paymentRouteCandidates })
   api.current = { quotePaymentRoute, paymentRouteCandidates }
+  const scope = useMemo(() => ({ request, network }), [request, network])
+  const currentScope = useRef(scope)
+  currentScope.current = scope
+  const [reviewScope, setReviewScope] = useState(scope)
   const generation = useRef(0)
   const previous = useRef<Quote>()
   const [reviewed, setReviewed] = useState<ReviewedQuote>()
   const [candidates, setCandidates] = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(Boolean(request))
-  const [quoteError, setQuoteError] = useState('')
+  const [quoteError, setQuoteError] = useState<QuoteReviewError>()
   const [termsChanged, setTermsChanged] = useState(false)
 
   const publish = useCallback((next: ReviewedQuote) => {
@@ -52,21 +64,24 @@ export default function usePaymentQuoteReview(request: PaymentQuoteRequest | und
     async (solverId?: string) => {
       if (!request) return
       const started = ++generation.current
+      const isCurrent = () => started === generation.current && currentScope.current === scope
+      setReviewScope(scope)
       setLoading(true)
-      setQuoteError('')
+      setQuoteError(undefined)
       setReviewed(undefined)
+      let quote: Quote | undefined
       try {
-        const quote = await api.current.quotePaymentRoute(request, solverId)
-        if (started !== generation.current) return
+        quote = await api.current.quotePaymentRoute(request, solverId)
+        if (!isCurrent()) return
         validate(quote)
         publish({ quote, solverId })
       } catch (error) {
-        if (started === generation.current) setQuoteError(extractError(error))
+        if (isCurrent()) setQuoteError(classifyQuoteError(error, quote))
       } finally {
-        if (started === generation.current) setLoading(false)
+        if (isCurrent()) setLoading(false)
       }
     },
-    [request, validate, publish],
+    [request, scope, validate, publish],
   )
 
   useEffect(() => {
@@ -90,8 +105,9 @@ export default function usePaymentQuoteReview(request: PaymentQuoteRequest | und
   const chooseOpenQuote = (quote: Quote, offer: OpenRfqOffer) => {
     validate(quote)
     generation.current += 1
+    setReviewScope(scope)
     setLoading(false)
-    setQuoteError('')
+    setQuoteError(undefined)
     publish({ quote, offer })
   }
 
@@ -104,5 +120,16 @@ export default function usePaymentQuoteReview(request: PaymentQuoteRequest | und
     return () => window.clearTimeout(timer)
   }, [reviewed, expiresAt])
 
-  return { reviewed, candidates, loading, quoteError, expired, termsChanged, load, validate, chooseOpenQuote }
+  const sameScope = reviewScope === scope
+  return {
+    reviewed: sameScope ? reviewed : undefined,
+    candidates: sameScope ? candidates : [],
+    loading: Boolean(request) && (!sameScope || loading),
+    quoteError: sameScope ? quoteError : undefined,
+    expired: sameScope && expired,
+    termsChanged: sameScope && termsChanged,
+    load,
+    validate,
+    chooseOpenQuote,
+  }
 }

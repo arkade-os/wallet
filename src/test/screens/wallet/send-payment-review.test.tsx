@@ -38,6 +38,20 @@ const lightning = btcOn('bolt11', network)
 const address = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4'
 const reviewId = 'first-review'
 const lightningRequest = { kind: 'lightning', invoice, amount: amountSats } as const
+const assetRequest = {
+  kind: 'asset',
+  address: fixtures.lib.address.ark[0].address,
+  assetId: '12'.repeat(32) + '0000',
+  amount: 2_550n,
+  fromAssetId: 'btc',
+} as const
+const assetId = arkadeAsset(network, asset.AssetId.fromString(assetRequest.assetId))
+const assetSendInfo: SendInfo = {
+  reviewId,
+  arkAddress: assetRequest.address,
+  assets: [{ assetId: assetRequest.assetId, amount: assetRequest.amount }],
+  assetPayment: assetRequest,
+}
 const sendInfo = { invoice, satoshis: amountSats, reviewId }
 const provider = (solver: string, marker: string) => ({
   solver,
@@ -77,6 +91,31 @@ const lightningQuote = (id: string, total: number, route = harbor): Quote => ({
   },
   fee: { asset: bitcoin, amount: BigInt(total - amountSats) },
 })
+const assetQuote = (id: string, total = 2_200): Quote => ({
+  ...lightningQuote(id, total, bay),
+  route: {
+    give: { corridor: 'arkade', asset: bitcoin, instrument: { kind: 'wallet' } },
+    take: { corridor: 'arkade', asset: assetId, instrument: { kind: 'address', address: assetRequest.address } },
+  },
+  take: { asset: assetId, amount: assetRequest.amount },
+  assetPayment: { receiveAddress: assetRequest.address, validUntil: now + 30 },
+  fee: { asset: assetId, amount: 2n },
+})
+const assetBid = {
+  id: 'asset-bid',
+  solverPubkey: bay.discovery_pubkey,
+  solverName: bay.solver,
+  fromAmount: 2_250n,
+  toAmount: assetRequest.amount,
+  expiresAt: now + 60,
+} as OpenRfqOffer
+const assetAuction = {
+  id: 'asset-auction',
+  input: { give: bitcoin, take: assetId, amount: assetRequest.amount, amountOn: 'take' },
+  pair: JSON.stringify([network, bitcoin, assetId]),
+  closedAt: now,
+  bids: [assetBid],
+} satisfies OpenRfqAuction
 const quotePaymentRoute = vi.fn<(request: PaymentQuoteRequest, solverId?: string) => Promise<Quote>>()
 const sendRouter = vi.fn()
 const paymentRouteCandidates = vi.fn<() => Promise<{ id: string; name: string }[]>>()
@@ -104,6 +143,17 @@ const review = (info: SendInfo = sendInfo) => (
                   balance: 100_000,
                   availableBalance: 100_000,
                   svcWallet: mockSvcWallet as never,
+                  assetMetadataCache: new Map([
+                    [
+                      assetRequest.assetId,
+                      {
+                        assetId: assetRequest.assetId,
+                        supply: 50_000n,
+                        metadata: { name: 'Gucci', ticker: 'GUCCI', decimals: 2 },
+                        cachedAt: now * 1000,
+                      },
+                    ],
+                  ]),
                 }}
               >
                 <SwapsContext.Provider
@@ -143,6 +193,8 @@ describe('reviewing a solver payment', () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(now * 1000)
     quotePaymentRoute.mockReset()
+    openPaymentQuotes.mockReset()
+    chooseSwapQuote.mockReset()
     paymentRouteCandidates.mockResolvedValue([])
     sendRouter.mockResolvedValue({ options: async () => [] })
     acceptPaymentQuote.mockReset().mockImplementation(async (quote: Quote, request: PaymentQuoteRequest) => ({
@@ -269,6 +321,91 @@ describe('reviewing a solver payment', () => {
     expect(setSendInfo).toHaveBeenCalledWith(expect.objectContaining({ openOffer: bid, txid: 'funding-txid' }))
   })
 
+  it('asks before searching for an exact asset payment and reviews only a binding quote to the recipient', async () => {
+    quotePaymentRoute.mockRejectedValue(new Error('No saved route'))
+    openPaymentQuotes.mockResolvedValue(assetAuction)
+    const exact = assetQuote('exact-asset-out')
+    chooseSwapQuote
+      .mockResolvedValueOnce({ ...exact, take: { asset: assetId, amount: assetRequest.amount - 1n } })
+      .mockResolvedValueOnce({ ...exact, assetPayment: { receiveAddress: 'wrong-recipient', validUntil: now + 30 } })
+      .mockResolvedValueOnce(exact)
+    render(review(assetSendInfo))
+
+    expect(await screen.findByText('No provider could quote this payment.')).toBeVisible()
+    expect(button('Swap and pay')).toBeDisabled()
+    expect(openPaymentQuotes).not.toHaveBeenCalled()
+
+    fireEvent.click(button('Find open offers'))
+    const routes = await screen.findByRole('dialog', { name: 'Change route' })
+    expect(within(routes).getByText('Recipient gets 25.5 GUCCI')).toBeVisible()
+    expect(within(routes).getByText('Unverified')).toBeVisible()
+    const selectBid = await within(routes).findByRole('button', { name: 'Select Bay' })
+    expect(openPaymentQuotes).toHaveBeenCalledExactlyOnceWith(assetRequest, expect.any(String), true)
+
+    fireEvent.click(selectBid)
+    expect(await within(routes).findByRole('alert')).toHaveTextContent('The solver changed this offer’s terms')
+    fireEvent.click(selectBid)
+    expect(await within(routes).findByRole('alert')).toHaveTextContent('does not deliver the requested asset amount')
+    expect(acceptPaymentQuote).not.toHaveBeenCalled()
+
+    fireEvent.click(selectBid)
+    expect(await screen.findByTestId('Total')).toHaveTextContent('2,200')
+    expect(acceptPaymentQuote).not.toHaveBeenCalled()
+    fireEvent.click(button('Swap and pay'))
+    await waitFor(() => expect(acceptPaymentQuote).toHaveBeenCalledExactlyOnceWith(exact, assetRequest, reviewId))
+    expect(setSendInfo).toHaveBeenCalledWith(expect.objectContaining({ openOffer: assetBid, txid: 'funding-txid' }))
+  })
+
+  it('searches automatically for an exact asset payment only after saved quoting fails when permitted', async () => {
+    saveOpenOfferPolicy(network, 'when-needed')
+    let failQuote!: (error: Error) => void
+    quotePaymentRoute.mockReturnValueOnce(new Promise<Quote>((_, reject) => (failQuote = reject)))
+    openPaymentQuotes.mockResolvedValue(assetAuction)
+    render(review(assetSendInfo))
+
+    expect(await screen.findByRole('button', { name: 'Getting quote' })).toBeDisabled()
+    expect(openPaymentQuotes).not.toHaveBeenCalled()
+    await act(async () => failQuote(new Error('No saved route')))
+    await screen.findByRole('dialog', { name: 'Change route' })
+    await waitFor(() =>
+      expect(openPaymentQuotes).toHaveBeenCalledExactlyOnceWith(assetRequest, expect.any(String), false),
+    )
+    expect(acceptPaymentQuote).not.toHaveBeenCalled()
+  })
+
+  it.each(['the picker closes', 'the linked amount changes'])(
+    'discards a binding asset offer that arrives after %s',
+    async (change) => {
+      quotePaymentRoute.mockRejectedValue(new Error('No saved route'))
+      openPaymentQuotes.mockResolvedValue(assetAuction)
+      let finishBid!: (quote: Quote) => void
+      chooseSwapQuote.mockReturnValueOnce(new Promise<Quote>((resolve) => (finishBid = resolve)))
+      const view = render(review(assetSendInfo))
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Find open offers' }))
+      const dialog = within(await screen.findByRole('dialog', { name: 'Change route' }))
+      fireEvent.click(await dialog.findByRole('button', { name: 'Select Bay' }))
+      if (change === 'the picker closes') {
+        fireEvent.click(dialog.getByRole('button', { name: 'Close' }))
+      } else {
+        const amount = assetRequest.amount + 1n
+        view.rerender(
+          review({
+            ...assetSendInfo,
+            assets: [{ assetId: assetRequest.assetId, amount }],
+            assetPayment: { ...assetRequest, amount },
+          }),
+        )
+      }
+      await act(async () => finishBid(assetQuote('dismissed-quote')))
+
+      expect(button('Swap and pay')).toBeDisabled()
+      expect(screen.queryByTestId('Total')).toBeNull()
+      expect(acceptPaymentQuote).not.toHaveBeenCalled()
+      expect(openPaymentQuotes).toHaveBeenCalledTimes(1)
+    },
+  )
+
   it('rejects a late result from a previous request and accepts only an exact asset payment quote', async () => {
     saveOpenOfferPolicy(network, 'off')
     const assetId = '12'.repeat(32) + '0000'
@@ -292,7 +429,9 @@ describe('reviewing a solver payment', () => {
     const view = render(review())
 
     view.rerender(review({ reviewId, arkAddress: address, assets: [{ assetId, amount }], assetPayment: assetRequest }))
-    expect(await screen.findByText('No provider could quote this payment.')).toBeVisible()
+    expect(await screen.findByText('A provider returned a quote the wallet could not verify.')).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Find open offers' })).toBeNull()
+    expect(openPaymentQuotes).not.toHaveBeenCalled()
     await act(async () => resolveOldQuote(lightningQuote('stale-lightning-quote', 2_110)))
     expect(button('Swap and pay')).toBeDisabled()
     expect(screen.queryByTestId('Total')).toBeNull()

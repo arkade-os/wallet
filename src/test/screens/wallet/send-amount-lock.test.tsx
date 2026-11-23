@@ -91,7 +91,9 @@ const renderForm = () =>
 const pasteInvoice = async (container: HTMLElement) => {
   const recipient = container.querySelector('input[name="send-address"]')!
   fireEvent.change(recipient, { target: { value: INVOICE } })
-  await waitFor(() => expect(setSendInfo).toHaveBeenCalled(), { timeout: 3_000 })
+  await waitFor(() => expect(container.querySelector('input[name="send-amount"]')).toHaveAttribute('readonly'), {
+    timeout: 3_000,
+  })
 }
 
 const satoshisWritten = () =>

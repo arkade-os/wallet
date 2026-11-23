@@ -1,6 +1,7 @@
 import { useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import type { OpenRfqAuction, OpenRfqOffer, Quote } from '@arkade-os/swap'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '../../../components/ui/drawer'
+import UnverifiedBadge from '../../../components/UnverifiedBadge'
 import ArrowIcon from '../../../icons/Arrow'
 import XIcon from '../../../icons/X'
 import { extractError } from '../../../lib/error'
@@ -8,13 +9,14 @@ import { hapticTap } from '../../../lib/haptics'
 import { newRequestId } from '../../../lib/requestId'
 import { SwapsContext } from '../../../providers/swaps'
 import { useTranslation } from '../../../providers/language'
-import type { OpenPaymentRequest } from '../../../lib/paymentQuotes'
+import { paymentQuoteExpiry, type PaymentQuoteRequest } from '../../../lib/paymentQuotes'
 
 interface DisplayAsset {
   assetId: string
   ticker: string
   decimals: number
   networkLabel?: string
+  unverified?: boolean
 }
 
 interface QuoteChoicesProps {
@@ -28,7 +30,7 @@ interface QuoteChoicesProps {
   autoSearch?: boolean
   autoSearchConsent?: boolean
   allowOpenOffers?: boolean
-  payment?: OpenPaymentRequest
+  payment?: PaymentQuoteRequest
   routes?: ReactNode
   destination?: string
   description?: string
@@ -61,7 +63,7 @@ export default function QuoteChoices({
   api.current = { openSwapQuotes, openPaymentQuotes, cancelOpenSwapQuotes, chooseSwapQuote }
   const { t } = useTranslation()
   const descriptionId = useId()
-  const [auction, setAuction] = useState<OpenRfqAuction>()
+  const [searchResult, setSearchResult] = useState<{ inputKey: string; auction: OpenRfqAuction }>()
   const [loading, setLoading] = useState(false)
   const [selecting, setSelecting] = useState<string>()
   const [error, setError] = useState('')
@@ -71,12 +73,26 @@ export default function QuoteChoices({
   const epoch = useRef(0)
   const searched = useRef(false)
   const openingInput = useRef<string>()
-  const inputKey = `${network}:${from.assetId}:${from.decimals}:${to.assetId}:${to.decimals}:${amount}:${destination ?? ''}:${payment?.invoice ?? ''}`
-  const current = useRef({ inputKey, open })
-  current.current = { inputKey, open }
+  const paymentKey =
+    payment?.kind === 'asset'
+      ? [payment.kind, payment.address, payment.assetId, String(payment.amount), payment.fromAssetId ?? 'btc']
+      : [payment?.kind, payment?.invoice, payment?.amount]
+  const inputKey = JSON.stringify([
+    network,
+    from.assetId,
+    from.decimals,
+    to.assetId,
+    to.decimals,
+    String(amount),
+    destination,
+    paymentKey,
+  ])
+  const current = useRef({ inputKey, open, allowOpenOffers })
+  current.current = { inputKey, open, allowOpenOffers }
+  const auction = searchResult?.inputKey === inputKey ? searchResult.auction : undefined
 
   useEffect(() => {
-    setAuction(undefined)
+    setSearchResult(undefined)
     setLoading(false)
     setSelecting(undefined)
     setError('')
@@ -90,7 +106,7 @@ export default function QuoteChoices({
       searched.current = false
       openingInput.current = undefined
     }
-  }, [inputKey, open])
+  }, [inputKey, open, allowOpenOffers])
 
   useEffect(() => {
     openingInput.current = open ? current.current.inputKey : undefined
@@ -104,17 +120,21 @@ export default function QuoteChoices({
   }, [open])
 
   const isCurrent = useCallback(
-    (started: number) => epoch.current === started && current.current.inputKey === inputKey && current.current.open,
+    (started: number) =>
+      epoch.current === started &&
+      current.current.inputKey === inputKey &&
+      current.current.open &&
+      current.current.allowOpenOffers,
     [inputKey],
   )
 
   const findOffers = useCallback(
     async (explicitConsent = false) => {
-      if (!allowOpenOffers || loading || selecting || request.current) return
+      if (!isCurrent(epoch.current) || loading || selecting || request.current) return
       searched.current = true
       const started = ++epoch.current
       setLoading(true)
-      setAuction(undefined)
+      setSearchResult(undefined)
       setError('')
       try {
         const requestId = newRequestId()
@@ -122,7 +142,7 @@ export default function QuoteChoices({
         const result = payment
           ? await api.current.openPaymentQuotes(payment, requestId, explicitConsent)
           : await api.current.openSwapQuotes(from.assetId, to.assetId, amount, requestId, destination)
-        if (isCurrent(started)) setAuction(result)
+        if (isCurrent(started)) setSearchResult({ inputKey, auction: result })
       } catch (cause) {
         if (isCurrent(started)) setError(extractError(cause))
       } finally {
@@ -132,7 +152,7 @@ export default function QuoteChoices({
         }
       }
     },
-    [allowOpenOffers, amount, destination, from.assetId, to.assetId, isCurrent, loading, payment, selecting],
+    [amount, destination, from.assetId, to.assetId, inputKey, isCurrent, loading, payment, selecting],
   )
 
   useEffect(() => {
@@ -140,7 +160,14 @@ export default function QuoteChoices({
   }, [open, autoSearch, autoSearchConsent, inputKey, findOffers])
 
   const choose = async (offer: OpenRfqOffer) => {
-    if (!auction || loading || selection.current || offer.expiresAt <= Math.floor(Date.now() / 1000)) return
+    if (
+      !isCurrent(epoch.current) ||
+      !auction ||
+      loading ||
+      selection.current ||
+      offer.expiresAt <= Math.floor(Date.now() / 1000)
+    )
+      return
     const started = epoch.current
     selection.current = offer.id
     setSelecting(offer.id)
@@ -148,9 +175,13 @@ export default function QuoteChoices({
     try {
       const quote = await api.current.chooseSwapQuote(auction.id, offer.id)
       if (!isCurrent(started)) return
-      if (quote.expiresAt <= Math.floor(Date.now() / 1000)) throw new Error(t('swap.offerExpired'))
+      if (Math.min(paymentQuoteExpiry(quote), offer.expiresAt) <= Math.floor(Date.now() / 1000))
+        throw new Error(t('swap.offerExpired'))
       // `quoteBid` refuses this too; the screen still enforces the terms it showed.
-      if ((!payment && quote.take.amount < offer.toAmount) || quote.give.amount > offer.fromAmount)
+      if (
+        ((!payment || payment.kind === 'asset') && quote.take.amount < offer.toAmount) ||
+        quote.give.amount > offer.fromAmount
+      )
         throw new Error(t('swap.offerTermsChanged'))
       onChoose(quote, offer)
     } catch (cause) {
@@ -181,9 +212,10 @@ export default function QuoteChoices({
               <DrawerDescription className='mt-1 text-[13px]'>
                 {description ??
                   (payment
-                    ? `${t('send.recipientGets')} ${formatQuoteAmount(amount, 0)} ${to.ticker}`
+                    ? `${t('send.recipientGets')} ${formatQuoteAmount(amount, to.decimals)} ${to.ticker}`
                     : `${formatQuoteAmount(amount, from.decimals)} ${from.ticker} ${t('swap.routeConnector')} ${to.ticker}`)}
                 {to.networkLabel ? ` (${to.networkLabel})` : ''}
+                {to.unverified ? <UnverifiedBadge /> : null}
               </DrawerDescription>
             </div>
             <button

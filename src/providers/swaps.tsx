@@ -95,13 +95,11 @@ import { readOnchainSendPreference, readOpenOfferPolicy } from '../lib/openOffer
 import {
   assertAssetPaymentQuote,
   assertOpenPaymentQuote,
-  openPaymentQuoteInput,
   paymentAttemptKey,
   paymentQuoteExpiry,
   paymentQuoteInput,
   quoteProviderMarket,
   type AssetPaymentRequest,
-  type OpenPaymentRequest,
   type PaymentQuoteRequest,
 } from '../lib/paymentQuotes'
 import {
@@ -168,7 +166,7 @@ interface SwapsContextProps {
     requestId?: string,
     destination?: string,
   ) => Promise<OpenRfqAuction>
-  openPaymentQuotes: (request: OpenPaymentRequest, requestId: string, consent?: boolean) => Promise<OpenRfqAuction>
+  openPaymentQuotes: (request: PaymentQuoteRequest, requestId: string, consent?: boolean) => Promise<OpenRfqAuction>
   cancelOpenSwapQuotes: (requestId: string) => Promise<void>
   chooseSwapQuote: (auctionId: string, bidId: string) => Promise<Quote>
   acceptSwapQuote: (quote: Quote, snapshot?: AssetSwapQuoteSnapshot) => Promise<Swap>
@@ -776,7 +774,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
         auctionRequests.current.get(args[0] as string)?.abort()
         return Promise.resolve()
       case 'openPaymentQuotes':
-        return openPaymentQuotesHere(args[0] as OpenPaymentRequest, args[1] as string, args[2] === true)
+        return openPaymentQuotesHere(args[0] as PaymentQuoteRequest, args[1] as string, args[2] === true)
       case 'chooseSwapQuote':
         return chooseSwapQuoteHere(args[0] as string, args[1] as string)
       case 'acceptSwapQuote':
@@ -835,7 +833,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   ): Promise<OpenRfqAuction> => runOnDriver('openSwapQuotes', [from, to, amount, requestId, destination])
 
   const openPaymentQuotes = (
-    request: OpenPaymentRequest,
+    request: PaymentQuoteRequest,
     requestId: string,
     consent = false,
   ): Promise<OpenRfqAuction> => runOnDriver('openPaymentQuotes', [request, requestId, consent])
@@ -867,18 +865,13 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const openPaymentQuotesHere = async (
-    request: OpenPaymentRequest,
+    request: PaymentQuoteRequest,
     requestId: string,
     consent: boolean,
   ): Promise<OpenRfqAuction> => {
     const network = aspInfo.network as NetworkName
-    return openAuction(
-      openPaymentQuoteInput(request, network),
-      requestId,
-      btcOn('arkade', network),
-      btcOn('bolt11', network),
-      consent,
-    )
+    const input = paymentQuoteInput(request, network)
+    return openAuction(input, requestId, btcOn('arkade', network), input.take ?? btcOn('bolt11', network), consent)
   }
 
   const openAuction = async (

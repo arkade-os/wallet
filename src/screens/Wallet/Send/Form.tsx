@@ -61,7 +61,7 @@ import { appIntentHandoff, redirectToCallback } from '../../../lib/appIntent'
 import OpenInApp from '../../AppIntent/OpenInApp'
 import { decodeBip21, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
-import { atomicToUnits, prettyAssetAmount, unitsToAtomic } from '../../../lib/assets'
+import { atomicToUnits, isValidAssetId, prettyAssetAmount, unitsToAtomic } from '../../../lib/assets'
 import { FeesContext } from '../../../providers/fees'
 import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -107,6 +107,14 @@ type LnUrlConditions = {
   sendRanges: { min: number; max: number }[]
   minSendable: number
   maxSendable: number
+}
+
+type LinkedAssetPayment = {
+  recipient: string
+  address: string
+  asset: AssetOption
+  amount: bigint
+  units: string
 }
 
 /** Spread before the one target a recipient sets, so the previous one cannot be paid instead. */
@@ -243,6 +251,10 @@ export default function SendForm() {
   const [brantaVerifyUrl, setBrantaVerifyUrl] = useState<string | undefined>(undefined)
   const [brantaLoading, setBrantaLoading] = useState(false)
   const [selectedAsset, setSelectedAsset] = useState<AssetOption | null>(null)
+  const [linkedAssetPayment, setLinkedAssetPayment] = useState<LinkedAssetPayment>()
+  const [linkedFunding, setLinkedFunding] = useState<'btc' | 'requested' | undefined>(
+    sendInfo.assetPayment ? 'btc' : undefined,
+  )
   const [showAssetSelector, setShowAssetSelector] = useState(false)
   const [showReserveModal, setShowReserveModal] = useState(false)
   const [valueSats, setValueSats] = useState<number | undefined>(undefined)
@@ -284,30 +296,23 @@ export default function SendForm() {
   )
   const activeAsset = accountAsset ?? selectedAsset
   const isAssetSend = activeAsset !== null
-  const assetAmt = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? 0n
-  const swapAssetRequest = useMemo(() => {
-    if (!activeAsset || sendInfo.account || assetAmt <= activeAsset.balance || !isBip21(recipient.trim())) return
-    try {
-      const { assetId, assetAmount, arkAddress } = decodeBip21(recipient.trim())
-      if (
-        !assetId ||
-        !assetAmount ||
-        !arkAddress ||
-        arkAddress !== sendInfo.arkAddress ||
-        assetId !== activeAsset.assetId
-      )
-        return
-      if (
-        !assetMetadataCache.get(assetId) ||
-        unitsToAtomic(assetAmount, activeAsset.decimals) !== assetAmt ||
-        assetAmt <= 0n
-      )
-        return
-      return { address: arkAddress, assetId, amount: assetAmt }
-    } catch {
-      return
-    }
-  }, [activeAsset, assetAmt, assetMetadataCache, recipient, sendInfo.account, sendInfo.arkAddress])
+  const fixedAsset = linkedAssetPayment?.recipient === recipient ? linkedAssetPayment : undefined
+  const assetAmt = fixedAsset?.amount ?? sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? 0n
+  const requestedBalance =
+    availableAssetBalances.find(({ assetId }) => assetId === fixedAsset?.asset.assetId)?.amount ?? 0n
+  const canPayRequestedAsset = Boolean(fixedAsset && requestedBalance >= fixedAsset.amount)
+  const payRequestedAsset = linkedFunding === 'requested' || (linkedFunding === undefined && canPayRequestedAsset)
+  const requestedAsset = fixedAsset ? { ...fixedAsset.asset, balance: requestedBalance } : null
+  const fundingAsset = fixedAsset ? (payRequestedAsset ? requestedAsset : null) : activeAsset
+  const swapAssetRequest =
+    fixedAsset && !payRequestedAsset
+      ? {
+          address: fixedAsset.address,
+          assetId: fixedAsset.asset.assetId,
+          amount: fixedAsset.amount,
+          fromAssetId: 'btc' as const,
+        }
+      : undefined
 
   const RECIPIENT_DEBOUNCE_MS = 800
   const hasAssets = assetBalances.length > 0
@@ -315,6 +320,7 @@ export default function SendForm() {
   // The SDK's `available` already holds back the dust carrier asset change
   // needs, so a BTC spend may take all of it.
   const liquidBalance = availableBalance
+  const linkedFundingAvailable = payRequestedAsset ? canPayRequestedAsset : liquidBalance > 0
 
   // Also used directly as a promise rejection handler, so it can receive an
   // Error; the banner renders its text as a child and cannot take the object.
@@ -425,17 +431,18 @@ export default function SendForm() {
       setSelectedAsset(null)
       return
     }
-    if (!sendInfo.assets?.length || assetOptions.length === 0) return
+    if (fixedAsset || sendInfo.assetPayment || !sendInfo.assets?.length || assetOptions.length === 0) return
     const presetAssetId = sendInfo.assets[0].assetId
     const found = assetOptions.find((a) => a.assetId === presetAssetId)
     if (found && !selectedAsset) setSelectedAsset(found)
-  }, [assetOptions, sendInfo.account, sendInfo.assets])
+  }, [assetOptions, fixedAsset, sendInfo.account, sendInfo.assetPayment, sendInfo.assets])
 
   // parse recipient data
   // repeat when asset changes to re-validate addresses (e.g. if user
   // selects an asset and the address is not compatible with it)
   useEffect(() => {
     if (!readyToParse) return
+    let active = true
     setRecipientError('')
     const parseRecipient = async () => {
       if (!recipient) return
@@ -445,48 +452,67 @@ export default function SendForm() {
         return setRecipient(url.searchParams.get('lightning')!)
       }
       if (isBip21(lowerCaseData)) {
-        const { address, arkAddress, invoice, lnUrl, satoshis, assetId, assetAmount } = decodeBip21(recipient.trim())
+        const {
+          address,
+          arkAddress,
+          invoice,
+          lnUrl,
+          satoshis,
+          assetId: rawAssetId,
+          assetAmount,
+        } = decodeBip21(recipient.trim())
         if (!address && !arkAddress && !invoice && !lnUrl) return setRecipientError(t('send.unableToParseBip21'))
-        if (assetId) {
-          let found = assetOptions.find((a) => a.assetId === assetId)
-          if (!found) {
-            let meta: AssetDetails | undefined = assetMetadataCache.get(assetId)
-            if (!meta && svcWallet) {
-              try {
-                const fetched = await svcWallet.assetManager.getAssetDetails(assetId)
-                if (fetched) meta = setCacheEntry(assetId, fetched)
-              } catch (err) {
-                consoleError(err, `error fetching metadata for ${assetId}`)
+        if (rawAssetId) {
+          if (!arkAddress || !isValidAssetId(rawAssetId)) return setRecipientError(t('send.unableToParseBip21'))
+          const assetId = rawAssetId.toLowerCase()
+          let meta: AssetDetails | undefined = assetMetadataCache.get(assetId)
+          if (!meta && svcWallet) {
+            try {
+              const fetched = await svcWallet.assetManager.getAssetDetails(assetId)
+              if (!active) return
+              if (fetched) {
+                setCacheEntry(assetId, fetched)
+                meta = fetched
               }
-            }
-            const presentation = rawAssetPresentation(meta?.metadata, `${assetId.slice(0, 8)}...`)
-            found = {
-              assetId,
-              balance: BigInt(0),
-              name: presentation.name,
-              ticker: presentation.ticker,
-              icon: presentation.icon,
-              decimals: meta?.metadata?.decimals ?? 0,
-              trusted: isVerifiedAsset(assetId),
+            } catch (err) {
+              if (!active) return
+              consoleError(err, `error fetching metadata for ${assetId}`)
             }
           }
-          setSelectedAsset(found)
-          const rawAmount = assetAmount ? unitsToAtomic(assetAmount, found.decimals) : BigInt(0)
-          if (assetAmount) {
-            setAmountTextValue(assetAmount)
-            setAmountIsReadOnly(true)
+          const decimals = meta?.metadata?.decimals ?? 0
+          const units = assetAmount && /[1-9]/.test(assetAmount) ? assetAmount : undefined
+          if (units && !meta) return setRecipientError(t('send.assetLinkMetadataUnavailable'))
+          const fraction = units?.split('.')[1]?.replace(/0+$/, '') ?? ''
+          if (units && (!Number.isInteger(decimals) || decimals < 0 || decimals > 18 || fraction.length > decimals)) {
+            return setRecipientError(t('send.invalidAmount'))
           }
+          const found = {
+            assetId,
+            balance: availableAssetBalances.find((entry) => entry.assetId === assetId)?.amount ?? 0n,
+            ...rawAssetPresentation(meta?.metadata, `${assetId.slice(0, 8)}...`),
+            decimals,
+            trusted: isVerifiedAsset(assetId),
+          }
+          const rawAmount = units ? unitsToAtomic(units, found.decimals) : 0n
+          if (units)
+            setLinkedAssetPayment({
+              recipient,
+              address: arkAddress,
+              asset: found,
+              amount: rawAmount,
+              units,
+            })
+          else setSelectedAsset(found)
+          setAmountTextValue(units ?? '')
+          setAmountIsReadOnly(Boolean(units))
           return setSendInfo((prev) => ({
             ...prev,
-            address,
+            ...noTarget,
+            account: undefined,
             arkAddress,
-            invoice,
-            lnUrl: undefined,
-            lnurlInvoice: undefined,
             recipient,
             satoshis: 0,
             assets: [{ assetId, amount: rawAmount }],
-            pendingLnSend: invoice === prev.invoice ? prev.pendingLnSend : undefined,
           }))
         }
         setSendInfo((prev) => {
@@ -563,7 +589,10 @@ export default function SendForm() {
       setRecipientError(t('send.invalidRecipient'))
       setReadyToParse(false)
     }
-    parseRecipient()
+    void parseRecipient()
+    return () => {
+      active = false
+    }
   }, [recipient, isAssetSend, readyToParse])
 
   // verify the current recipient with branta (the SDK only looks up destinations it can encrypt)
@@ -745,13 +774,13 @@ export default function SendForm() {
 
   // manage button label and errors
   useEffect(() => {
+    if (fixedAsset) {
+      setLabel(t(linkedFundingAvailable ? 'send.continue' : 'send.insufficientAssetBalance'))
+      return
+    }
     if (isAssetSend && activeAsset) {
       const assetAmount = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
-      setLabel(
-        assetAmount > activeAsset.balance && !swapAssetRequest
-          ? t('send.insufficientAssetBalance')
-          : t('send.continue'),
-      )
+      setLabel(t(assetAmount > activeAsset.balance ? 'send.insufficientAssetBalance' : 'send.continue'))
       return
     }
     const satoshis = sendInfo.satoshis ?? 0
@@ -778,7 +807,8 @@ export default function SendForm() {
     sendInfo.account,
     liquidBalance,
     activeAsset,
-    swapAssetRequest,
+    fixedAsset,
+    linkedFundingAvailable,
     lnUrlResponse,
     lnurlAmountUnavailable,
   ])
@@ -828,6 +858,7 @@ export default function SendForm() {
   }
 
   const handleAmountChange = (value: string) => {
+    if (fixedAsset) return
     setValueSats(undefined)
     setSendAll(false)
     setAmountTextValue(value)
@@ -881,6 +912,10 @@ export default function SendForm() {
 
   const handleSelectAsset = (asset: AssetOption | null) => {
     setShowAssetSelector(false)
+    if (fixedAsset) {
+      setLinkedFunding(asset ? 'requested' : 'btc')
+      return
+    }
     setSelectedAsset(asset)
     if (asset) {
       if (isBTCAddress(recipient)) {
@@ -899,25 +934,35 @@ export default function SendForm() {
     setAmountTextValue('')
   }
 
-  const handleRecipientChange = (recipient: string) => {
+  const updateRecipient = (next: string, parseNow: boolean, scanned = false) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
-    setRecipient(recipient)
-    // A new destination pins no amount until it is parsed.
-    setValueSats(undefined)
-    setAmountIsReadOnly(false)
-    setReadyToParse(false)
-    setRawScanData('')
-    timeoutRef.current = setTimeout(() => setReadyToParse(true), RECIPIENT_DEBOUNCE_MS)
+    if (next !== recipient) {
+      const wasLinked = Boolean(fixedAsset || sendInfo.assetPayment)
+      setRecipient(next)
+      setLinkedAssetPayment(undefined)
+      setLinkedFunding(undefined)
+      setShowAssetSelector(false)
+      setValueSats(undefined)
+      setAmountIsReadOnly(false)
+      setSendAll(false)
+      if (wasLinked) setSelectedAsset(null)
+      if (wasLinked) setAmountTextValue('')
+      setSendInfo((prev) => ({
+        ...prev,
+        ...noTarget,
+        recipient: next,
+        reviewId: undefined,
+        openOffer: undefined,
+        ...(wasLinked ? { assets: undefined, satoshis: 0 } : {}),
+      }))
+    }
+    setRawScanData(scanned ? next : '')
+    setReadyToParse(parseNow)
+    if (!parseNow) timeoutRef.current = setTimeout(() => setReadyToParse(true), RECIPIENT_DEBOUNCE_MS)
   }
 
-  const handleSelectContact = (address: string) => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current)
-    setRecipient(address)
-    setValueSats(undefined)
-    setAmountIsReadOnly(false)
-    setRawScanData('')
-    setReadyToParse(true)
-  }
+  const handleRecipientChange = (recipient: string) => updateRecipient(recipient, false)
+  const handleSelectContact = (address: string) => updateRecipient(address, true)
 
   const saveableRecipient = sendInfo.address || sendInfo.arkAddress || sendInfo.lnUrl
   const alreadySaved = Boolean(contactForAddress(saveableRecipient))
@@ -938,7 +983,20 @@ export default function SendForm() {
     const target = sendInfo.lnUrl
     const stale = () => sendInfoRef.current.lnUrl !== target || (sendInfoRef.current.satoshis ?? 0) !== satoshis
     try {
-      if (sendInfo.lnUrl && lnUrlResponse) {
+      if (fixedAsset) {
+        setSendInfo({
+          ...sendInfo,
+          ...noTarget,
+          account: undefined,
+          arkAddress: fixedAsset.address,
+          recipient: fixedAsset.recipient,
+          assets: [{ assetId: fixedAsset.asset.assetId, amount: fixedAsset.amount }],
+          satoshis: 0,
+          assetPayment: swapAssetRequest,
+          reviewId: sendInfo.reviewId ?? newRequestId(),
+          openOffer: undefined,
+        })
+      } else if (sendInfo.lnUrl && lnUrlResponse) {
         // ?method=ark wins over the router's rails; it pays a plain Arkade send, so no receiver confirmation.
         if (lnUrlArkMethodAvailable) {
           if (!receivingAddresses?.offchainAddr) return setProcessing(false)
@@ -1013,7 +1071,7 @@ export default function SendForm() {
         setSendInfo({
           ...sendInfo,
           satoshis,
-          assetPayment: swapAssetRequest,
+          assetPayment: undefined,
           reviewId: sendInfo.reviewId ?? newRequestId(),
           openOffer: undefined,
         })
@@ -1107,48 +1165,64 @@ export default function SendForm() {
   // clear this on recovery.
   const carrierError =
     !processing &&
-    activeAsset &&
+    fundingAsset &&
     assetAmt > BigInt(0) &&
-    assetAmt < activeAsset.balance &&
+    assetAmt < fundingAsset.balance &&
     availableBalance < 2 * Number(aspInfo.dust)
       ? t('send.partialSendError')
       : ''
 
-  const buttonDisabled = isAssetSend
-    ? !(arkAddress && assetAmt > 0) ||
-      (activeAsset ? assetAmt > activeAsset.balance && !swapAssetRequest : true) ||
+  const buttonDisabled = fixedAsset
+    ? arkAddress !== fixedAsset.address ||
+      !linkedFundingAvailable ||
       Boolean(recipientError) ||
       Boolean(carrierError) ||
       aspInfo.unreachable ||
       Boolean(error) ||
       processing
-    : !((address || arkAddress || lnUrl || invoice) && satoshis && satoshis > 0) ||
-      // Unresolved conditions would strand Continue on a locked recipient field.
-      (lnUrl && !arkAddress && !address && !invoice && !lnUrlResponse) ||
-      (lnUrlArkMethodAvailable && !receivingAddresses?.offchainAddr) ||
-      Boolean(recipientError) ||
-      lnurlAmountUnavailable ||
-      amountIsAboveMaxLimit(satoshis) ||
-      amountIsBelowMinLimit(satoshis) ||
-      satoshis > liquidBalance ||
-      aspInfo.unreachable ||
-      Boolean(error) ||
-      satoshis < 1 ||
-      processing
+    : isAssetSend
+      ? !(arkAddress && assetAmt > 0) ||
+        (activeAsset ? assetAmt > activeAsset.balance : true) ||
+        Boolean(recipientError) ||
+        Boolean(carrierError) ||
+        aspInfo.unreachable ||
+        Boolean(error) ||
+        processing
+      : !((address || arkAddress || lnUrl || invoice) && satoshis && satoshis > 0) ||
+        // Unresolved conditions would strand Continue on a locked recipient field.
+        (lnUrl && !arkAddress && !address && !invoice && !lnUrlResponse) ||
+        (lnUrlArkMethodAvailable && !receivingAddresses?.offchainAddr) ||
+        Boolean(recipientError) ||
+        lnurlAmountUnavailable ||
+        amountIsAboveMaxLimit(satoshis) ||
+        amountIsBelowMinLimit(satoshis) ||
+        satoshis > liquidBalance ||
+        aspInfo.unreachable ||
+        Boolean(error) ||
+        satoshis < 1 ||
+        processing
 
   // unverified assets are never offered in the picker; they can still arrive
   // preselected via sendInfo.assets from the Assets app detail screen
   const verifiedAssetOptions = assetOptions.filter((asset) => isVerifiedAsset(asset.assetId))
+  const fundingOptions = fixedAsset
+    ? requestedAsset && canPayRequestedAsset
+      ? [requestedAsset]
+      : []
+    : verifiedAssetOptions
+  const canChooseBitcoin = Boolean(fundingAsset && (!fixedAsset || liquidBalance > 0))
+  const canChangeFundingAsset =
+    canChooseBitcoin || fundingOptions.some((asset) => asset.assetId !== fundingAsset?.assetId)
 
   // currency designation only (ticker fallback) — the ticker already rides
   // with the amounts on the right, and long asset names collide with the
   // balance column on narrow screens
   const assetLabelFor = (asset: AssetOption) =>
     verifiedDesignatedCurrency(aspInfo.network, asset.assetId, isVerifiedAsset) ?? asset.ticker
-  const selectedAssetLabel = activeAsset ? assetLabelFor(activeAsset) : t('send.bitcoin')
-  const selectedAssetBalance = activeAsset
+  const selectedAssetLabel = fundingAsset ? assetLabelFor(fundingAsset) : t('send.bitcoin')
+  const selectedAssetBalance = fundingAsset
     ? t('send.available', {
-        amount: `${prettyAssetAmount(activeAsset.balance, activeAsset.decimals)} ${activeAsset.ticker}`,
+        amount: `${prettyAssetAmount(fundingAsset.balance, fundingAsset.decimals)} ${fundingAsset.ticker}`,
       })
     : t('send.available', { amount: prettyUnitBalance(liquidBalance) })
 
@@ -1194,9 +1268,7 @@ export default function SendForm() {
         label={t('send.recipientAddress')}
         onData={(data) => {
           setScan(false)
-          setRecipient(data)
-          setRawScanData(data)
-          setReadyToParse(true)
+          updateRecipient(data, true, true)
         }}
         onError={smartSetError}
       />
@@ -1304,10 +1376,10 @@ export default function SendForm() {
                     )
                   })()
                 : null}
-              {verifiedAssetOptions.length > 0 || selectedAsset ? (
+              {fixedAsset || verifiedAssetOptions.length > 0 || selectedAsset ? (
                 <FlexCol gap='0.5rem' className='send-asset-field'>
                   <Text smaller color='neutral-500'>
-                    {t('send.asset')}
+                    {t(fixedAsset ? 'send.payWith' : 'send.asset')}
                   </Text>
                   <DropdownMenu
                     open={showAssetSelector}
@@ -1320,25 +1392,28 @@ export default function SendForm() {
                     <DropdownMenuTrigger
                       aria-expanded={showAssetSelector}
                       className='send-asset-trigger'
+                      disabled={Boolean(fixedAsset && !canChangeFundingAsset)}
                       data-testid='asset-selector'
                     >
                       <span className='send-asset-trigger__main'>
-                        <AssetIcon asset={activeAsset} />
+                        <AssetIcon asset={fundingAsset} />
                         <span className='send-asset-trigger__copy'>
                           <span className='send-asset-trigger__name'>
                             {selectedAssetLabel}
-                            {activeAsset && !isVerifiedAsset(activeAsset.assetId) ? <UnverifiedBadge /> : null}
+                            {fundingAsset && !isVerifiedAsset(fundingAsset.assetId) ? <UnverifiedBadge /> : null}
                           </span>
                           <span className='send-asset-trigger__balance'>{selectedAssetBalance}</span>
                         </span>
                       </span>
-                      <span className='send-asset-trigger__chevron' aria-hidden='true'>
-                        {showAssetSelector ? '▲' : '▼'}
-                      </span>
+                      {!fixedAsset || canChangeFundingAsset ? (
+                        <span className='send-asset-trigger__chevron' aria-hidden='true'>
+                          {showAssetSelector ? '▲' : '▼'}
+                        </span>
+                      ) : null}
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className='send-asset-menu' align='start' side='bottom' sideOffset={8}>
                       <FlexCol gap='0.25rem'>
-                        {activeAsset ? (
+                        {canChooseBitcoin ? (
                           <DropdownMenuItem className='send-asset-option' onClick={() => handleSelectAsset(null)}>
                             <span className='send-asset-option__main'>
                               <AssetIcon asset={null} />
@@ -1349,10 +1424,10 @@ export default function SendForm() {
                             <span className='send-asset-option__amount'>{prettyUnitBalance(liquidBalance)}</span>
                           </DropdownMenuItem>
                         ) : null}
-                        {verifiedAssetOptions
+                        {fundingOptions
                           .filter(
                             (asset) =>
-                              asset.assetId !== activeAsset?.assetId &&
+                              asset.assetId !== fundingAsset?.assetId &&
                               asset.assetId !== sendInfo.account?.source.assetId,
                           )
                           .map((asset) => (
@@ -1365,7 +1440,10 @@ export default function SendForm() {
                               <span className='send-asset-option__main'>
                                 <AssetIcon asset={asset} />
                                 <span>
-                                  <span className='send-asset-option__name'>{assetLabelFor(asset)}</span>
+                                  <span className='send-asset-option__name'>
+                                    {assetLabelFor(asset)}
+                                    {fixedAsset && !isVerifiedAsset(asset.assetId) ? <UnverifiedBadge /> : null}
+                                  </span>
                                 </span>
                               </span>
                               <span className='send-asset-option__amount'>
@@ -1380,22 +1458,30 @@ export default function SendForm() {
               ) : null}
               <FlexCol gap='0.5rem'>
                 <InputAmount
-                  label={t('common.amount')}
+                  label={t(fixedAsset ? 'send.recipientGets' : 'common.amount')}
                   name='send-amount'
                   valueSats={valueSats}
-                  right={<Available />}
+                  right={
+                    fixedAsset ? (
+                      isVerifiedAsset(fixedAsset.asset.assetId) ? undefined : (
+                        <UnverifiedBadge />
+                      )
+                    ) : (
+                      <Available />
+                    )
+                  }
                   onEnter={handleEnter}
                   onFocus={handleFocus}
-                  onMax={handleSendAll}
-                  value={amountTextValue}
-                  readOnly={amountIsReadOnly}
+                  onMax={fixedAsset ? undefined : handleSendAll}
+                  value={fixedAsset?.units ?? amountTextValue}
+                  readOnly={Boolean(fixedAsset) || amountIsReadOnly}
                   onChange={handleAmountChange}
                   onModeChange={handleEntryModeChange}
                   mode={entryMode}
                   switchable
                   min={lnUrlResponse?.minSendable}
                   max={lnUrlResponse?.maxSendable}
-                  asset={activeAsset ?? undefined}
+                  asset={fixedAsset?.asset ?? activeAsset ?? undefined}
                   focus={focus === 'amount' && !isMobileBrowser}
                 />
               </FlexCol>

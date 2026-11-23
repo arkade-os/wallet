@@ -78,7 +78,7 @@ export default function SendDetails() {
   const assetPayment = sendInfo.assetPayment?.address === sendInfo.arkAddress ? sendInfo.assetPayment : undefined
   const assetId = assetPayment?.assetId ?? sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
-  const assetDecimals = sendInfo.account?.decimals ?? assetMeta?.metadata?.decimals ?? 0
+  const assetDecimals = (assetPayment ? undefined : sendInfo.account?.decimals) ?? assetMeta?.metadata?.decimals ?? 0
   const assetAmountValue = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
 
   const [buttonLabel, setButtonLabel] = useState('')
@@ -121,17 +121,36 @@ export default function SendDetails() {
       return { kind: 'lightning', invoice, amount: satoshis }
   }, [allowOffchain, arkAddress, invoice, lnurlRoute, satoshis, assetPayment, sendInfo.reviewId])
   const review = usePaymentQuoteReview(firmRequest, network)
-  const firm = review.reviewed?.quote
+  const routeVersion = useSyncExternalStore(subscribeSolverRouting, getSolverRoutingVersion)
+  const openOfferPolicy = useMemo(() => readOpenOfferPolicy(network), [network, routeVersion])
+  const offerDisabled = Boolean(review.reviewed?.offer && openOfferPolicy === 'off')
+  const firm = offerDisabled ? undefined : review.reviewed?.quote
   const firmMarket = firm && quoteProviderMarket(firm)
   const firmTotal = firm ? Number(firm.give.amount) : undefined
   const firmFee = firm && firm.fee.asset === firm.give.asset ? Number(firm.fee.amount) : undefined
-  const routeVersion = useSyncExternalStore(subscribeSolverRouting, getSolverRoutingVersion)
-  const openOfferPolicy = useMemo(() => readOpenOfferPolicy(network), [network, routeVersion])
-  const discoveryRequest = firmRequest?.kind !== 'asset' ? firmRequest : undefined
-  const enableDiscovery = Boolean(discoveryRequest && openOfferPolicy !== 'off')
+  const enableDiscovery = Boolean(firmRequest && openOfferPolicy !== 'off')
 
   useEffect(() => {
-    if (enableDiscovery && openOfferPolicy === 'when-needed' && review.quoteError && !automaticDiscovery.current) {
+    automaticDiscovery.current = false
+    setRoutePicker(false)
+    setSearchOnOpen(undefined)
+    setRememberedRoute(undefined)
+    setRememberChoice(false)
+  }, [firmRequest, network])
+
+  const loadSavedQuote = review.load
+  useEffect(() => {
+    if (offerDisabled && !commitStarted.current) void loadSavedQuote()
+  }, [loadSavedQuote, offerDisabled])
+
+  useEffect(() => {
+    if (
+      enableDiscovery &&
+      openOfferPolicy === 'when-needed' &&
+      review.quoteError &&
+      !automaticDiscovery.current &&
+      !commitStarted.current
+    ) {
       automaticDiscovery.current = true
       setSearchOnOpen('automatic')
       setRoutePicker(true)
@@ -634,15 +653,17 @@ export default function SendDetails() {
     ? error ||
       (review.loading
         ? ''
-        : review.expired
+        : review.expired || review.quoteError === 'expired'
           ? t('swap.offerExpired')
-          : review.quoteError
-            ? t('send.noPaymentQuote')
-            : firmTotal !== undefined && firmTotal > availableBalance
-              ? t('send.insufficientFunds')
-              : review.termsChanged
-                ? t('send.routeChanged')
-                : '')
+          : review.quoteError === 'unverified'
+            ? t('send.paymentQuoteUnverified')
+            : review.quoteError === 'unavailable'
+              ? t('send.noPaymentQuote')
+              : firmTotal !== undefined && firmTotal > availableBalance
+                ? t('send.insufficientFunds')
+                : review.termsChanged
+                  ? t('send.routeChanged')
+                  : '')
     : error || notice
   const preferredProviderId = firmMarket ? solverId(firmMarket, network) : undefined
   const otherCandidates = review.candidates.filter(({ id }) => id !== preferredProviderId)
@@ -798,18 +819,25 @@ export default function SendDetails() {
           open={routePicker}
           network={network}
           from={{ assetId: 'btc', ticker: 'sats', decimals: 0 }}
-          to={{ assetId: firmRequest?.kind === 'asset' ? firmRequest.assetId : 'btc', ticker: 'sats', decimals: 0 }}
-          amount={BigInt(discoveryRequest?.amount ?? details?.satoshis ?? 0)}
+          to={
+            firmRequest?.kind === 'asset'
+              ? {
+                  assetId: firmRequest.assetId,
+                  ticker: amountDisplay.raw[0]?.ticker ?? t('send.unknownAsset'),
+                  decimals: assetDecimals,
+                  unverified: amountDisplay.raw[0]?.unverified,
+                }
+              : { assetId: 'btc', ticker: 'sats', decimals: 0 }
+          }
+          amount={BigInt(firmRequest?.amount ?? details?.satoshis ?? 0)}
           description={
             onchainAmount
               ? `${t(onchainQuote?.railId === ONCHAIN_SWAP_RAIL ? 'send.estimatedRecipientAmount' : 'send.recipientGets')} · ${prettyNumber(onchainAmount, 0)} ${t('common.sats')}`
-              : firmRequest?.kind === 'asset'
-                ? t('send.reviewPayment')
-                : undefined
+              : undefined
           }
           allowSmartRouting={false}
           allowOpenOffers={enableDiscovery}
-          payment={discoveryRequest}
+          payment={firmRequest}
           autoSearch={Boolean(searchOnOpen)}
           autoSearchConsent={searchOnOpen === 'explicit'}
           onOpenChange={togglePicker}
