@@ -139,6 +139,9 @@ export const getEmulatorPubkeyOverrideForNetwork = (network: NetworkName): strin
   return configured && COMPRESSED_PUBKEY_HEX.test(configured) ? configured : undefined
 }
 
+// The Executor is always on unless the build switches it off (VITE_EXECUTOR_ENABLED=false, e.g. Playwright)
+export const isExecutorEnabled = (): boolean => import.meta.env.VITE_EXECUTOR_ENABLED !== 'false'
+
 // With an Executor, deposits to the boarding address are boarded, and the coins renewed, while the wallet is offline.
 export const getExecutorUrlForNetwork = (network: NetworkName): string | undefined =>
   serviceUrlForNetwork(import.meta.env.VITE_EXECUTOR_URL, EXECUTOR_URL, network)

@@ -1,6 +1,6 @@
 import { ReactNode, createContext, useEffect, useState } from 'react'
 import { readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
-import { defaultArkServer, devServer } from '../lib/constants'
+import { defaultArkServer, devServer, isExecutorEnabled } from '../lib/constants'
 import { Config, Currencies, Themes, Unit } from '../lib/types'
 import { normalizeBitcoinUnit } from '../lib/format'
 import { setHapticsEnabled } from '../lib/haptics'
@@ -12,7 +12,7 @@ const defaultConfig: Config = {
   apps: { assets: { enabled: false } },
   aspUrl: defaultArkServer(),
   dismissedBanners: [],
-  executor: import.meta.env.VITE_EXECUTOR_ENABLED !== 'false',
+  executor: isExecutorEnabled(),
   currency: getCurrency(navigator.language),
   importedAssets: [],
   language: detectLanguage(navigator.language),
