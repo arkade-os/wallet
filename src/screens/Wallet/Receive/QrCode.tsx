@@ -341,10 +341,13 @@ export default function ReceiveQRCode() {
   }
 
   const handleCopy = async (value: string) => {
-    if (generating) return
     if (!prefersReducedMotion) hapticSubtle()
     const copied = await copyToClipboard(value)
     if (copied) setCopied(value)
+  }
+
+  const handlePaymentCopy = (value: string) => {
+    if (!generating) void handleCopy(value)
   }
 
   const handleAmountConfirm = (value = amountTextValue, inputMode?: KeyboardInputMode) => {
@@ -611,16 +614,36 @@ export default function ReceiveQRCode() {
     const p = id
       ? rawAssetPresentation(assetMetadataCache.get(id)?.metadata, truncatedAssetId(id) || t('mint.unknownAsset'))
       : { name: t('send.bitcoin'), ticker: 'BTC' }
+    const title = p.name.trim() || p.ticker || t('mint.unknownAsset')
     const logo = !id ? 'BTC' : isRegistered(id) ? tokenLogoTickerForTicker(p.ticker) : undefined
     return {
       id,
-      title: p.name.trim() || p.ticker,
+      title,
       subtitle: p.ticker,
       icon: (
         <span aria-hidden='true' className='flex size-7 shrink-0 [&>svg]:size-full'>
           {logo ? <TokenLogo ticker={logo} /> : <AssetAvatar name={p.name} ticker={p.ticker} size={28} />}
         </span>
       ),
+      details: id ? (
+        <>
+          {isVerifiedAsset(id) ? null : (
+            <span className='shrink-0 [&>span]:ml-0'>
+              <UnverifiedBadge />
+            </span>
+          )}
+          <button
+            type='button'
+            aria-label={t('receive.copyAria', { title: `${t('mint.assetId')} · ${title}` })}
+            data-testid={`receive-asset-id-copy-${id}`}
+            className='min-h-8 cursor-pointer truncate rounded-sm text-left font-mono text-xs text-neutral-600 underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-purple-700'
+            title={id}
+            onClick={() => handleCopy(id)}
+          >
+            {copied === id ? t('common.copied') : prettyLongText(id, 6)}
+          </button>
+        </>
+      ) : undefined,
     }
   }
   const visibleOnHome = (id: string, held: boolean) =>
@@ -767,7 +790,7 @@ export default function ReceiveQRCode() {
                       className='receive-invoice-qr focusable'
                       disabled={generating || !qrCodeValue}
                       aria-hidden={generating}
-                      onClick={() => handleCopy(qrCodeValue)}
+                      onClick={() => handlePaymentCopy(qrCodeValue)}
                       onPointerDown={() => setQrTransform(prefersReducedMotion ? '' : 'scale(0.97)')}
                       onPointerUp={() => setQrTransform('')}
                       onPointerLeave={() => setQrTransform('')}
@@ -816,13 +839,18 @@ export default function ReceiveQRCode() {
                         label={t('receive.copyAria', { title: copyLabel })}
                         testId={`${target.kind}-address-copy`}
                         done={copied === copyValue}
-                        onClick={() => handleCopy(copyValue)}
+                        onClick={() => handlePaymentCopy(copyValue)}
                         disabled={copyDisabled}
                       />
                     </div>
                   ) : null}
                   {shown === 'token' && activeToken && tokenRails.quote ? (
-                    <TokenQuoteNote rail={activeToken} quote={tokenRails.quote} copied={copied} onCopy={handleCopy} />
+                    <TokenQuoteNote
+                      rail={activeToken}
+                      quote={tokenRails.quote}
+                      copied={copied}
+                      onCopy={handlePaymentCopy}
+                    />
                   ) : caption ? (
                     <Text small color='neutral-500' wrap centered>
                       {caption}
@@ -848,22 +876,6 @@ export default function ReceiveQRCode() {
             open={assetsOpen}
             onClose={() => setAssetsOpen(false)}
             title={t('swap.chooseAssetToReceive')}
-            details={
-              assetId ? (
-                <button
-                  type='button'
-                  aria-label={t('receive.copyAria', { title: t('mint.assetId') })}
-                  data-testid='receive-asset-id-copy'
-                  className='focusable flex min-h-10 w-fit max-w-full cursor-pointer items-center gap-2 rounded-sm text-left text-xs text-neutral-600'
-                  onClick={() => handleCopy(assetId)}
-                >
-                  <span className='shrink-0'>{copied === assetId ? t('common.copied') : t('mint.assetId')}</span>
-                  <span className='truncate font-mono underline underline-offset-2' title={assetId}>
-                    {truncatedAssetId(assetId) || assetId}
-                  </span>
-                </button>
-              ) : undefined
-            }
             formats={assetRows}
             active={assetId ?? ''}
             onPick={switchAsset}

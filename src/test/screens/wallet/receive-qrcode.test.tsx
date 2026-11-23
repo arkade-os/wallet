@@ -543,7 +543,7 @@ describe('Receive QR Code screen', () => {
       expect(within(picker).getByText('Northstar')).toBe(screen.getByText('Northstar'))
       expect(picker.compareDocumentPosition(badge) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
       expect(badge.compareDocumentPosition(qr) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-      expect(screen.queryByRole('button', { name: 'Copy Asset ID' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /^Copy Asset ID/ })).not.toBeInTheDocument()
       if (approved) {
         expect(qr.querySelector('img')).toHaveAttribute('src', icon)
         expect(qr.querySelector('img + span svg')).toBeInTheDocument()
@@ -552,11 +552,15 @@ describe('Receive QR Code screen', () => {
       expect(qr.querySelector('img')).toBeNull()
 
       fireEvent.click(picker)
-      const copyId = screen.getByRole('button', { name: 'Copy Asset ID' })
-      expect(within(copyId).getByTitle(assetId)).toBeVisible()
+      const selected = activeFormat()
+      const row = within(selected.parentElement!)
+      const copyId = row.getByRole('button', { name: 'Copy Asset ID · Northstar' })
+      expect(copyId).toHaveAttribute('title', assetId)
+      expect(copyId.parentElement).toContainElement(row.getByText('Unverified'))
+      expect(selected).not.toContainElement(copyId)
       expect(await tap(copyId)).toBe(assetId)
       expect(copyId).toHaveTextContent('Copied!')
-      expect(activeFormat()).toHaveAccessibleName(/^Northstar/)
+      expect(activeFormat()).toBe(selected)
     })
 
     it('keeps the asset ID copyable when Arkade receive is unavailable', async () => {
@@ -579,7 +583,7 @@ describe('Receive QR Code screen', () => {
       expect(screen.queryByRole('button', { name: 'Copy QR code' })).not.toBeInTheDocument()
       expect(screen.queryByTestId('bip21-address-copy')).not.toBeInTheDocument()
       fireEvent.click(screen.getByRole('button', { name: 'STAR' }))
-      expect(await copyFrom('receive-asset-id-copy')).toBe(assetId)
+      expect(await copyFrom(`receive-asset-id-copy-${assetId}`)).toBe(assetId)
     })
   })
 })
@@ -873,7 +877,12 @@ describe('Receive QR Code screen — asset pill', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Bitcoin' }))
     expect(screen.getAllByRole('radio')).toHaveLength(2)
-    fireEvent.click(screen.getByRole('radio', { name: /^dededededede/ }))
+    const pinned = screen.getByRole('radio', { name: /^dededededede/ })
+    const pinnedRow = within(pinned.parentElement!)
+    await act(async () => fireEvent.click(pinnedRow.getByRole('button', { name: /^Copy Asset ID/ })))
+    expect(copyToClipboardMock).toHaveBeenLastCalledWith(pinnedId)
+    expect(screen.getByRole('radio', { name: /^Bitcoin/ })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(pinned)
 
     const selected = setRecvInfo.mock.calls.at(-1)![0](recvInfo)
     expect(selected.assetId).toBe(pinnedId)
