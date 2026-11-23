@@ -50,7 +50,7 @@
     "build:worker": "vite build -c vite.worker.config.ts",
     "test": "vitest run",
     "test:ui": "vitest run --ui",
-    "test:unit": "vitest run --exclude '**/e2e/**'",
+    "test:unit": "vitest run --exclude '**/e2e/**' --exclude 'regtest/**'",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "cross-env VITE_NOSTR_RELAY_URL=http://localhost:7777 playwright test",
     "test:e2e:ui": "cross-env VITE_NOSTR_RELAY_URL=http://localhost:7777 playwright test --ui",
