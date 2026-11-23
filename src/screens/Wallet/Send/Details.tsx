@@ -14,7 +14,7 @@ import { defaultFee } from '../../../lib/constants'
 import { prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
-import { InsufficientFundsError, maxCollaborativeExit, sendOffChain } from '../../../lib/asp'
+import { aspErrorText, InsufficientFundsError, maxCollaborativeExit, sendOffChain } from '../../../lib/asp'
 import {
   ASSET_RAIL,
   LNURL_ARKADE_RAIL,
@@ -49,10 +49,16 @@ export default function SendDetails() {
   const { calcOnchainOutputFee, intentFee } = useContext(FeesContext)
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
-  const { assetMetadataCache, availableBalance, balance, reloadWallet, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, availableBalance, balance, reloadWallet, svcWallet, revalidatingOperator } =
+    useContext(WalletContext)
   const { aspInfo } = useContext(AspContext)
   const { sendRouter } = useContext(SwapsContext)
   const { t } = useTranslation()
+  const operatorError = aspInfo.unreachable
+    ? aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))
+    : revalidatingOperator
+      ? t('wallet.syncing')
+      : ''
 
   const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
@@ -361,7 +367,7 @@ export default function SendDetails() {
   }
 
   const handleContinue = async () => {
-    if (!details || !svcWallet || pricing) return
+    if (!details || !svcWallet || pricing || operatorError) return
     if (!isAssetSend && (!details.total || !details.satoshis)) return
     if (isAssetSend && !arkAddress) {
       setError(t('send.assetsOnlyToArkade'))
@@ -419,7 +425,7 @@ export default function SendDetails() {
         ) : (
           <Padded>
             <FlexCol>
-              <ErrorMessage error={Boolean(error || notice)} text={error || notice} />
+              <ErrorMessage error={Boolean(operatorError || error || notice)} text={operatorError || error || notice} />
               {details && amountDisplay ? (
                 <TransactionAmountSummary amount={amountDisplay} label={t('send.amountToSend')} />
               ) : null}
@@ -433,7 +439,9 @@ export default function SendDetails() {
         )}
       </Content>
       <ButtonsOnBottom>
-        {sending ? null : <Button onClick={handleContinue} label={buttonLabel} disabled={Boolean(error) || pricing} />}
+        {sending ? null : (
+          <Button onClick={handleContinue} label={buttonLabel} disabled={Boolean(operatorError || error) || pricing} />
+        )}
       </ButtonsOnBottom>
     </>
   )

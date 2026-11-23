@@ -22,7 +22,8 @@ vi.mock('@arkade-os/sdk', async (importOriginal) => {
             min_version: '0.9.10',
           })
         }
-        throw new Error('network down')
+        if (this.url.includes('down')) throw new actual.ProviderUnavailableError('network down')
+        throw new Error('Invalid operator response')
       }
     },
   }
@@ -32,6 +33,7 @@ import { ArkNote } from '@arkade-os/sdk'
 import {
   getAspInfo,
   aspErrorText,
+  canOpenWithCachedOperator,
   emptyAspInfo,
   byExpiryAsc,
   collaborativeExitWithFees,
@@ -105,6 +107,7 @@ describe('getAspInfo', () => {
     const info = await getAspInfo('too-old.example.com')
     expect(info.unreachable).toBe(true)
     expect(info.outdated).toBe(true)
+    expect(info.retryable).toBeFalsy()
     expect(info.minBuildVersion).toBe('0.9.10')
   })
 
@@ -114,11 +117,27 @@ describe('getAspInfo', () => {
     expect(info.minBuildVersion).toBe('0.9.10')
   })
 
-  it('flags unreachable but not outdated on a generic failure', async () => {
+  it('allows a cached boot on a retryable provider failure', async () => {
     const info = await getAspInfo('down.example.com')
     expect(info.unreachable).toBe(true)
+    expect(info.retryable).toBe(true)
     expect(info.outdated).toBeFalsy()
   })
+
+  it('keeps an invalid operator response terminal', async () => {
+    const info = await getAspInfo('invalid.example.com')
+    expect(info.unreachable).toBe(true)
+    expect(info.retryable).toBe(false)
+  })
+})
+
+it('allows legacy local wallets but rejects cached startup for a different operator or network', () => {
+  const wallet = { nextRollover: 0, pubkey: 'stored-wallet', network: 'regtest' as const }
+  const outage = { ...emptyAspInfo, unreachable: true, retryable: true, network: 'regtest', url: 'https://operator' }
+
+  expect(canOpenWithCachedOperator(wallet, outage)).toBe(true)
+  expect(canOpenWithCachedOperator({ ...wallet, operatorUrl: 'https://another-operator' }, outage)).toBe(false)
+  expect(canOpenWithCachedOperator(wallet, { ...outage, network: 'bitcoin' })).toBe(false)
 })
 
 describe('settle failure reporting', () => {

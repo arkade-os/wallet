@@ -19,10 +19,11 @@ interface HomeAction {
   disabled?: boolean
 }
 
-export default function HomeQuickActions() {
+export default function HomeQuickActions({ operatorUnavailable }: { operatorUnavailable: boolean }) {
   const { navigate } = useContext(NavigationContext)
   const { booting, dataReady } = useContext(WalletContext)
   const homeBusy = Boolean(booting) && !dataReady
+  const paymentsUnavailable = homeBusy || operatorUnavailable
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { swapAvailable } = useContext(SwapsContext)
   const [swapSheetOpen, setSwapSheetOpen] = useState(false)
@@ -37,7 +38,7 @@ export default function HomeQuickActions() {
         navigate(Pages.ReceiveQRCode)
       },
       testId: 'home-action-receive',
-      disabled: homeBusy,
+      disabled: paymentsUnavailable,
     },
     {
       icon: <SendIcon />,
@@ -47,7 +48,7 @@ export default function HomeQuickActions() {
         navigate(Pages.SendForm)
       },
       testId: 'home-action-send',
-      disabled: homeBusy,
+      disabled: paymentsUnavailable,
     },
     {
       icon: <SwapIcon />,
@@ -57,7 +58,7 @@ export default function HomeQuickActions() {
         else setSwapSheetOpen(true)
       },
       testId: 'home-action-swap',
-      disabled: homeBusy,
+      disabled: paymentsUnavailable,
     },
     {
       icon: <ScanIcon />,

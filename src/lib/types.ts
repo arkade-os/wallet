@@ -211,6 +211,7 @@ export type Wallet = {
   thresholdMs?: number
   lockedByBiometrics?: boolean
   network?: NetworkName | ''
+  operatorUrl?: string
   nextRollover: number
   passkeyId?: string
   pubkey?: string
