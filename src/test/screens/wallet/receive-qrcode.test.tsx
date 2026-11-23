@@ -23,6 +23,7 @@ import { SwapsContext } from '../../../providers/swaps'
 import { ToastProvider } from '../../../components/Toast'
 import { LanguageContext, translate } from '../../../providers/language'
 import { Currencies, Language, Unit } from '../../../lib/types'
+import { AssetIconApprovalManager } from '../../../lib/assetIconApproval'
 import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
 import fixtures from '../../fixtures.json'
 
@@ -515,6 +516,64 @@ describe('Receive QR Code screen', () => {
       expect(await copyFrom('bip21-address-copy')).toContain(`assetid=${assetId}`)
       expect(screen.getAllByTestId(/-address-copy$/)).toHaveLength(1)
       expect(screen.queryByRole('button', { name: /^Other formats/ })).not.toBeInTheDocument()
+    })
+
+    it.each([false, true])('identifies the requested asset below the QR with icon approval %s', async (approved) => {
+      const assetId = 'ab'.repeat(34)
+      const icon = 'https://assets.example.com/token.png'
+      const fixture = tapFixture()
+      const iconApprovalManager = new AssetIconApprovalManager()
+      vi.spyOn(iconApprovalManager, 'isApproved').mockImplementation((id) => approved && id === assetId)
+      renderReceiveQrCode({
+        ...fixture,
+        flow: { recvInfo: { ...fixture.flow!.recvInfo!, assetId } },
+        wallet: {
+          ...fixture.wallet,
+          assetMetadataCache: new Map([
+            [assetId, { assetId, cachedAt: 0, supply: 100n, metadata: { name: 'Northstar', ticker: 'STAR', icon } }],
+          ]),
+          iconApprovalManager,
+          isVerifiedAsset: () => false,
+        },
+      })
+
+      const qr = await screen.findByRole('button', { name: 'Copy QR code' })
+      const identity = screen.getByText('Northstar (STAR)')
+      const copyId = screen.getByRole('button', { name: 'Copy Asset ID' })
+      expect(identity).toBeVisible()
+      expect(screen.getByText('Unverified')).toBeVisible()
+      expect(qr.compareDocumentPosition(identity) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(qr.compareDocumentPosition(copyId) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      if (approved) {
+        expect(qr.querySelector('img')).toHaveAttribute('src', icon)
+        expect(qr.querySelector('img + span svg')).toBeInTheDocument()
+        fireEvent.error(qr.querySelector('img')!)
+      }
+      expect(qr.querySelector('img')).toBeNull()
+
+      expect(await copyFrom('receive-asset-id-copy')).toBe(assetId)
+    })
+
+    it('keeps the asset ID copyable when Arkade receive is unavailable', async () => {
+      const assetId = 'ac'.repeat(34)
+      const fixture = tapFixture()
+      renderReceiveQrCode({
+        ...fixture,
+        flow: { recvInfo: { ...fixture.flow!.recvInfo!, assetId } },
+        wallet: {
+          ...fixture.wallet,
+          assetMetadataCache: new Map([
+            [assetId, { assetId, cachedAt: 0, supply: 100n, metadata: { name: ' ', ticker: 'STAR' } }],
+          ]),
+        },
+        limits: { vtxoTxsAllowed: () => false, utxoTxsAllowed: () => true },
+      })
+
+      expect(await screen.findByText('No valid payment methods available for this amount')).toBeVisible()
+      expect(screen.getByText('Unverified').parentElement).toHaveTextContent('STAR')
+      expect(screen.queryByRole('button', { name: 'Copy QR code' })).not.toBeInTheDocument()
+      expect(screen.queryByTestId('bip21-address-copy')).not.toBeInTheDocument()
+      expect(await copyFrom('receive-asset-id-copy')).toBe(assetId)
     })
   })
 })
