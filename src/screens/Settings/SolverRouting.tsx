@@ -30,11 +30,11 @@ import { solverHealth } from '@/lib/solverHealth'
 import { readOnchainSendPreference, saveOnchainSendPreference } from '@/lib/openOfferPolicy'
 import FlexCol from '@/components/FlexCol'
 import Text, { TextSecondary } from '@/components/Text'
-import Shadow from '@/components/Shadow'
 import ErrorMessage from '@/components/Error'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer'
 import ChevronDownIcon from '@/icons/ChevronDown'
 import ChevronUpIcon from '@/icons/ChevronUp'
+import ArrowIcon from '@/icons/Arrow'
 import { Switch } from '@/components/ui/switch'
 
 const railNames = { arkade: 'Arkade', bolt11: 'Lightning', bitcoin: 'Bitcoin', eip155: 'EVM' }
@@ -106,21 +106,33 @@ function RouteRow({
   count?: string
   onClick: () => void
 }) {
+  const summaryId = useId()
   return (
     <button
       type='button'
       aria-label={label}
+      aria-describedby={summaryId}
       aria-haspopup='dialog'
-      className='focusable flex w-full items-center gap-3 rounded-lg p-3 text-left'
+      className='settings-row'
       onClick={onClick}
     >
-      <span className='min-w-0 flex-1'>
-        <RouteLegs from={from} to={to} />
-        <span className='mt-1 block text-sm text-[var(--neutral-500)]'>{summary}</span>
+      <span className='grid min-w-0 gap-0.5'>
+        <span className='flex flex-wrap items-baseline gap-x-2 text-sm font-medium'>
+          <span className='min-w-0 break-words'>{from}</span>
+          <span className='inline-flex min-w-0 items-baseline gap-2'>
+            <span className='text-muted-foreground' aria-hidden='true'>
+              →
+            </span>
+            <span className='min-w-0 break-words'>{to}</span>
+          </span>
+        </span>
+        <span id={summaryId} className='text-xs break-words text-muted-foreground'>
+          {count ? `${count} · ` : ''}
+          {summary}
+        </span>
       </span>
-      {count ? <span className='shrink-0 text-sm text-[var(--neutral-500)]'>{count}</span> : null}
-      <span aria-hidden='true' className='shrink-0 -rotate-90'>
-        <ChevronDownIcon />
+      <span aria-hidden='true' className='settings-row__chevron'>
+        <ArrowIcon />
       </span>
     </button>
   )
@@ -135,7 +147,7 @@ function OnchainPaymentMethod({ network }: { network: string }) {
       <label className='flex w-full items-center justify-between gap-3'>
         <span>{t('solvers.onchainMethod')}</span>
         <select
-          className='min-h-11 max-w-[60%] rounded-lg border border-[var(--neutral-200)] bg-transparent px-2'
+          className='min-h-11 max-w-[60%] rounded-lg border border-[var(--neutral-200)] bg-background px-2 scheme-light dark:scheme-dark'
           value={readOnchainSendPreference(network)}
           onChange={(event) => {
             try {
@@ -255,7 +267,7 @@ function DirectionRouting({
         <span>{orderLabel}</span>
         <select
           ref={orderRef}
-          className='max-w-[60%] rounded-lg border border-[var(--neutral-200)] bg-transparent p-2'
+          className='min-h-11 max-w-[60%] rounded-lg border border-[var(--neutral-200)] bg-background px-2 scheme-light dark:scheme-dark'
           aria-label={`${orderLabel} ${directionLabel} (${network})`}
           value={prefs.mode ?? 'manual'}
           onChange={(event) => save({ ...prefs, mode: event.target.value as SolverRoutingPreferences['mode'] })}
@@ -440,66 +452,63 @@ export default function SolverRouting({ network }: { network: string }) {
   }, [network, directionKeys, version])
   return (
     <Drawer open={Boolean(selected || walletOnlySelected) && open} onOpenChange={setOpen}>
-      <TextSecondary>{t('solvers.routingHint')}</TextSecondary>
       {directions.size === 0 && !showWalletOnly ? (
         <TextSecondary>{t('solvers.noDirections')}</TextSecondary>
       ) : (
-        <Shadow>
-          <div className='divide-y divide-[var(--neutral-200)]'>
-            {[...directions].map(([direction, candidates]) => {
-              const label = directionLabelOf(candidates[0], tickerOf)
-              const prefs = readSolverRouting(network, direction)
-              const mode = prefs.mode
-              const enabled = orderSolverMarkets(candidates, {
-                network,
-                preferences: effectiveSolverRouting(network, direction, candidates),
-              })
-              const enabledCount = enabled.length
-              const preferred = candidates.find(({ card }) => solverId(card, network) === prefs.preferFirst)
-              const preferredEnabled = Boolean(preferred && enabled.includes(preferred))
-              const preferredCooling = preferredEnabled && cooling[direction]?.includes(prefs.preferFirst ?? '')
-              const modeLabel = t(
-                mode === 'usage' ? 'solvers.mostUsed' : mode === 'cost' ? 'solvers.lowestCost' : 'solvers.manualOrder',
-              )
-              let solverSummary = modeLabel
-              if (preferred) {
-                const values = { name: preferred.card.solver, mode: modeLabel }
-                solverSummary = !preferredEnabled
-                  ? t('solvers.preferredPaused', values)
-                  : preferredCooling
-                    ? t('solvers.preferredCooling', values)
-                    : t('solvers.preferredSummary', values)
-              } else if (prefs.preferFirst) {
-                solverSummary = t('solvers.preferredUnavailableSummary', { mode: modeLabel })
-              }
-              const exitFirst = direction === onchainGroup?.[0] && readOnchainSendPreference(network) === 'exit'
-              return (
-                <RouteRow
-                  key={direction}
-                  {...routeLegsOf(candidates[0], tickerOf)}
-                  label={label}
-                  summary={exitFirst ? t('solvers.onchainMethodExit') : solverSummary}
-                  count={
-                    enabledCount === candidates.length
-                      ? t(candidates.length === 1 ? 'solvers.solverCountSingular' : 'solvers.solverCountPlural', {
-                          count: candidates.length,
-                        })
-                      : t('solvers.enabledCount', { enabled: enabledCount, count: candidates.length })
-                  }
-                  onClick={() => openDirection(direction)}
-                />
-              )
-            })}
-            {showWalletOnly ? (
+        <div className='settings-row-group'>
+          {[...directions].map(([direction, candidates]) => {
+            const label = directionLabelOf(candidates[0], tickerOf)
+            const prefs = readSolverRouting(network, direction)
+            const mode = prefs.mode
+            const enabled = orderSolverMarkets(candidates, {
+              network,
+              preferences: effectiveSolverRouting(network, direction, candidates),
+            })
+            const enabledCount = enabled.length
+            const preferred = candidates.find(({ card }) => solverId(card, network) === prefs.preferFirst)
+            const preferredEnabled = Boolean(preferred && enabled.includes(preferred))
+            const preferredCooling = preferredEnabled && cooling[direction]?.includes(prefs.preferFirst ?? '')
+            const modeLabel = t(
+              mode === 'usage' ? 'solvers.mostUsed' : mode === 'cost' ? 'solvers.lowestCost' : 'solvers.manualOrder',
+            )
+            let solverSummary = modeLabel
+            if (preferred) {
+              const values = { name: preferred.card.solver, mode: modeLabel }
+              solverSummary = !preferredEnabled
+                ? t('solvers.preferredPaused', values)
+                : preferredCooling
+                  ? t('solvers.preferredCooling', values)
+                  : t('solvers.preferredSummary', values)
+            } else if (prefs.preferFirst) {
+              solverSummary = t('solvers.preferredUnavailableSummary', { mode: modeLabel })
+            }
+            const exitFirst = direction === onchainGroup?.[0] && readOnchainSendPreference(network) === 'exit'
+            return (
               <RouteRow
-                {...walletOnchainLegs}
-                label={walletOnchainLabel}
-                summary={t('solvers.onchainMethodExit')}
-                onClick={() => openDirection(walletOnchainRoute)}
+                key={direction}
+                {...routeLegsOf(candidates[0], tickerOf)}
+                label={label}
+                summary={exitFirst ? t('solvers.onchainMethodExit') : solverSummary}
+                count={
+                  enabledCount === candidates.length
+                    ? t(candidates.length === 1 ? 'solvers.solverCountSingular' : 'solvers.solverCountPlural', {
+                        count: candidates.length,
+                      })
+                    : t('solvers.enabledCount', { enabled: enabledCount, count: candidates.length })
+                }
+                onClick={() => openDirection(direction)}
               />
-            ) : null}
-          </div>
-        </Shadow>
+            )
+          })}
+          {showWalletOnly ? (
+            <RouteRow
+              {...walletOnchainLegs}
+              label={walletOnchainLabel}
+              summary={t('solvers.onchainMethodExit')}
+              onClick={() => openDirection(walletOnchainRoute)}
+            />
+          ) : null}
+        </div>
       )}
       {(selected && selectedDirection) || walletOnlySelected ? (
         <DrawerContent>

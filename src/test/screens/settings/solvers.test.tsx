@@ -133,15 +133,33 @@ describe('Solvers screen', () => {
 
   it('keeps open-offer consent separate for each wallet network', () => {
     const view = renderSolvers('mutinynet', [], 'priority')
-    const policy = screen.getByRole('combobox', { name: 'Open offers' })
-    expect(policy).toHaveValue('ask')
-    expect(screen.getByText('Searching shares your pair and amount publicly.')).toBeInTheDocument()
-    fireEvent.change(policy, { target: { value: 'when-needed' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Open offers Ask first' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Open offers' }))
+    expect(dialog.getByText('Searching shares your pair and amount publicly.')).toBeInTheDocument()
+    expect(dialog.getByRole('button', { name: /^Ask first/ })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(dialog.getByRole('button', { name: /^When needed/ }))
     expect(readOpenOfferPolicy('mutinynet')).toBe('when-needed')
     expect(readOpenOfferPolicy('bitcoin')).toBe('ask')
     view.unmount()
     renderSolvers('mutinynet', [], 'priority')
-    expect(screen.getByRole('combobox', { name: 'Open offers' })).toHaveValue('when-needed')
+    expect(screen.getByRole('button', { name: 'Open offers When needed' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('keeps the open-offer settings available when saving fails', () => {
+    renderSolvers('mutinynet', [], 'priority')
+    fireEvent.click(screen.getByRole('button', { name: 'Open offers Ask first' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Open offers' }))
+    const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('full')
+    })
+    try {
+      fireEvent.click(dialog.getByRole('button', { name: /^When needed/ }))
+      expect(dialog.getByText(/Failed to save/)).toBeInTheDocument()
+      expect(dialog.getByRole('button', { name: /^Ask first/ })).toHaveAttribute('aria-pressed', 'true')
+      expect(readOpenOfferPolicy('mutinynet')).toBe('ask')
+    } finally {
+      write.mockRestore()
+    }
   })
 
   it('shows the wallet exit without a solver and keeps method selection separate from solver order', () => {
@@ -397,7 +415,7 @@ describe('Solvers screen', () => {
   it('retains pasted cards with the same name and different discovery keys', async () => {
     renderSolvers()
     for (const key of ['a', 'b']) {
-      fireEvent.click(screen.getByRole('button', { name: '+ Add new' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Add provider' }))
       fireEvent.change(screen.getByPlaceholderText('{ version: 0, name: "My Card", markets: [...] }'), {
         target: {
           value: JSON.stringify({ version: 0, name: 'Same name', discovery_pubkey: key.repeat(64), markets: [] }),
@@ -413,23 +431,20 @@ describe('Solvers screen', () => {
     expect((readSolverCards()[0].card as { discovery_pubkey: string }).discovery_pubkey).toBe('b'.repeat(64))
   })
 
-  it('shows an empty state when no solver cards are stored', () => {
+  it('shows an empty state when no providers are available', () => {
     renderSolvers()
 
     expect(screen.getByText('Payment routes')).toBeInTheDocument()
-    expect(screen.getByText('You have no solver cards stored in your wallet.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '+ Add new' })).toBeInTheDocument()
+    expect(screen.getByText('No providers available.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add provider' })).toBeInTheDocument()
   })
 
   it('shows the bundled mainnet card as read-only, so the pinned solver is visible', () => {
     renderSolvers('bitcoin')
 
-    // the build ships the beta solver's card; without this row the screen
-    // claims "no solver cards" while a pinned solver is quoting sends
     expect(screen.getByText('beta-solver')).toBeInTheDocument()
     expect(screen.getByText('Built-in')).toBeInTheDocument()
-    expect(screen.getByText('This build ships 1 solver card; add your own to reach more solvers.')).toBeInTheDocument()
-    // read-only: not removable, not editable — only the add button renders
+    expect(screen.queryByText('No providers available.')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
   })
@@ -438,7 +453,7 @@ describe('Solvers screen', () => {
     renderSolvers('regtest', [], 'priority')
 
     fireEvent.click(screen.getByRole('tab', { name: 'Providers' }))
-    fireEvent.click(screen.getByRole('button', { name: '+ Add new' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add provider' }))
     expect(screen.getByRole('dialog', { name: 'Solver card' })).toBeInTheDocument()
     fireEvent.change(screen.getByPlaceholderText('{ version: 0, name: "My Card", markets: [...] }'), {
       target: { value: JSON.stringify({ version: 0, name: 'My Card', markets: [] }) },
@@ -449,7 +464,7 @@ describe('Solvers screen', () => {
     expect(screen.getByRole('tab', { name: 'Providers' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(readSolverCards()).toHaveLength(1)
-    expect(screen.getByText('You have 1 solver card stored in your wallet.')).toBeInTheDocument()
+    expect(screen.getByText('Custom')).toBeInTheDocument()
   })
 
   it('labels a pointer card instead of listing no pairs', () => {
@@ -462,11 +477,12 @@ describe('Solvers screen', () => {
     expect(screen.getByText('Markets published by the solver')).toBeInTheDocument()
   })
 
-  it('derives a canonical card’s pair label from its asset ids', () => {
+  it('derives a canonical card’s market details from its asset ids', () => {
     renderSolvers('bitcoin')
 
-    // the bundled card names its legs only by CAIP-19 id and carries no `pair`
-    expect(screen.getByText('BTC/lightning:BTC')).toBeInTheDocument()
+    expect(screen.getByText('1 market')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Details for beta-solver' }))
+    expect(within(screen.getByRole('dialog')).getByText('Arkade BTC → Lightning BTC')).toBeInTheDocument()
   })
 
   it('replaces the original unsigned card when renaming and preserves other pins', async () => {
@@ -491,13 +507,13 @@ describe('Solvers screen', () => {
     expect(screen.getByText('Other')).toBeInTheDocument()
     expect(isSolverCardEnabled(readSolverCards().find(({ label }) => label === 'New')!)).toBe(false)
     expect(screen.getByRole('switch', { name: 'Enable New for new swaps' })).not.toBeChecked()
-    await waitFor(() => expect(screen.getByRole('button', { name: '+ Add new' })).toHaveFocus())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add provider' })).toHaveFocus())
   })
 
   it.each([
     ['keyless', 'Edit', undefined],
     ['keyed', 'Edit', 'a'.repeat(64)],
-    ['keyed', '+ Add new', 'a'.repeat(64)],
+    ['keyed', 'Add provider', 'a'.repeat(64)],
   ])('keeps a direction pause when a %s card is saved under a new name via %s', async (_, button, key) => {
     const card = (name: string) => ({ version: 0, name, discovery_pubkey: key, markets: [pinnedUsdt] })
     const market = (name: string) => ({
@@ -557,7 +573,7 @@ describe('Solvers screen', () => {
     await waitFor(() => expect(screen.queryByText('My Card')).not.toBeInTheDocument())
   })
 
-  it('shows card info when Info is clicked', async () => {
+  it('shows card info when the provider row is clicked', async () => {
     const pubkey = 'b'.repeat(64)
     localStorage.setItem(
       'solverCards',
@@ -577,7 +593,7 @@ describe('Solvers screen', () => {
     )
     renderSolvers()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Info' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Details for Pinned' }))
 
     await waitFor(() => expect(screen.getByText('Solver card info')).toBeInTheDocument())
     expect(within(screen.getByRole('dialog')).getByText(prettyLongText(pubkey))).toBeInTheDocument()
@@ -621,7 +637,7 @@ describe('Solvers screen', () => {
     ])
     renderSolvers()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Info' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Details for Pinned' }))
 
     await waitFor(() => expect(screen.getByRole('tab', { name: 'Original' })).toBeInTheDocument())
     expect(screen.getByRole('tab', { name: 'Current' })).toBeInTheDocument()
@@ -640,7 +656,7 @@ describe('Solvers screen', () => {
     )
     renderSolvers()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Info' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Details for Pinned' }))
 
     await waitFor(() => expect(screen.getByText('Solver card info')).toBeInTheDocument())
     expect(within(screen.getByRole('dialog')).queryByRole('tab')).not.toBeInTheDocument()
@@ -654,11 +670,12 @@ describe('Solvers screen', () => {
     expect(screen.queryByText(/f121ac9b/)).not.toBeInTheDocument()
   })
 
-  it('lists registry solvers read-only on the Cards tab', () => {
+  it('lists registry solvers read-only on the Providers tab', () => {
     renderSolvers('mutinynet', [btcUsdt])
 
     expect(screen.getByText('frenchman')).toBeInTheDocument()
     expect(screen.getByText('Registry')).toBeInTheDocument()
+    expect(screen.queryByText('No providers available.')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
   })
@@ -686,7 +703,7 @@ describe('Solvers screen', () => {
     )
     renderSolvers('mutinynet', [], 'cards', { assetMetadataCache: usdtMetadata })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Info' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Details for ln-solver' }))
     const info = await screen.findByRole('dialog')
     expect(within(info).getByText('1 – 630 USDT')).toBeInTheDocument()
     expect(within(info).getByText('1,000 – 100,000,000 sats')).toBeInTheDocument()
@@ -703,7 +720,7 @@ describe('Solvers screen', () => {
     )
     renderSolvers()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Info' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Details for Pinned' }))
 
     await waitFor(() => expect(screen.getByText('Solver card info')).toBeInTheDocument())
     fireEvent.click(screen.getByText('View raw JSON'))
