@@ -137,4 +137,14 @@ describe('asset-funded Lightning route', () => {
     wallet.getSpendableVtxos.mockResolvedValue([partial, extra])
     await expect(select()).resolves.toEqual([partial, expect.objectContaining(extra)])
   })
+
+  it('uses the BTC-only change minimum when the selected asset leaves no remainder', async () => {
+    const assetCoin = { txid: 'asset-coin', vout: 0, value: 330, assets: [{ assetId, amount: 100n }] }
+    const plainCoin = { txid: 'bitcoin-coin', vout: 0, value: 350 }
+    const wallet = { getSpendableVtxos: vi.fn().mockResolvedValue([assetCoin, plainCoin]) }
+    await expect(selectConversionInputs(wallet, assetId, 100n, 500n, 330n, 100n)).resolves.toEqual([
+      assetCoin,
+      expect.objectContaining(plainCoin),
+    ])
+  })
 })

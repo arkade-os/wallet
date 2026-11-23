@@ -90,7 +90,13 @@ export async function selectConversionInputs(
     if (exact) return [...selected, exact]
   }
   try {
-    const { inputs } = selectVirtualCoins(remaining, Number(assetChangeMinimum - change))
+    const plain = remaining.filter((coin) => !coin.assets?.length)
+    const needs = minimum - change
+    const canUsePlain = !hasAssetChange && plain.reduce((total, coin) => total + BigInt(coin.value), 0n) >= needs
+    const { inputs } = selectVirtualCoins(
+      canUsePlain ? plain : remaining,
+      Number(canUsePlain ? needs : assetChangeMinimum - change),
+    )
     return [...selected, ...inputs]
   } catch (error) {
     throw new Error('This conversion needs more BTC to fund the deposit and return change', { cause: error })

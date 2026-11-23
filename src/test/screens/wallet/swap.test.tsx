@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import createFetchMock from 'vitest-fetch-mock'
 import { quoteOffer, solverDirectionKey, solverId, type OfferPlan } from '@arkade-os/solver-discovery'
 import { QUOTE_OPTIONS } from '@arkade-os/swap/protocol'
-import type { OpenRfqOffer, Quote } from '@arkade-os/swap'
+import { btcOn, type AssetId, type OpenRfqOffer, type Quote } from '@arkade-os/swap'
 import * as solverQuoteHook from '../../../hooks/useSolverQuote'
 import * as solverCards from '../../../lib/solverCards'
 import WalletSwap from '../../../screens/Wallet/Swap/Index'
@@ -21,6 +21,7 @@ import type { WalletAssetSwap as AssetSwap } from '../../../lib/swapRepository'
 import { Currencies, Unit } from '../../../lib/types'
 import { readOpenOfferPolicy, saveOpenOfferPolicy, saveOpenOffersFirst } from '../../../lib/openOfferPolicy'
 import { saveSolverRouting } from '../../../lib/solverRouting'
+import { swapAssetId } from '../../../lib/swapMarkets'
 import {
   mockAspContextValue,
   mockConfigContextValue,
@@ -185,6 +186,159 @@ const openSmartRoutingReview = async (button = screen.getByRole('button', { name
   fireEvent.click(screen.getByRole('button', { name: 'Use smart routing' }))
   await waitFor(() => expect(screen.getByRole('button', { name: 'Confirm swap' })).toBeEnabled())
 }
+
+describe('composed swap review', () => {
+  const network = 'mutinynet'
+  const arkadeBtc = btcOn('arkade', network)
+  const lightning = btcOn('bolt11', network)
+  const source = swapAssetId(network, USDT_ID)
+  const target = swapAssetId(network, DEPIX_ID)
+  const wallet = { wallet: { pubkey: 'route-test-wallet' }, availableBalance: 10_000 }
+  const routeId = 'route-1'
+  const locks = Object.getOwnPropertyDescriptor(navigator, 'locks')
+  const quoteSwapRoute = vi.fn()
+  const startSwapRoute = vi.fn()
+  const advanceSwapRoute = vi.fn()
+  const getSwapRoute = vi.fn()
+  const swap = { quoteSwapRoute, startSwapRoute, advanceSwapRoute, getSwapRoute }
+  const leg = (id: string, give: AssetId, giveAmount: bigint, take: AssetId, takeAmount: bigint, solver: string) =>
+    ({
+      id,
+      give: { asset: give, amount: giveAmount },
+      take: { asset: take, amount: takeAmount },
+      fee: { asset: give, amount: 1n },
+      market: { kind: 'card', solver },
+      expiresAt: Math.floor(Date.now() / 1_000) + 60,
+    }) as Quote
+  const plan = (from = source, amount = 100n) => ({
+    id: routeId,
+    expiresAt: Math.floor(Date.now() / 1_000) + 60,
+    quotes: [
+      leg('first', from, amount, arkadeBtc, 1_200n, 'Source desk'),
+      leg('last', arkadeBtc, 1_200n, target, 123_400_000n, 'Destination desk'),
+    ],
+  })
+  const waiting = { phase: 'waiting', step: 0 }
+  const ready = { phase: 'ready', step: 1 }
+  const complete = { phase: 'complete', step: 1 }
+
+  beforeEach(() => {
+    localStorage.clear()
+    fetchMocker.resetMocks()
+    fetchMocker.mockResponse(JSON.stringify({ bitcoin: { usd: 100_000 }, price: '500000' }))
+    Object.defineProperty(navigator, 'locks', {
+      value: {
+        request: (_name: string, _options: LockOptions, run: LockGrantedCallback<unknown>) => run({} as Lock),
+      },
+      configurable: true,
+    })
+    quoteSwapRoute.mockReset().mockImplementation(async () => plan())
+    startSwapRoute.mockReset().mockResolvedValue(waiting)
+    advanceSwapRoute.mockReset().mockResolvedValue(complete)
+    getSwapRoute.mockReset().mockImplementation(async () => ({ plan: plan(), progress: waiting }))
+  })
+
+  afterEach(() => {
+    if (locks) Object.defineProperty(navigator, 'locks', locks)
+    else Reflect.deleteProperty(navigator, 'locks')
+    localStorage.clear()
+  })
+
+  const enter = async (digits: string) => {
+    fireEvent.click(await screen.findByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Decentralized Pix|BRL/ }))
+    for (const digit of digits) fireEvent.click(screen.getByRole('button', { name: digit }))
+    fireEvent.click(screen.getByRole('button', { name: 'View quotes' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Find a swap route' }))
+    return await screen.findByRole('dialog', { name: 'Review swap route' })
+  }
+
+  it('reviews a token-to-token route, then resumes without funding another leg until confirmed', async () => {
+    const first = renderSwap({ wallet, swap, flow: { swapFromAssetId: USDT_ID, setSwapFromAssetId: vi.fn() } })
+    const dialog = await enter('1')
+    await waitFor(() =>
+      expect(quoteSwapRoute).toHaveBeenCalledExactlyOnceWith({
+        from: source,
+        to: target,
+        amount: 100n,
+        amountOn: 'give',
+      }),
+    )
+    expect(await within(dialog).findByText('Source desk')).toBeVisible()
+    expect(within(dialog).getByText('Destination desk')).toBeVisible()
+    expect(within(dialog).getByTestId('swap-route-summary')).toHaveTextContent('1.234')
+    expect(startSwapRoute).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm swap' }))
+    expect(await within(dialog).findByText('Waiting for swap 1 to settle.')).toBeVisible()
+    expect(startSwapRoute).toHaveBeenCalledExactlyOnceWith(routeId)
+    first.unmount()
+
+    getSwapRoute.mockResolvedValue({ plan: plan(), progress: ready })
+    renderSwap({ wallet, swap })
+    fireEvent.click(await screen.findByRole('button', { name: 'Resume swap route' }))
+    expect(advanceSwapRoute).not.toHaveBeenCalled()
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue swap route' }))
+    expect(await screen.findByText('All swaps completed.')).toBeVisible()
+    expect(advanceSwapRoute).toHaveBeenCalledExactlyOnceWith(routeId)
+    expect(startSwapRoute).toHaveBeenCalledOnce()
+  })
+
+  it('keeps a supported direct quote first when composed routing is available', async () => {
+    renderSwap({
+      config: { currency: Currencies.BTC, unit: Unit.SATS },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+      wallet: { ...NO_ASSETS, ...wallet },
+      swap,
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Decentralized Pix|BRL/ }))
+    for (const digit of ['1', '0', '0', '0']) fireEvent.click(screen.getByRole('button', { name: digit }))
+    fireEvent.click(screen.getByRole('button', { name: 'View quotes' }))
+    expect(await screen.findByRole('button', { name: 'Use smart routing' }, { timeout: 3_000 })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'Find a swap route' })).toBeNull()
+    expect(quoteSwapRoute).not.toHaveBeenCalled()
+  })
+
+  it('offers an accepted Lightning funding QR for an asset purchase with no wallet balance', async () => {
+    const routePlan = plan(lightning, 2_000n)
+    const lnMarket = {
+      ...btcUsdt,
+      pair: 'lightning:BTC/BTC',
+      base_asset: { ...btcUsdt.base_asset, id: lightning },
+      quote_asset: { ...btcUsdt.base_asset, id: arkadeBtc },
+      discovery_pubkey: 'ab'.repeat(32),
+      transports: { nostr: { relays: ['wss://solver.test'] } },
+    }
+    const accepted = {
+      ...waiting,
+      invoice: { bolt11: 'lntb20000p1examplefundinginvoice', expiresAt: routePlan.expiresAt },
+    }
+    quoteSwapRoute.mockResolvedValue(routePlan)
+    startSwapRoute.mockResolvedValue(accepted)
+    getSwapRoute.mockResolvedValue({ plan: routePlan, progress: accepted })
+    renderSwap({
+      wallet: { ...NO_ASSETS, ...wallet, availableBalance: 0 },
+      swap: { ...swap, allMarkets: [lnMarket, btcDepix] },
+    })
+    fireEvent.click(await screen.findByTestId('swap-asset-row-lightning'))
+    const dialog = await enter('2000')
+    expect(await within(dialog).findByText('Source desk')).toBeVisible()
+    expect(within(dialog).queryByTestId('swap-route-invoice-qr')).toBeNull()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm swap' }))
+    expect(await within(dialog).findByTestId('swap-route-invoice-qr')).toBeVisible()
+    expect(within(dialog).getByText('Pay 2,000 sats from a Lightning wallet.')).toBeVisible()
+    expect(quoteSwapRoute).toHaveBeenCalledExactlyOnceWith({
+      from: lightning,
+      to: target,
+      amount: 2_000n,
+      amountOn: 'give',
+    })
+    expect(advanceSwapRoute).not.toHaveBeenCalled()
+    getSwapRoute.mockResolvedValue({ plan: routePlan, progress: ready })
+    await waitFor(() => expect(advanceSwapRoute).toHaveBeenCalledExactlyOnceWith(routeId), { timeout: 3_000 })
+    expect(await within(dialog).findByText('All swaps completed.')).toBeVisible()
+  })
+})
 
 describe('Wallet swap flow', () => {
   afterEach(() => vi.useRealTimers())

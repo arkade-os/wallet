@@ -819,7 +819,7 @@ describe('a changed recipient', () => {
     return fetchMocker
   }
 
-  const renderStateful = (walletValue = walletContext) => {
+  const renderStateful = (walletValue: TreeOptions['walletContext'] = walletContext) => {
     const sendRouter = vi.fn(async () => createSendRouter({ wallet: svcWallet }))
     const navigate = vi.fn()
     const { container } = render(
@@ -880,6 +880,44 @@ describe('a changed recipient', () => {
         satoshis: amountSats,
       })
     } finally {
+      fetchMocker.disableMocks()
+    }
+  })
+
+  it('reviews a standard LNURL above the BTC balance when a funding asset is spendable', async () => {
+    const { invoice, amountSats } = fixtures.lib.bolt11
+    const fetchMocker = createFetchMock(vi)
+    fetchMocker.enableMocks()
+    fetchMocker.mockResponse((req) =>
+      JSON.stringify(
+        req.url.includes('amount=')
+          ? { pr: invoice }
+          : {
+              ...payRequest,
+              minSendable: amountSats * 1000,
+              maxSendable: amountSats * 1000,
+              paymentOptions: undefined,
+            },
+      ),
+    )
+    const previousLocks = Object.getOwnPropertyDescriptor(navigator, 'locks')
+    Object.defineProperty(navigator, 'locks', { configurable: true, value: { request: vi.fn() } })
+    try {
+      const { navigate, type } = renderStateful({
+        ...walletContext,
+        balance: 500,
+        availableBalance: 500,
+        availableAssetBalances: [{ assetId: `${'11'.repeat(32)}0000`, amount: 100n }],
+      })
+      type(LNURL)
+      await waitFor(() => expect(current.satoshis).toBe(amountSats), settle)
+      expect(screen.queryByText('Insufficient funds for LNURL')).not.toBeInTheDocument()
+      await clickContinue()
+      await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails), settle)
+      expect(current.lnurlInvoice?.pr).toBe(invoice)
+    } finally {
+      if (previousLocks) Object.defineProperty(navigator, 'locks', previousLocks)
+      else Reflect.deleteProperty(navigator, 'locks')
       fetchMocker.disableMocks()
     }
   })

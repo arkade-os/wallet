@@ -16,7 +16,18 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
   </tr>
 </table>
 
-## Paying a Lightning invoice with an Arkade asset
+## Chained swap routes
+
+In **Swap**, pick a source and destination and enter the source amount. When a direct quote is unavailable, choose
+**Find a route**. The wallet can combine directed quotes from enabled providers and shows each leg, the intermediate
+amounts, the carriers, and the exact final payout before confirmation. A route can start with a held asset or with
+an externally paid Lightning invoice. The Lightning invoice is available after the first leg is saved for recovery.
+
+The wallet funds each next leg from the previous swap's verified wallet output. A composed swap can settle one leg
+and then stop if a later quote expires. The intermediate proceeds remain spendable in the wallet. If you leave and
+return to the route, continuing requires a new action. Wallet activity shows the progress of each individual swap.
+
+### Paying a Lightning invoice with an Arkade asset
 
 Open **Send**, enter an amount-bearing Lightning invoice, and continue to review. Choose **Pay with an asset**
 to check whether a held asset can cover the payment. Review the asset amount, BTC deposit carrier, intermediate

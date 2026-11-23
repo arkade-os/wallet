@@ -656,7 +656,6 @@ export default function SendForm() {
     if (!lnUrlResponse) return
     const { minSendable: min, maxSendable: max } = lnUrlResponse
     if (!min || !max) return
-    if (min > balance) return setError(t('send.insufficientFundsForLnurl'))
     if (min === max) {
       setAmountIsReadOnly(true)
     } else {
@@ -781,6 +780,9 @@ export default function SendForm() {
     typeof navigator.locks?.request === 'function' &&
     availableAssetBalances.some(({ assetId, amount }) => isValidAssetId(assetId) && amount > 0n) &&
     usesStandardLightning
+  const lnurlBalanceUnavailable = Boolean(
+    lnUrlResponse?.minSendable && lnUrlResponse.minSendable > balance && !canUseAssetForLightning,
+  )
 
   // manage button label and errors
   useEffect(() => {
@@ -1205,6 +1207,7 @@ export default function SendForm() {
         (lnUrlArkMethodAvailable && !receivingAddresses?.offchainAddr) ||
         Boolean(recipientError) ||
         lnurlAmountUnavailable ||
+        lnurlBalanceUnavailable ||
         amountIsAboveMaxLimit(satoshis) ||
         amountIsBelowMinLimit(satoshis) ||
         (satoshis > liquidBalance && !canUseAssetForLightning) ||
@@ -1322,7 +1325,10 @@ export default function SendForm() {
         <Content>
           <Padded>
             <FlexCol gap='1.25rem' className='send-form-stack'>
-              <ErrorMessage error={Boolean(error || carrierError)} text={error || carrierError} />
+              <ErrorMessage
+                error={Boolean(error || carrierError || lnurlBalanceUnavailable)}
+                text={error || carrierError || (lnurlBalanceUnavailable ? t('send.insufficientFundsForLnurl') : '')}
+              />
               <OpenInApp />
               <InputAddress
                 disabled={processing}
