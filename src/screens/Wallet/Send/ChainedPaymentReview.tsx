@@ -98,13 +98,13 @@ export default function ChainedPaymentReview({
             <div className='space-y-2 rounded-xl bg-muted px-3 py-2.5 text-sm' data-testid='chained-payment-quote'>
               <dl className='grid grid-cols-2 gap-x-3 gap-y-1.5'>
                 <dt>{t('send.chainAssetDebit')}</dt>
-                <dd className='text-right break-all'>
+                <dd className='text-right break-words'>
                   {assetAmount(conversion.give.amount, selected.decimals, selected.ticker)}
                 </dd>
                 <dt>{t('send.chainCarrier')}</dt>
                 <dd className='text-right'>{sats(carrier)}</dd>
                 <dt>{t('send.chainConversionProvider')}</dt>
-                <dd className='text-right break-all'>
+                <dd className='text-right break-words'>
                   {quoteProviderMarket(conversion)?.solver ?? t('send.automaticProvider')}
                 </dd>
                 <dt>{t('send.chainBridgeAmount')}</dt>

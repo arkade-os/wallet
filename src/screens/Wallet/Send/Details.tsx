@@ -779,7 +779,8 @@ export default function SendDetails() {
   }
   const displayedDetails = details && {
     ...details,
-    amountDisplay,
+    amountDisplay: assetChoiceOpen ? undefined : amountDisplay,
+    ...(assetChoiceOpen ? { satoshis: undefined } : {}),
     ...(firmRequest
       ? {
           solver: assetChoiceOpen ? undefined : providerName,

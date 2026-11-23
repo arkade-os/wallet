@@ -24,9 +24,9 @@ BTC payout, and exact invoice amount before confirming.
 
 The asset swap credits your wallet with the exact BTC needed for the reviewed Lightning swap. Keep the review
 open while it converts so the wallet can fund the invoice from that payout while the reviewed quote is live.
-If you close the review or the quote expires after conversion, the BTC is in your wallet. Review the invoice
-again to pay from BTC if it is still valid. Wallet activity shows the asset swap and the Lightning payment as
-they settle. Asset-funded payments use a secure browser context with Web Locks support.
+If you close the review or the quote expires before Lightning funding starts, any converted BTC stays in your
+wallet. Review the invoice again to pay from BTC if it is still valid. Wallet activity shows the asset swap and
+the Lightning payment as they settle. Asset-funded payments use a secure browser context with Web Locks support.
 
 ## Recovering an asset mint
 
