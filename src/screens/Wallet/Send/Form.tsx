@@ -113,8 +113,7 @@ type LinkedAssetPayment = {
   recipient: string
   address: string
   asset: AssetOption
-  amount: bigint
-  units: string
+  fixedAmount?: { atomic: bigint; units: string }
 }
 
 /** Spread before the one target a recipient sets, so the previous one cannot be paid instead. */
@@ -296,20 +295,20 @@ export default function SendForm() {
   )
   const activeAsset = accountAsset ?? selectedAsset
   const isAssetSend = activeAsset !== null
-  const fixedAsset = linkedAssetPayment?.recipient === recipient ? linkedAssetPayment : undefined
-  const assetAmt = fixedAsset?.amount ?? sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? 0n
+  const linkedAsset = linkedAssetPayment?.recipient === recipient ? linkedAssetPayment : undefined
+  const assetAmt = linkedAsset?.fixedAmount?.atomic ?? sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? 0n
   const requestedBalance =
-    availableAssetBalances.find(({ assetId }) => assetId === fixedAsset?.asset.assetId)?.amount ?? 0n
-  const canPayRequestedAsset = Boolean(fixedAsset && requestedBalance >= fixedAsset.amount)
+    availableAssetBalances.find(({ assetId }) => assetId === linkedAsset?.asset.assetId)?.amount ?? 0n
+  const canPayRequestedAsset = Boolean(linkedAsset && requestedBalance > 0n && requestedBalance >= assetAmt)
   const payRequestedAsset = linkedFunding === 'requested' || (linkedFunding === undefined && canPayRequestedAsset)
-  const requestedAsset = fixedAsset ? { ...fixedAsset.asset, balance: requestedBalance } : null
-  const fundingAsset = fixedAsset ? (payRequestedAsset ? requestedAsset : null) : activeAsset
+  const requestedAsset = linkedAsset ? { ...linkedAsset.asset, balance: requestedBalance } : null
+  const fundingAsset = linkedAsset ? (payRequestedAsset ? requestedAsset : null) : activeAsset
   const swapAssetRequest =
-    fixedAsset && !payRequestedAsset
+    linkedAsset && !payRequestedAsset
       ? {
-          address: fixedAsset.address,
-          assetId: fixedAsset.asset.assetId,
-          amount: fixedAsset.amount,
+          address: linkedAsset.address,
+          assetId: linkedAsset.asset.assetId,
+          amount: assetAmt,
           fromAssetId: 'btc' as const,
         }
       : undefined
@@ -344,8 +343,8 @@ export default function SendForm() {
   useEffect(() => {
     if (currencyConversionUseful || entryMode !== 'fiat') return
     setEntryMode('unit')
-    setAmountTextValue(sendInfo.satoshis ? getTextValue(sendInfo.satoshis, false) : '')
-  }, [config.unit, currencyConversionUseful, entryMode, sendInfo.satoshis])
+    if (!linkedAsset) setAmountTextValue(sendInfo.satoshis ? getTextValue(sendInfo.satoshis, false) : '')
+  }, [config.unit, currencyConversionUseful, entryMode, linkedAsset, sendInfo.satoshis])
 
   const getTextValue = (sats: number, fiat = fiatEntry) => textFromSats(sats, fiat, config.unit, toFiat, fiatDecimals)
 
@@ -431,17 +430,17 @@ export default function SendForm() {
       setSelectedAsset(null)
       return
     }
-    if (fixedAsset || sendInfo.assetPayment || !sendInfo.assets?.length || assetOptions.length === 0) return
+    if (linkedAsset || sendInfo.assetPayment || !sendInfo.assets?.length || assetOptions.length === 0) return
     const presetAssetId = sendInfo.assets[0].assetId
     const found = assetOptions.find((a) => a.assetId === presetAssetId)
     if (found && !selectedAsset) setSelectedAsset(found)
-  }, [assetOptions, fixedAsset, sendInfo.account, sendInfo.assetPayment, sendInfo.assets])
+  }, [assetOptions, linkedAsset, sendInfo.account, sendInfo.assetPayment, sendInfo.assets])
 
   // parse recipient data
   // repeat when asset changes to re-validate addresses (e.g. if user
   // selects an asset and the address is not compatible with it)
   useEffect(() => {
-    if (!readyToParse) return
+    if (!readyToParse || !svcWallet || linkedAsset) return
     let active = true
     setRecipientError('')
     const parseRecipient = async () => {
@@ -466,7 +465,7 @@ export default function SendForm() {
           if (!arkAddress || !isValidAssetId(rawAssetId)) return setRecipientError(t('send.unableToParseBip21'))
           const assetId = rawAssetId.toLowerCase()
           let meta: AssetDetails | undefined = assetMetadataCache.get(assetId)
-          if (!meta && svcWallet) {
+          if (!meta) {
             try {
               const fetched = await svcWallet.assetManager.getAssetDetails(assetId)
               if (!active) return
@@ -479,11 +478,11 @@ export default function SendForm() {
               consoleError(err, `error fetching metadata for ${assetId}`)
             }
           }
-          const decimals = meta?.metadata?.decimals ?? 0
+          if (!meta) return setRecipientError(t('send.assetLinkMetadataUnavailable'))
+          const decimals = meta.metadata?.decimals ?? 0
           const units = assetAmount && /[1-9]/.test(assetAmount) ? assetAmount : undefined
-          if (units && !meta) return setRecipientError(t('send.assetLinkMetadataUnavailable'))
           const fraction = units?.split('.')[1]?.replace(/0+$/, '') ?? ''
-          if (units && (!Number.isInteger(decimals) || decimals < 0 || decimals > 18 || fraction.length > decimals)) {
+          if (!Number.isInteger(decimals) || decimals < 0 || decimals > 18 || fraction.length > decimals) {
             return setRecipientError(t('send.invalidAmount'))
           }
           const found = {
@@ -493,17 +492,16 @@ export default function SendForm() {
             decimals,
             trusted: isVerifiedAsset(assetId),
           }
-          const rawAmount = units ? unitsToAtomic(units, found.decimals) : 0n
-          if (units)
-            setLinkedAssetPayment({
-              recipient,
-              address: arkAddress,
-              asset: found,
-              amount: rawAmount,
-              units,
-            })
-          else setSelectedAsset(found)
-          setAmountTextValue(units ?? '')
+          const previous = sendInfoRef.current
+          const savedAsset = previous.assets?.[0]
+          const savedAmount =
+            previous.recipient === recipient && previous.arkAddress === arkAddress && savedAsset?.assetId === assetId
+              ? savedAsset.amount
+              : 0n
+          const fixedAmount = units ? { atomic: unitsToAtomic(units, decimals), units } : undefined
+          const rawAmount = fixedAmount?.atomic ?? savedAmount
+          setLinkedAssetPayment({ recipient, address: arkAddress, asset: found, fixedAmount })
+          setAmountTextValue(units ?? (rawAmount > 0n ? atomicToUnits(rawAmount, decimals) : ''))
           setAmountIsReadOnly(Boolean(units))
           return setSendInfo((prev) => ({
             ...prev,
@@ -593,7 +591,7 @@ export default function SendForm() {
     return () => {
       active = false
     }
-  }, [recipient, isAssetSend, readyToParse])
+  }, [recipient, isAssetSend, linkedAsset, readyToParse, svcWallet])
 
   // verify the current recipient with branta (the SDK only looks up destinations it can encrypt)
   useEffect(() => {
@@ -774,7 +772,7 @@ export default function SendForm() {
 
   // manage button label and errors
   useEffect(() => {
-    if (fixedAsset) {
+    if (linkedAsset) {
       setLabel(t(linkedFundingAvailable ? 'send.continue' : 'send.insufficientAssetBalance'))
       return
     }
@@ -807,7 +805,7 @@ export default function SendForm() {
     sendInfo.account,
     liquidBalance,
     activeAsset,
-    fixedAsset,
+    linkedAsset,
     linkedFundingAvailable,
     lnUrlResponse,
     lnurlAmountUnavailable,
@@ -858,11 +856,14 @@ export default function SendForm() {
   }
 
   const handleAmountChange = (value: string) => {
-    if (fixedAsset) return
+    if (linkedAsset?.fixedAmount) return
     setValueSats(undefined)
     setSendAll(false)
     setAmountTextValue(value)
-    if (isAssetSend) {
+    if (linkedAsset) {
+      const amount = /^\d*(\.\d*)?$/.test(value) ? unitsToAtomic(value, linkedAsset.asset.decimals) : 0n
+      setSendInfo({ ...sendInfo, assets: [{ assetId: linkedAsset.asset.assetId, amount }], satoshis: 0 })
+    } else if (isAssetSend) {
       if (sendInfo.account) {
         const accountAmount = unitsToAtomic(value, sendInfo.account.decimals)
         setSendInfo({
@@ -912,7 +913,7 @@ export default function SendForm() {
 
   const handleSelectAsset = (asset: AssetOption | null) => {
     setShowAssetSelector(false)
-    if (fixedAsset) {
+    if (linkedAsset) {
       setLinkedFunding(asset ? 'requested' : 'btc')
       return
     }
@@ -937,7 +938,7 @@ export default function SendForm() {
   const updateRecipient = (next: string, parseNow: boolean, scanned = false) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
     if (next !== recipient) {
-      const wasLinked = Boolean(fixedAsset || sendInfo.assetPayment)
+      const wasLinked = Boolean(linkedAsset || sendInfo.assetPayment)
       setRecipient(next)
       setLinkedAssetPayment(undefined)
       setLinkedFunding(undefined)
@@ -983,14 +984,14 @@ export default function SendForm() {
     const target = sendInfo.lnUrl
     const stale = () => sendInfoRef.current.lnUrl !== target || (sendInfoRef.current.satoshis ?? 0) !== satoshis
     try {
-      if (fixedAsset) {
+      if (linkedAsset) {
         setSendInfo({
           ...sendInfo,
           ...noTarget,
           account: undefined,
-          arkAddress: fixedAsset.address,
-          recipient: fixedAsset.recipient,
-          assets: [{ assetId: fixedAsset.asset.assetId, amount: fixedAsset.amount }],
+          arkAddress: linkedAsset.address,
+          recipient: linkedAsset.recipient,
+          assets: [{ assetId: linkedAsset.asset.assetId, amount: assetAmt }],
           satoshis: 0,
           assetPayment: swapAssetRequest,
           reviewId: sendInfo.reviewId ?? newRequestId(),
@@ -1172,8 +1173,9 @@ export default function SendForm() {
       ? t('send.partialSendError')
       : ''
 
-  const buttonDisabled = fixedAsset
-    ? arkAddress !== fixedAsset.address ||
+  const buttonDisabled = linkedAsset
+    ? arkAddress !== linkedAsset.address ||
+      assetAmt <= 0n ||
       !linkedFundingAvailable ||
       Boolean(recipientError) ||
       Boolean(carrierError) ||
@@ -1205,12 +1207,12 @@ export default function SendForm() {
   // unverified assets are never offered in the picker; they can still arrive
   // preselected via sendInfo.assets from the Assets app detail screen
   const verifiedAssetOptions = assetOptions.filter((asset) => isVerifiedAsset(asset.assetId))
-  const fundingOptions = fixedAsset
+  const fundingOptions = linkedAsset
     ? requestedAsset && canPayRequestedAsset
       ? [requestedAsset]
       : []
     : verifiedAssetOptions
-  const canChooseBitcoin = Boolean(fundingAsset && (!fixedAsset || liquidBalance > 0))
+  const canChooseBitcoin = Boolean(fundingAsset && (!linkedAsset || liquidBalance > 0))
   const canChangeFundingAsset =
     canChooseBitcoin || fundingOptions.some((asset) => asset.assetId !== fundingAsset?.assetId)
 
@@ -1231,7 +1233,9 @@ export default function SendForm() {
 
   const Keys = () => (
     <Keyboard
-      asset={activeAsset ?? undefined}
+      asset={linkedAsset?.asset ?? activeAsset ?? undefined}
+      initialValue={linkedAsset ? assetAmt : undefined}
+      hideBalance={Boolean(linkedAsset)}
       back={() => setKeys(false)}
       defaultMode={fiatEntry ? 'fiat' : config.unit === Unit.BTC ? 'btc' : 'sats'}
       onSave={handleKeyboardAmountSave}
@@ -1376,10 +1380,10 @@ export default function SendForm() {
                     )
                   })()
                 : null}
-              {fixedAsset || verifiedAssetOptions.length > 0 || selectedAsset ? (
+              {linkedAsset || verifiedAssetOptions.length > 0 || selectedAsset ? (
                 <FlexCol gap='0.5rem' className='send-asset-field'>
                   <Text smaller color='neutral-500'>
-                    {t(fixedAsset ? 'send.payWith' : 'send.asset')}
+                    {t(linkedAsset ? 'send.payWith' : 'send.asset')}
                   </Text>
                   <DropdownMenu
                     open={showAssetSelector}
@@ -1392,7 +1396,7 @@ export default function SendForm() {
                     <DropdownMenuTrigger
                       aria-expanded={showAssetSelector}
                       className='send-asset-trigger'
-                      disabled={Boolean(fixedAsset && !canChangeFundingAsset)}
+                      disabled={Boolean(linkedAsset && !canChangeFundingAsset)}
                       data-testid='asset-selector'
                     >
                       <span className='send-asset-trigger__main'>
@@ -1405,7 +1409,7 @@ export default function SendForm() {
                           <span className='send-asset-trigger__balance'>{selectedAssetBalance}</span>
                         </span>
                       </span>
-                      {!fixedAsset || canChangeFundingAsset ? (
+                      {!linkedAsset || canChangeFundingAsset ? (
                         <span className='send-asset-trigger__chevron' aria-hidden='true'>
                           {showAssetSelector ? '▲' : '▼'}
                         </span>
@@ -1442,7 +1446,7 @@ export default function SendForm() {
                                 <span>
                                   <span className='send-asset-option__name'>
                                     {assetLabelFor(asset)}
-                                    {fixedAsset && !isVerifiedAsset(asset.assetId) ? <UnverifiedBadge /> : null}
+                                    {linkedAsset && !isVerifiedAsset(asset.assetId) ? <UnverifiedBadge /> : null}
                                   </span>
                                 </span>
                               </span>
@@ -1458,12 +1462,12 @@ export default function SendForm() {
               ) : null}
               <FlexCol gap='0.5rem'>
                 <InputAmount
-                  label={t(fixedAsset ? 'send.recipientGets' : 'common.amount')}
+                  label={t(linkedAsset ? 'send.recipientGets' : 'common.amount')}
                   name='send-amount'
                   valueSats={valueSats}
                   right={
-                    fixedAsset ? (
-                      isVerifiedAsset(fixedAsset.asset.assetId) ? undefined : (
+                    linkedAsset ? (
+                      isVerifiedAsset(linkedAsset.asset.assetId) ? undefined : (
                         <UnverifiedBadge />
                       )
                     ) : (
@@ -1472,16 +1476,16 @@ export default function SendForm() {
                   }
                   onEnter={handleEnter}
                   onFocus={handleFocus}
-                  onMax={fixedAsset ? undefined : handleSendAll}
-                  value={fixedAsset?.units ?? amountTextValue}
-                  readOnly={Boolean(fixedAsset) || amountIsReadOnly}
+                  onMax={linkedAsset ? undefined : handleSendAll}
+                  value={linkedAsset?.fixedAmount?.units ?? amountTextValue}
+                  readOnly={amountIsReadOnly}
                   onChange={handleAmountChange}
                   onModeChange={handleEntryModeChange}
                   mode={entryMode}
                   switchable
                   min={lnUrlResponse?.minSendable}
                   max={lnUrlResponse?.maxSendable}
-                  asset={fixedAsset?.asset ?? activeAsset ?? undefined}
+                  asset={linkedAsset?.asset ?? activeAsset ?? undefined}
                   focus={focus === 'amount' && !isMobileBrowser}
                 />
               </FlexCol>

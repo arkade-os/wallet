@@ -286,8 +286,8 @@ describe('starting an exact asset payment', () => {
     const recipient = container.querySelector('input[name="send-address"]')!
     fireEvent.change(recipient, { target: { value: request } })
 
+    expect(await screen.findByText('Pay with', undefined, { timeout: 3000 })).toBeInTheDocument()
     await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled())
-    expect(screen.getByText('Pay with')).toBeInTheDocument()
     expect(screen.getByTestId('asset-selector')).toHaveTextContent('Bitcoin')
     expect(screen.getByText('Recipient gets')).toBeInTheDocument()
     expect(container.querySelector('input[name="send-amount"]')).toHaveValue(1.23)
@@ -368,11 +368,94 @@ describe('starting an exact asset payment', () => {
     fireEvent.change(container.querySelector('input[name="send-address"]')!, { target: { value: request } })
     await act(async () => resolveOld(old))
     expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+    expect(await screen.findByText('Pay with', undefined, { timeout: 3000 })).toBeInTheDocument()
     await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled())
     expect(container.querySelector('input[name="send-amount"]')).toHaveValue(20)
     await cont()
     expect(setSendInfo).toHaveBeenCalledWith(
       expect.objectContaining({ assetPayment: { address: ARK_ADDRESS, assetId, amount, fromAssetId: 'btc' } }),
     )
+  })
+})
+
+describe('starting an asset payment with an editable amount', () => {
+  const assetId = '98'.repeat(32) + '0000'
+  const amount = 175n
+  const metadata = { assetId, supply: 10_000n, metadata: { name: 'Gucci', ticker: 'GUCCI', decimals: 2 } }
+  const request = encodeBip21Asset(ARK_ADDRESS, assetId, 0n, 2)
+  const wallet = {
+    assetMetadataCache: new Map([[assetId, metadata]]),
+    svcWallet: { ...formWallet, getAddress: async () => ARK_ADDRESS } as never,
+  }
+
+  it.each([request, request.replace('&amount=0', '')])(
+    'funds a link without a positive amount from Bitcoin',
+    async (link) => {
+      setSendInfo.mockClear()
+      const { container } = renderForm(emptySendInfo, wallet)
+      fireEvent.change(container.querySelector('input[name="send-address"]')!, { target: { value: link } })
+
+      const picker = await screen.findByTestId('asset-selector', undefined, { timeout: 3000 })
+      const input = container.querySelector('input[name="send-amount"]')!
+      expect(screen.getByText('Pay with')).toBeInTheDocument()
+      expect(picker).toHaveTextContent('Bitcoin')
+      expect(screen.getByText('Recipient gets')).toBeInTheDocument()
+      expect(input).not.toHaveAttribute('readonly')
+      expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+
+      fireEvent.change(input, { target: { value: '1.75' } })
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled())
+      await cont()
+      expect(setSendInfo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipient: link,
+          satoshis: 0,
+          assets: [{ assetId, amount }],
+          assetPayment: { address: ARK_ADDRESS, assetId, amount, fromAssetId: 'btc' },
+        }),
+      )
+    },
+  )
+
+  it('keeps Bitcoin selected after switching from a held asset and editing the amount', async () => {
+    setSendInfo.mockClear()
+    const holdings = [{ assetId, amount: 300n }] as never
+    const { container } = renderForm(
+      { ...emptySendInfo, recipient: request },
+      { ...wallet, assetBalances: holdings, availableAssetBalances: holdings },
+    )
+    const input = container.querySelector('input[name="send-amount"]')!
+    const picker = await screen.findByTestId('asset-selector')
+    expect(picker).toHaveTextContent('GUCCI')
+    fireEvent.change(input, { target: { value: '1.25' } })
+    const user = userEvent.setup()
+    await user.click(picker)
+    await user.click(await screen.findByRole('menuitem', { name: /Bitcoin/ }))
+    expect(picker).toHaveTextContent('Bitcoin')
+    expect(input).toHaveValue(1.25)
+
+    fireEvent.change(input, { target: { value: '1.75' } })
+    expect(picker).toHaveTextContent('Bitcoin')
+    await cont()
+    expect(setSendInfo).toHaveBeenCalledWith(
+      expect.objectContaining({ assetPayment: { address: ARK_ADDRESS, assetId, amount, fromAssetId: 'btc' } }),
+    )
+  })
+
+  it('restores the entered amount and Bitcoin funding when returning from review', async () => {
+    const { container } = renderForm(
+      {
+        ...emptySendInfo,
+        recipient: request,
+        arkAddress: ARK_ADDRESS,
+        assets: [{ assetId, amount }],
+        assetPayment: { address: ARK_ADDRESS, assetId, amount, fromAssetId: 'btc' },
+        reviewId: 'existing-review',
+      },
+      wallet,
+    )
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled())
+    expect(screen.getByTestId('asset-selector')).toHaveTextContent('Bitcoin')
+    expect(container.querySelector('input[name="send-amount"]')).toHaveValue(1.75)
   })
 })
