@@ -37,6 +37,7 @@ import { swapRouteTicker } from '../../../lib/swapDisplay'
 import { BTC_ASSET_ID, findMarket, l1ScriptForAddress, validatePlan } from '@arkade-os/swap/protocol'
 import { marketLegId, preFeeDisplayRate, swapAssetId } from '../../../lib/swapMarkets'
 import { swapRouteEdges } from '../../../lib/swapRouteMarkets'
+import { swapRouteScope } from '../../../lib/swapRouteExecution'
 import { type AssetSwapQuoteSnapshot } from '../../../lib/swapRepository'
 import { Currencies, Unit } from '../../../lib/types'
 import { AspContext } from '../../../providers/asp'
@@ -133,7 +134,7 @@ export default function WalletSwap() {
   const prefersReduced = useReducedMotion()
   const { t } = useTranslation()
   const solverNetwork = isNetwork(aspInfo.network) ? aspInfo.network : undefined
-  const routeScope = solverNetwork && wallet.pubkey ? JSON.stringify([solverNetwork, wallet.pubkey]) : undefined
+  const routeScope = solverNetwork && wallet.pubkey ? swapRouteScope(solverNetwork, wallet.pubkey) : undefined
   const network = aspInfo.network as NetworkName
   const lightningId = btcOn('bolt11', network)
   const canFundWithLightning = Boolean(

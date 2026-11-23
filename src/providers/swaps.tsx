@@ -139,6 +139,7 @@ import {
   swapRouteFundingKey,
   swapRouteLegKey,
   swapRoutePointerKey,
+  swapRouteScope,
   type SwapRouteProgress,
 } from '../lib/swapRouteExecution'
 import {
@@ -1130,7 +1131,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
   const routeKeys = (id: string) => {
     if (!wallet.pubkey || !id) throw new Error('Swap route wallet is unavailable')
-    const scope = `${aspInfo.network}:${wallet.pubkey}`
+    const scope = swapRouteScope(aspInfo.network, wallet.pubkey)
     return { scope, key: swapRouteFundingKey(scope, id), ownerKey: swapRouteFundingKey(scope, 'active') }
   }
 

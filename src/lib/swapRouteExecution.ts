@@ -24,6 +24,7 @@ export type SwapRouteProgress = {
 export const swapRouteFundingKey = (walletKey: string, routeId: string) =>
   JSON.stringify(['swap-route', walletKey, routeId])
 export const swapRoutePointerKey = (walletKey: string) => `active-swap-route:${walletKey}`
+export const swapRouteScope = (network: string, pubkey: string) => JSON.stringify([network, pubkey])
 export const swapRouteLegKey = (key: string, step: number) => `${key}:${step}`
 export const swapRouteFamily = (quote: Quote) => (quote.route.give.corridor === 'lightning' ? 'rfq' : 'offer')
 

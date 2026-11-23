@@ -27,7 +27,7 @@ import { createSendRouter } from '../../lib/sendRouter'
 import { makeSwapClient } from '../../lib/swapClient'
 import { checkpointPaymentRecord, type PaymentFundingAttempt } from '../../lib/paymentFunding'
 import { assetSwapRepository } from '../../lib/swapRepository'
-import { swapRouteFundingKey, swapRouteLegKey, swapRoutePointerKey } from '../../lib/swapRouteExecution'
+import { swapRouteFundingKey, swapRouteLegKey, swapRoutePointerKey, swapRouteScope } from '../../lib/swapRouteExecution'
 import fixtures from '../fixtures.json'
 
 const success = vi.hoisted(() => vi.fn())
@@ -679,7 +679,7 @@ describe('SwapsProvider chained Lightning payments', () => {
   })
 
   it('fences a different active route and records a stop when the driver loses its issued quotes', async () => {
-    const scope = 'bitcoin:test-wallet'
+    const scope = swapRouteScope('bitcoin', 'test-wallet')
     const first = conversionQuote()
     const destination = arkadeAsset('bitcoin', asset.AssetId.fromString(`${'ab'.repeat(32)}0000`))
     const next: Quote = {
