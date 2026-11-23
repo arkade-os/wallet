@@ -551,7 +551,7 @@ function OpenOfferSettings({ network }: { network: string }) {
                 aria-pressed={selected === policy}
                 onClick={() => select(policy)}
               >
-                <span className='grid min-w-0 gap-0.5'>
+                <span className='flex min-w-0 flex-col gap-0.5'>
                   <span className='text-sm font-medium'>{options[policy].label}</span>
                   <span className='text-sm text-muted-foreground'>{options[policy].description}</span>
                 </span>

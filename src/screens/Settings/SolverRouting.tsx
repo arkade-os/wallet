@@ -116,7 +116,7 @@ function RouteRow({
       className='settings-row'
       onClick={onClick}
     >
-      <span className='grid min-w-0 gap-0.5'>
+      <span className='flex min-w-0 flex-col gap-0.5'>
         <span className='flex flex-wrap items-baseline gap-x-2 text-sm font-medium'>
           <span className='min-w-0 break-words'>{from}</span>
           <span className='inline-flex min-w-0 items-baseline gap-2'>
