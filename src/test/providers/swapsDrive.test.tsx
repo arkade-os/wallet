@@ -558,10 +558,16 @@ describe('SwapsProvider chained Lightning payments', () => {
     await expect(result.current.quotePaymentRoute(request)).resolves.toEqual(replacement)
     expect(clientQuote).toHaveBeenNthCalledWith(2, { give: token, take: btc, amount: debit, amountOn: 'take' })
     expect(accept).not.toHaveBeenCalled()
-    getSpendableVtxos.mockResolvedValueOnce([])
+    let reservationAtSelection: PaymentFundingAttempt[] = []
+    getSpendableVtxos.mockImplementationOnce(async () => {
+      reservationAtSelection = [...attempts.values()]
+      return []
+    })
     await expect(
       result.current.startChainedPayment(MUTINYNET_USDT_ASSET_ID, conversion, lightning, request),
     ).rejects.toMatchObject({ name: 'PaymentNotSubmitted' })
+    expect(reservationAtSelection).toEqual([expect.objectContaining({ quoteId: conversion.id, guarded: true })])
+    expect(attempts.size).toBe(0)
     await expect(result.current.getChainedPayment(request)).resolves.toBeUndefined()
     expect(accept).not.toHaveBeenCalled()
 

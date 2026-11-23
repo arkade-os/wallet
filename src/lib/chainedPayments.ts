@@ -89,14 +89,13 @@ export async function selectConversionInputs(
     const exact = remaining.find((coin) => !coin.assets?.length && BigInt(coin.value) === -change)
     if (exact) return [...selected, exact]
   }
+  const plain = remaining.filter((coin) => !coin.assets?.length)
+  const needs = minimum - change
+  const canUsePlain = !hasAssetChange && plain.reduce((total, coin) => total + BigInt(coin.value), 0n) >= needs
+  const target = canUsePlain ? needs : assetChangeMinimum - change
+  if (target > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error('The change funding amount is too large')
   try {
-    const plain = remaining.filter((coin) => !coin.assets?.length)
-    const needs = minimum - change
-    const canUsePlain = !hasAssetChange && plain.reduce((total, coin) => total + BigInt(coin.value), 0n) >= needs
-    const { inputs } = selectVirtualCoins(
-      canUsePlain ? plain : remaining,
-      Number(canUsePlain ? needs : assetChangeMinimum - change),
-    )
+    const { inputs } = selectVirtualCoins(canUsePlain ? plain : remaining, Number(target))
     return [...selected, ...inputs]
   } catch (error) {
     throw new Error('This conversion needs more BTC to fund the deposit and return change', { cause: error })

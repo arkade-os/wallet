@@ -1,6 +1,8 @@
 import { asset, type ServiceWorkerWallet } from '@arkade-os/sdk'
 import { arkadeAsset, btcOn, type OfferSwapRecord, type Quote } from '@arkade-os/swap'
 import { toAtomicDecimal } from '@arkade-os/swap/advanced'
+import { encodeOffer } from '@arkade-os/swap/protocol'
+import { hex } from '@scure/base'
 import { describe, expect, it, vi } from 'vitest'
 import {
   assertConversionQuote,
@@ -124,6 +126,26 @@ describe('asset-funded Lightning route', () => {
     await expect(findConversionPayout(wallet, filled, sats)).resolves.toBeUndefined()
   })
 
+  it('reads the committed output script from an offer recorded before bindings', async () => {
+    const offerHex = hex.encode(
+      encodeOffer({
+        swapPkScript: hex.decode(`5120${'dd'.repeat(32)}`),
+        makerPkScript: hex.decode(receiverPkScript),
+        makerPublicKey: new Uint8Array(32).fill(1),
+        emulatorPubkey: new Uint8Array(32).fill(2),
+        wantAmount: sats,
+        offerAsset: asset.AssetId.fromString(assetId),
+      }),
+    )
+    const credited = { txid: 'fill', vout: 2, script: receiverPkScript, value: Number(sats) }
+    const wallet = {
+      getSpendableVtxos: vi.fn().mockResolvedValue([{ ...credited, script: 'other-script' }, credited]),
+    }
+    await expect(findConversionPayout(wallet, { ...filled, binding: undefined, offerHex }, sats)).resolves.toBe(
+      credited,
+    )
+  })
+
   it('preflights carrier and asset change before recording the conversion', async () => {
     const exact = { txid: 'asset-coin', vout: 0, value: 330, assets: [{ assetId, amount: 100n }] }
     const partial = { ...exact, assets: [{ assetId, amount: 101n }] }
@@ -146,5 +168,14 @@ describe('asset-funded Lightning route', () => {
       assetCoin,
       expect.objectContaining(plainCoin),
     ])
+  })
+
+  it('rejects supplemental funding targets above the safe integer range', async () => {
+    const coin = { txid: 'asset-coin', vout: 0, value: 330, assets: [{ assetId, amount: 101n }] }
+    const wallet = { getSpendableVtxos: vi.fn().mockResolvedValue([coin]) }
+    const carrier = BigInt(Number.MAX_SAFE_INTEGER)
+    await expect(selectConversionInputs(wallet, assetId, 100n, carrier, 330n, 400n)).rejects.toThrow(
+      'change funding amount is too large',
+    )
   })
 })

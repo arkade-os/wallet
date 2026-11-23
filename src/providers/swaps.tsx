@@ -1174,7 +1174,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       const payout =
         svcWallet && (await findSwapRoutePayout(svcWallet, record, next, aspInfo.vtxoMinAmount).catch(() => undefined))
       if (payout) progress = { ...progress, phase: 'ready', step: step + 1 }
-      return { progress, payout }
+      return { progress, predecessor: record }
     }
     const progress: SwapRouteProgress =
       plan.expiresAt > Math.floor(Date.now() / 1000)
@@ -1249,7 +1249,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
         })
         if (prior) throw new PaymentSubmissionPending(prior.swapId)
       }
-      const { progress, payout } = await readSwapRouteProgress(key, plan, guarded)
+      const { progress, predecessor } = await readSwapRouteProgress(key, plan, guarded)
       if (progress.phase !== 'ready') return progress
       const reviewed = plan.quotes[progress.step]
       const quote = issued.current.get(reviewed.id)
@@ -1276,8 +1276,12 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
           },
           selectInputs: async () => {
             if (!svcWallet) throw new Error('Swap funding wallet is unavailable')
-            if (payout) return [payout]
-            if (progress.step !== 0) throw new Error('The prior swap output is not spendable')
+            if (progress.step !== 0) {
+              const payout =
+                predecessor && (await findSwapRoutePayout(svcWallet, predecessor, quote, aspInfo.vtxoMinAmount))
+              if (!payout) throw new Error('The prior swap output is not spendable')
+              return [payout]
+            }
             const source = parseAssetId(quote.give.asset)
             if (source.assetNamespace === 'slip44') {
               return selectRouteBitcoinInputs(svcWallet, quote.give.amount, aspInfo.vtxoMinAmount)
@@ -1318,6 +1322,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const readConversion = async (key: string, guarded: boolean) => {
+    // The invoice lock covers both the conversion and the Lightning payment it funds.
     const attempt = await readPaymentFunding(conversionFundingKey(key))
     const record = attempt && (await assetSwapRepository.getSwapRecord(attempt.quoteId))
     return { attempt, record, status: conversionStatus(attempt, record, guarded) }
@@ -1456,10 +1461,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     }
     const quote = issued.current.get(id)
     if (!quote) throw new QuoteUnavailable()
-    let selectedVtxos: ExtendedVirtualCoin[] | undefined
     try {
       options.validate(quote)
-      selectedVtxos = await options.selectInputs?.(quote)
     } catch (error) {
       throw new PaymentNotSubmitted(error)
     }
@@ -1472,7 +1475,9 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     }
     const raced = await claimPaymentFunding(key, attempt, previous?.quoteId)
     if (raced) throw new PaymentSubmissionPending(raced.swapId)
+    let selectedVtxos: ExtendedVirtualCoin[] | undefined
     try {
+      selectedVtxos = await options.selectInputs?.(quote)
       if (held.current !== issuer) throw new QuoteUnavailable()
       options.validate(quote)
     } catch (error) {
