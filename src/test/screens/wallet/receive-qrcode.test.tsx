@@ -540,11 +540,10 @@ describe('Receive QR Code screen', () => {
       const qr = await screen.findByRole('button', { name: 'Copy QR code' })
       const picker = screen.getByRole('button', { name: 'Northstar' })
       const badge = screen.getByText('Unverified')
-      const copyId = screen.getByRole('button', { name: 'Copy Asset ID' })
       expect(within(picker).getByText('Northstar')).toBe(screen.getByText('Northstar'))
       expect(picker.compareDocumentPosition(badge) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-      expect(badge.compareDocumentPosition(copyId) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-      expect(copyId.compareDocumentPosition(qr) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(badge.compareDocumentPosition(qr) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(screen.queryByRole('button', { name: 'Copy Asset ID' })).not.toBeInTheDocument()
       if (approved) {
         expect(qr.querySelector('img')).toHaveAttribute('src', icon)
         expect(qr.querySelector('img + span svg')).toBeInTheDocument()
@@ -552,7 +551,12 @@ describe('Receive QR Code screen', () => {
       }
       expect(qr.querySelector('img')).toBeNull()
 
-      expect(await copyFrom('receive-asset-id-copy')).toBe(assetId)
+      fireEvent.click(picker)
+      const copyId = screen.getByRole('button', { name: 'Copy Asset ID' })
+      expect(within(copyId).getByTitle(assetId)).toBeVisible()
+      expect(await tap(copyId)).toBe(assetId)
+      expect(copyId).toHaveTextContent('Copied!')
+      expect(activeFormat()).toHaveAccessibleName(/^Northstar/)
     })
 
     it('keeps the asset ID copyable when Arkade receive is unavailable', async () => {
@@ -574,6 +578,7 @@ describe('Receive QR Code screen', () => {
       expect(screen.getByRole('button', { name: 'STAR' })).toBeVisible()
       expect(screen.queryByRole('button', { name: 'Copy QR code' })).not.toBeInTheDocument()
       expect(screen.queryByTestId('bip21-address-copy')).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'STAR' }))
       expect(await copyFrom('receive-asset-id-copy')).toBe(assetId)
     })
   })

@@ -27,6 +27,7 @@ export default function ReceiveFormats(p: {
   onPickToken?: (id: string) => void
   /** Replaces the formats heading and its hint, for the asset list. */
   title?: string
+  details?: ReactNode
 }) {
   const { t } = useTranslation()
   const title = p.title ?? t('receive.otherFormats')
@@ -39,7 +40,7 @@ export default function ReceiveFormats(p: {
             <Text big bold>
               {title}
             </Text>
-            {p.title ? null : <TextSecondary>{t('receive.otherFormatsHint')}</TextSecondary>}
+            {p.details ?? (p.title ? null : <TextSecondary>{t('receive.otherFormatsHint')}</TextSecondary>)}
           </FlexCol>
           {/* Arrows move focus only, as in a menu: a pick closes the sheet. */}
           <div role='radiogroup' aria-label={title} onKeyDown={moveRadioFocus} className={CARD}>

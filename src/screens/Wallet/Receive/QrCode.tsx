@@ -693,17 +693,6 @@ export default function ReceiveQRCode() {
               <UnverifiedBadge />
             </span>
           ) : null}
-          {assetId ? (
-            <div className='flex max-w-full items-center gap-1 text-neutral-600'>
-              <span className='truncate font-mono text-xs'>{truncatedAssetId(assetId) || assetId}</span>
-              <CopyButton
-                label={t('receive.copyAria', { title: t('mint.assetId') })}
-                testId='receive-asset-id-copy'
-                done={copied === assetId}
-                onClick={() => handleCopy(assetId)}
-              />
-            </div>
-          ) : null}
         </div>
       </div>
       <Content noFade>
@@ -859,6 +848,22 @@ export default function ReceiveQRCode() {
             open={assetsOpen}
             onClose={() => setAssetsOpen(false)}
             title={t('swap.chooseAssetToReceive')}
+            details={
+              assetId ? (
+                <button
+                  type='button'
+                  aria-label={t('receive.copyAria', { title: t('mint.assetId') })}
+                  data-testid='receive-asset-id-copy'
+                  className='focusable flex min-h-10 w-fit max-w-full cursor-pointer items-center gap-2 rounded-sm text-left text-xs text-neutral-600'
+                  onClick={() => handleCopy(assetId)}
+                >
+                  <span className='shrink-0'>{copied === assetId ? t('common.copied') : t('mint.assetId')}</span>
+                  <span className='truncate font-mono underline underline-offset-2' title={assetId}>
+                    {truncatedAssetId(assetId) || assetId}
+                  </span>
+                </button>
+              ) : undefined
+            }
             formats={assetRows}
             active={assetId ?? ''}
             onPick={switchAsset}
