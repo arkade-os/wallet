@@ -224,15 +224,16 @@ export default function Init() {
                 flex: 1,
                 justifyContent: 'flex-end',
                 paddingBottom: 40,
+                gap: '1.5rem',
               }}
             >
+              <ErrorMessage text={passkeyError} error={Boolean(passkeyError)} />
               {/* Logo + title stacked — logo optically centered with bullet icons */}
               <div
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '0.75rem',
-                  padding: '0 0 1.5rem 0',
                 }}
               >
                 <div
@@ -332,7 +333,6 @@ export default function Init() {
               secondary
             />
           ) : null}
-          <ErrorMessage text={passkeyError} error={Boolean(passkeyError)} />
           <Button
             disabled={error || !aspReady}
             onClick={() => setShowOptions(true)}
@@ -344,7 +344,7 @@ export default function Init() {
       <SheetModal isOpen={showOptions} onClose={() => setShowOptions(false)}>
         <FlexCol gap='1rem'>
           <Text>{t('init.otherLoginOptions')}</Text>
-          <Button fancy disabled={error} onClick={handleOldWallet} label={t('init.restoreWallet')} secondary />
+          <Button disabled={error} onClick={handleOldWallet} label={t('init.restoreWallet')} secondary />
           {isBiometricsSupported() ? (
             <Button disabled={error} onClick={handlePasskeyLogin} label={t('init.logInWithPasskey')} secondary />
           ) : null}
