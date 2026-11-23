@@ -54,6 +54,16 @@ export const mockAspContextValue = {
   setAspInfo: () => {},
 }
 
+export const mockBackupContextValue = {
+  backupConfig: () => Promise.resolve(),
+  backupContacts: () => Promise.resolve(),
+  backupSolverCards: () => Promise.resolve(),
+  backupAndUpdateConfig: () => Promise.resolve(),
+  fullBackup: () => Promise.resolve(),
+  restore: () => Promise.resolve(),
+  initialiseNostrBackup: () => {},
+}
+
 export const mockConfigContextValue = {
   config: {
     announcementsSeen: [],

@@ -46,27 +46,38 @@ import {
   useSyncExternalStore,
 } from 'react'
 import { asset, type Asset, type IntentFeeConfig, type NetworkName, type PaymentRouter } from '@arkade-os/sdk'
-import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
+import { generateSecretKey } from 'nostr-tools'
+import { BTC_ASSET_ID, findMarket } from '@arkade-os/swap/protocol'
 import {
   arkadeAsset,
   btcOn,
   type AssetId,
   type AssetSwapId,
   type Outcome,
+  type OpenRfqAuction,
   type Quote,
   type Swap,
   type SwapClient,
 } from '@arkade-os/swap'
-import { isRfqMarket, sideLimits, type DiscoveredMarket, type OfferPlan, type Side } from '@arkade-os/solver-discovery'
+import {
+  isRfqMarket,
+  marketCorridor,
+  sideLimits,
+  type DiscoveredMarket,
+  type OfferPlan,
+} from '@arkade-os/solver-discovery'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
-import { discoverMarkets, watchSwapMarkets } from '../lib/swapMarkets'
+import { discoverMarkets, marketAssetDisplay, marketLegId, watchSwapMarkets } from '../lib/swapMarkets'
 import { getSolverCardsVersion, subscribeSolverCards } from '../lib/solverCards'
 import { createSendRouter, isLightningMarket } from '../lib/sendRouter'
 import { claimFeeRate } from '../lib/claimFee'
 import { onchainClaimEndpoint } from '../lib/onchainPayout'
 import { toInvoiceFacts } from '../lib/lnSwap'
+import { nostrRelayUrls } from '../lib/nostr'
+import { newRequestId } from '../lib/requestId'
 import { makeSwapClient, SwapsHeldElsewhere } from '../lib/swapClient'
+import { isSolverEnabled } from '../lib/solverRouting'
 import {
   DriverPromoted,
   DriverUnavailable,
@@ -77,7 +88,7 @@ import {
 } from '../lib/swapDriverChannel'
 import { saveQuoteSnapshot, type AssetSwapQuoteSnapshot, type WalletAssetSwap } from '../lib/swapRepository'
 import { displayAssetOf, offerSwaps } from '../lib/swapRecords'
-import { verifiedDesignatedCurrency } from '../lib/accountAssets'
+import { isValidAssetId } from '../lib/assets'
 import { getEmulatorPubkeyForNetwork } from '../lib/constants'
 import { consoleError } from '../lib/logs'
 import { extractError } from '../lib/error'
@@ -97,14 +108,26 @@ export interface AcceptedLnReceive {
 }
 
 interface SwapsContextProps {
+  allMarkets: DiscoveredMarket[]
   /** Spot markets — the ones this wallet builds offers on. */
   markets: DiscoveredMarket[]
-  /** True when there are markets and the covenant co-signer's key is known. */
+  discoveryReady: boolean
+  /** True when a supported swap can be composed and its co-signer is configured. */
   swapAvailable: boolean
   swaps: WalletAssetSwap[]
   runDiscovery: (useCache?: boolean) => void
-  /** Fund an arkade↔arkade asset swap for the plan the composer quoted. */
-  exchange: (market: DiscoveredMarket, plan: OfferPlan, quote?: AssetSwapQuoteSnapshot) => Promise<Swap>
+  /** The solver's firm quote for the plan the composer estimated; fund it with `acceptSwapQuote`. */
+  quoteExchange: (plan: OfferPlan) => Promise<Quote>
+  openSwapQuotes: (
+    from: string,
+    to: string,
+    amount: bigint,
+    requestId?: string,
+    destination?: string,
+  ) => Promise<OpenRfqAuction>
+  cancelOpenSwapQuotes: (requestId: string) => Promise<void>
+  chooseSwapQuote: (auctionId: string, bidId: string) => Promise<Quote>
+  acceptSwapQuote: (quote: Quote, snapshot?: AssetSwapQuoteSnapshot) => Promise<Swap>
   cancelSwap: (id: string) => Promise<void>
   /** Run a recovery round for a swept offer deposit. Resolves with whether THIS
    * deposit went home; throws `SwapDriveRefusedError` (by `name` across tabs) or
@@ -137,13 +160,19 @@ const notInitialized = async (): Promise<never> => {
 }
 
 export const SwapsContext = createContext<SwapsContextProps>({
+  allMarkets: [],
   markets: [],
+  discoveryReady: false,
   swapAvailable: false,
   swaps: [],
   runDiscovery: () => {
     throw new Error('swaps not initialized')
   },
-  exchange: notInitialized,
+  quoteExchange: notInitialized,
+  openSwapQuotes: notInitialized,
+  cancelOpenSwapQuotes: notInitialized,
+  chooseSwapQuote: notInitialized,
+  acceptSwapQuote: notInitialized,
   cancelSwap: notInitialized,
   recoverSwap: notInitialized,
   quotePay: notInitialized,
@@ -180,6 +209,14 @@ const LOCK_GRACE_MS = 500
  */
 const FIRST_LOAD_GRACE_MS = 3_000
 
+/** Matched by `name`, the part that crosses tabs, so the swap screen re-quotes instead of retrying it. */
+class QuoteUnavailable extends Error {
+  constructor() {
+    super('This quote is no longer available — refresh to try again')
+    this.name = 'QuoteUnavailable'
+  }
+}
+
 /** Whether the trader is paying OUT. `paid` and `claimed` are how BOTH
  *  directions succeed, so every send announced itself as money received; only a
  *  receive takes delivery inside Arkade. Optional so `announce` cannot throw. */
@@ -200,9 +237,25 @@ const ENDED: Partial<Record<Outcome, 'received' | 'returned' | 'lost'>> = {
 
 export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const { aspInfo } = useContext(AspContext)
-  const { dataReady, svcWallet, reloadWallet, setAssetSwaps, isVerifiedAsset } = useContext(WalletContext)
+  const {
+    dataReady,
+    svcWallet,
+    reloadWallet,
+    setAssetSwaps,
+    isVerifiedAsset,
+    availableAssetBalances,
+    availableBalance,
+    assetMetadataCache,
+    setCacheEntry,
+  } = useContext(WalletContext)
 
   const [markets, setMarkets] = useState<DiscoveredMarket[]>([])
+  const cardsVersion = useSyncExternalStore(subscribeSolverCards, getSolverCardsVersion, getSolverCardsVersion)
+  const discoveryScope = useMemo(() => ({ network: aspInfo.network, cardsVersion }), [aspInfo.network, cardsVersion])
+  const discoveryScopeRef = useRef(discoveryScope)
+  discoveryScopeRef.current = discoveryScope
+  const [settledDiscoveryScope, setSettledDiscoveryScope] = useState<typeof discoveryScope>()
+  const discoveryReady = Boolean(aspInfo.network && settledDiscoveryScope === discoveryScope)
   const [emulatorPubkey, setEmulatorPubkey] = useState<Uint8Array>()
   const [swaps, setSwaps] = useState<WalletAssetSwap[]>([])
   const [outcomes, setOutcomes] = useState<Map<string, Outcome>>(new Map())
@@ -256,6 +309,17 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
    * holding it would only grow the map.
    */
   const issued = useRef(new Map<string, Quote>())
+  const auctions = useRef(new Map<string, OpenRfqAuction>())
+  const auctionRequests = useRef(new Map<string, AbortController>())
+  useEffect(
+    () => () => {
+      for (const controller of auctionRequests.current.values()) controller.abort()
+      auctionRequests.current.clear()
+      auctions.current.clear()
+      issued.current.clear()
+    },
+    [aspInfo.network, svcWallet],
+  )
 
   /** Re-read the client's records. Cheap, and the only way a record written
    * outside a React update reaches the list. */
@@ -295,9 +359,11 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   // deployment and hide swaps entirely. Config presence is the honest gate.
 
   const allMarketsRef = useRef<DiscoveredMarket[]>([])
+  const discoveryNetworkRef = useRef<string>()
+  const discoveryRequest = useRef(0)
   const setAllMarkets = (all: DiscoveredMarket[]) => {
     allMarketsRef.current = all
-    // Corridor (RFQ) markets are hidden from the offer composer: `exchange`
+    // Corridor (RFQ) markets are hidden from the offer composer: `quoteExchange`
     // builds offers, and a corridor is negotiated with a solver instead.
     // Keeping them here would let one Lightning card turn the whole swap
     // surface on with nothing behind it. `isRfqMarket` reads the rail off the
@@ -311,49 +377,76 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const runDiscovery = (useCache = true) => {
     if (!aspInfo.network) return
     const network = aspInfo.network as NetworkName
+    const scope = discoveryScope
+    const request = ++discoveryRequest.current
+    setSettledDiscoveryScope(undefined)
     discoverMarkets(network, useCache)
-      .then(setAllMarkets)
+      .then((all) => {
+        if (discoveryScopeRef.current !== scope || discoveryRequest.current !== request) return
+        setAllMarkets(all)
+        setSettledDiscoveryScope(scope)
+      })
       .catch((err) => consoleError(err, 'solver discovery failed'))
     setEmulatorPubkey(getEmulatorPubkeyForNetwork(network))
   }
 
   useEffect(() => {
-    setEmulatorPubkey(undefined)
-    setAllMarkets([])
+    if (discoveryNetworkRef.current !== aspInfo.network) {
+      discoveryNetworkRef.current = aspInfo.network
+      setEmulatorPubkey(undefined)
+      setAllMarkets([])
+    }
     if (!aspInfo.network) return
     const network = aspInfo.network as NetworkName
+    const scope = discoveryScope
+    let active = true
     setEmulatorPubkey(getEmulatorPubkeyForNetwork(network))
-    return watchSwapMarkets(network, setAllMarkets)
+    const stop = watchSwapMarkets(network, (all) => {
+      if (!active || discoveryScopeRef.current !== scope) return
+      setAllMarkets(all)
+      setSettledDiscoveryScope(scope)
+    })
+    return () => {
+      active = false
+      stop()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aspInfo.network])
+  }, [discoveryScope])
 
-  // Pinned cards are a market source living outside React, and the markets
-  // cache is keyed on network and registry, not on them: the watch would keep
-  // serving the pre-card entry for its whole TTL. So a card write re-reads past
-  // the cache, which also rewrites it for the watch's next tick.
-  const cardsVersion = useSyncExternalStore(subscribeSolverCards, getSolverCardsVersion, getSolverCardsVersion)
-  const seenCardsVersion = useRef(cardsVersion)
+  // Reload names the assets the wallet holds or has traded; a market can offer
+  // one it has never seen, and its card's own name for it is solver-written.
+  // ponytail: one request per leg per session, no retry; master's bounded prefetch (#1152) should own this on merge.
+  const metadataRequested = useRef(new Set<string>())
   useEffect(() => {
-    if (seenCardsVersion.current === cardsVersion) return
-    seenCardsVersion.current = cardsVersion
-    runDiscovery(false)
+    const assets = svcWallet?.assetManager
+    if (!assets) return
+    const legs = new Set(markets.flatMap((market) => [market.base_asset, market.quote_asset].map(marketLegId)))
+    for (const id of legs) {
+      if (!isValidAssetId(id) || assetMetadataCache.get(id) || metadataRequested.current.has(id)) continue
+      metadataRequested.current.add(id)
+      assets.getAssetDetails(id).then(
+        (details) => details && setCacheEntry(id, details),
+        (err) => consoleError(err, `error fetching metadata for ${id}`),
+      )
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cardsVersion])
+  }, [svcWallet, markets])
 
   // ------------------------------------------------------------- the announcer
 
   const tickerFor = (assetId: AssetId): string => {
     const display = displayAssetOf(assetId)
     if (display === BTC_ASSET_ID) return 'sats'
-    // Outranks the card's ticker, as every other surface reads it. Verified
-    // only, or a lookalike mint could claim the currency.
-    const designated = verifiedDesignatedCurrency(aspInfo.network, display, isVerifiedAsset)
-    if (designated) return designated
-    for (const market of allMarketsRef.current) {
-      if (market.quote_asset.id === display) return market.quote_asset.ticker
-      if (market.base_asset.id === display) return market.base_asset.ticker
-    }
-    return display.slice(0, 8)
+    const leg = allMarketsRef.current
+      .flatMap((market) => [market.base_asset, market.quote_asset])
+      .find((asset) => marketLegId(asset) === display)
+    const unknown = { id: display, name: display.slice(0, 8), ticker: display.slice(0, 8), decimals: 0 }
+    return marketAssetDisplay(
+      leg ?? unknown,
+      aspInfo.network,
+      (id) => assetMetadataCache.get(id)?.metadata,
+      isVerifiedAsset,
+    ).ticker
   }
 
   /**
@@ -526,6 +619,10 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       stopped = true
       clearTimeout(firstLoad)
+      for (const pending of auctionRequests.current.values()) pending.abort()
+      auctionRequests.current.clear()
+      auctions.current.clear()
+      issued.current.clear()
       held.current = undefined
       granted.current = undefined
       // Stop answering BEFORE the lock is released, so the window where this
@@ -606,8 +703,23 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
    * whether it came from this tab or over the channel. */
   const runHere = (op: DriverOp, args: unknown[]): Promise<unknown> => {
     switch (op) {
-      case 'exchange':
-        return exchangeHere(args[0] as OfferPlan, args[1] as AssetSwapQuoteSnapshot | undefined)
+      case 'quoteExchange':
+        return quoteExchangeHere(args[0] as OfferPlan)
+      case 'openSwapQuotes':
+        return openSwapQuotesHere(
+          args[0] as string,
+          args[1] as string,
+          args[2] as bigint,
+          args[3] as string,
+          args[4] as string | undefined,
+        )
+      case 'cancelOpenSwapQuotes':
+        auctionRequests.current.get(args[0] as string)?.abort()
+        return Promise.resolve()
+      case 'chooseSwapQuote':
+        return chooseSwapQuoteHere(args[0] as string, args[1] as string)
+      case 'acceptSwapQuote':
+        return acceptSwapQuoteHere(args[0] as string, args[1] as AssetSwapQuoteSnapshot | undefined)
       case 'cancelSwap':
         return cancelSwapHere(args[0] as string)
       case 'recoverSwap':
@@ -636,42 +748,110 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
   /** The composer's asset ids are discovery's; the client's are CAIP-19. */
   const assetIdFor = (network: NetworkName, discoveryId: string): AssetId =>
-    discoveryId === BTC_ASSET_ID
-      ? btcOn('arkade', network)
-      : arkadeAsset(network, asset.AssetId.fromString(discoveryId))
+    discoveryId.includes('/')
+      ? (discoveryId as AssetId)
+      : discoveryId === BTC_ASSET_ID
+        ? btcOn('arkade', network)
+        : arkadeAsset(network, asset.AssetId.fromString(discoveryId))
 
-  /** The market is the client's to select, so only the plan and the snapshot
-   * need to reach the tab that will fund this. */
-  const exchange = (_market: DiscoveredMarket, plan: OfferPlan, quote?: AssetSwapQuoteSnapshot): Promise<Swap> =>
-    runOnDriver('exchange', [plan, quote])
+  /** The market is the client's to select, so only the plan reaches the tab that will fund this. */
+  const quoteExchange = (plan: OfferPlan): Promise<Quote> => runOnDriver('quoteExchange', [plan])
 
-  const exchangeHere = async (plan: OfferPlan, quote?: AssetSwapQuoteSnapshot): Promise<Swap> => {
-    if (!emulatorPubkey) throw new Error('swap service unavailable')
-    const network = aspInfo.network as NetworkName
-    const client = await driving()
-    const give = assetIdFor(network, plan.deposit.asset.id)
-    const take = assetIdFor(network, plan.receive.asset.id)
-    // Quote and accept rather than `client.exchange`, for one reason: the
-    // composer has been pricing this plan live and the user confirmed a number.
-    // `exchange` re-quotes internally and would fund whatever came back.
-    // Quoting here lets the confirmed amount be a floor — the swap is refused
-    // rather than funded at a worse rate than the one on screen. The market is
-    // the client's to select; it is taken here only so the caller's own
-    // pair lookup and the client's cannot silently disagree about the pair.
-    const quoted = await client.quote({ give, take, amount: plan.deposit.atomic, amountOn: 'give' })
-    if (quoted.take.amount < plan.receive.atomic) {
-      throw new Error('The rate moved while you were confirming — go back and try again')
+  const openSwapQuotes = (
+    from: string,
+    to: string,
+    amount: bigint,
+    requestId: string = newRequestId(),
+    destination?: string,
+  ): Promise<OpenRfqAuction> => runOnDriver('openSwapQuotes', [from, to, amount, requestId, destination])
+
+  const cancelOpenSwapQuotes = (requestId: string): Promise<void> => runOnDriver('cancelOpenSwapQuotes', [requestId])
+
+  const openSwapQuotesHere = async (
+    from: string,
+    to: string,
+    amount: bigint,
+    requestId: string,
+    destination?: string,
+  ): Promise<OpenRfqAuction> => {
+    if (amount <= 0n) throw new Error('Enter an amount greater than zero')
+    auctionRequests.current.get(requestId)?.abort()
+    const controller = new AbortController()
+    auctionRequests.current.set(requestId, controller)
+    try {
+      const client = await driving()
+      controller.signal.throwIfAborted()
+      const network = aspInfo.network as NetworkName
+      const serves = (market: DiscoveredMarket) => Boolean(findMarket([market], from, to)?.market)
+      // The pair's own cards go first so unrelated ones cannot use up the 16 slots.
+      const cards = [...allMarketsRef.current.filter(serves), ...allMarketsRef.current.filter((m) => !serves(m))]
+      const relays = [
+        ...new Set(
+          [...nostrRelayUrls, ...cards.flatMap((market) => market.transports?.nostr?.relays ?? [])].flatMap((value) => {
+            // Cards are solver-written: one malformed relay must not cancel the request.
+            try {
+              const url = new URL(value)
+              if (url.protocol === 'http:') url.protocol = 'ws:'
+              if (url.protocol === 'https:') url.protocol = 'wss:'
+              return url.protocol === 'ws:' || url.protocol === 'wss:' ? [url.href] : []
+            } catch {
+              return []
+            }
+          }),
+        ),
+      ].slice(0, 16)
+      const auction = await client.openRfq(
+        {
+          give: assetIdFor(network, from),
+          take: assetIdFor(network, to),
+          amount,
+          amountOn: 'give',
+          ...(destination ? { to: destination } : {}),
+        },
+        { secretKey: generateSecretKey(), signal: controller.signal, relays },
+      )
+      controller.signal.throwIfAborted()
+      const now = Math.floor(Date.now() / 1000)
+      for (const [id, kept] of auctions.current) {
+        if (kept.bids.every((bid) => bid.expiresAt <= now)) auctions.current.delete(id)
+      }
+      if (auctions.current.size >= 16) auctions.current.delete(auctions.current.keys().next().value!)
+      auctions.current.set(auction.id, auction)
+      return auction
+    } finally {
+      if (auctionRequests.current.get(requestId) === controller) auctionRequests.current.delete(requestId)
     }
-    const swap = await client.accept(quoted)
-    // The one fact the client does not persist, because it does not own it:
-    // tickers, decimals, the fee rate and the fiat amount frozen at quote time,
-    // which is all the activity row has to render a swap whose market card may
-    // have changed since.
-    // Best effort: the swap is funded either way, and a lost snapshot costs
-    // the row its tickers, never its money.
-    if (quote) {
+  }
+
+  const chooseSwapQuote = (auctionId: string, bidId: string): Promise<Quote> =>
+    runOnDriver('chooseSwapQuote', [auctionId, bidId])
+
+  const chooseSwapQuoteHere = async (auctionId: string, bidId: string): Promise<Quote> => {
+    const issuer = held.current
+    const client = await driving()
+    const auction = auctions.current.get(auctionId)
+    const bid = auction?.bids.find((offer) => offer.id === bidId)
+    if (!auction || !bid) throw new Error('These offers are no longer available — refresh to try again')
+    const quote = await client.quoteBid(auction, bid)
+    if (held.current !== issuer) throw new QuoteUnavailable()
+    remember(quote)
+    return quote
+  }
+
+  const acceptSwapQuote = (quote: Quote, snapshot?: AssetSwapQuoteSnapshot): Promise<Swap> =>
+    runOnDriver('acceptSwapQuote', [quote.id, snapshot])
+
+  const acceptSwapQuoteHere = async (id: string, snapshot?: AssetSwapQuoteSnapshot): Promise<Swap> => {
+    const client = await driving()
+    const quote = issued.current.get(id)
+    // Deliberate: a quote lives only in the client that derived it, which refuses to accept
+    // another's. After a lock handoff the user quotes again; it is short-lived, so little is lost.
+    if (!quote) throw new QuoteUnavailable()
+    const swap = await client.accept(quote, { validUntil: quote.expiresAt })
+    issued.current.delete(id)
+    if (snapshot) {
       try {
-        saveQuoteSnapshot(swap.id, quote)
+        saveQuoteSnapshot(swap.id, snapshot)
       } catch (err) {
         consoleError(err, 'failed to store the swap quote snapshot')
       }
@@ -680,6 +860,25 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     await refreshSwaps()
     reloadRef.current().catch(consoleError)
     return swap
+  }
+
+  // Not `client.exchange`, which re-quotes and funds whatever comes back. The
+  // estimate and this firm quote are priced independently — a carrier the card
+  // omits, a rounding unit — so the composer compares them and decides what the
+  // user confirms; `acceptSwapQuote` then funds exactly this quote, fenced to its
+  // deadline. Reuse live quotes because older solvers can refuse duplicate terms.
+  const quoteExchangeHere = async (plan: OfferPlan): Promise<Quote> => {
+    if (!emulatorPubkey) throw new Error('swap service unavailable')
+    const network = aspInfo.network as NetworkName
+    const issuer = held.current
+    const client = await driving()
+    const give = assetIdFor(network, plan.deposit.asset.id)
+    const take = assetIdFor(network, plan.receive.asset.id)
+    const quoted = await client.quote({ give, take, amount: plan.deposit.atomic, amountOn: 'give' })
+    // A client replaced mid-quote was disposed with this quote's preparation.
+    if (held.current !== issuer) throw new QuoteUnavailable()
+    remember(quoted)
+    return quoted
   }
 
   /**
@@ -741,20 +940,18 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
    * later. This is the pre-flight that was lost with the corridor pickers, kept
    * because the message it produces is the only one a user can act on.
    *
-   * A side bounds what the SOLVER pays out on it, so the corridor's two
-   * directions are the two sides of one market: quote (Lightning) is the send
-   * leg, base (arkade) the receive leg.
+   * Bounds apply to the payout rail: Lightning on a send, Arkade on a receive.
    */
-  const assertWithinBounds = (sats: number, side: Side) => {
-    const market = allMarketsRef.current.find(isLightningMarket)
-    // No card, or a disabled side: leave it to the client, which answers
-    // "no route" rather than an invented range.
-    const bounds = market && sideLimits(market, side)
-    if (!bounds) return
-    const [min, max] = [Number(bounds.min), Number(bounds.max)]
-    if (sats < min || sats > max) {
-      throw new Error(`Amount outside solver bounds (${prettyNumber(min)}-${prettyNumber(max)} sats)`)
-    }
+  const assertWithinBounds = (sats: number, payout: 'bolt11' | 'arkade') => {
+    const bounds = allMarketsRef.current.filter(isLightningMarket).flatMap((market) => {
+      const side = marketCorridor(market, 'base') === payout ? 'base' : 'quote'
+      if (!isSolverEnabled(market, side === 'base' ? 'quote' : 'base', aspInfo.network)) return []
+      const limits = sideLimits(market, side)
+      return limits ? [limits] : []
+    })
+    if (!bounds.length || bounds.some(({ min, max }) => BigInt(sats) >= min && BigInt(sats) <= max)) return
+    const ranges = bounds.map(({ min, max }) => `${prettyNumber(Number(min))}-${prettyNumber(Number(max))}`).join(', ')
+    throw new Error(`Amount outside solver bounds (${ranges} sats)`)
   }
 
   /**
@@ -766,7 +963,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
    */
   const quotePay = (destination: string): Promise<Quote> => {
     if (destination.toLowerCase().startsWith('ln')) {
-      assertWithinBounds(toInvoiceFacts(destination, aspInfo.network as NetworkName).amountSats, 'quote')
+      assertWithinBounds(toInvoiceFacts(destination, aspInfo.network as NetworkName).amountSats, 'bolt11')
     }
     return runOnDriver('quotePay', [destination])
   }
@@ -779,7 +976,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     // override — and they are what the bounds check reads the amount from,
     // which is why an invoice is decoded here and nowhere else.
     if (destination.toLowerCase().startsWith('ln')) {
-      assertWithinBounds(toInvoiceFacts(destination, aspInfo.network as NetworkName).amountSats, 'quote')
+      assertWithinBounds(toInvoiceFacts(destination, aspInfo.network as NetworkName).amountSats, 'bolt11')
     }
     const quote = await client.quote({ to: destination })
     remember(quote)
@@ -812,13 +1009,13 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const receiveLightning = (amountSats: number): Promise<AcceptedLnReceive> => {
-    assertWithinBounds(amountSats, 'base')
+    assertWithinBounds(amountSats, 'arkade')
     return runOnDriver('receiveLightning', [amountSats])
   }
 
   const receiveLightningHere = async (amountSats: number): Promise<AcceptedLnReceive> => {
     const client = await driving()
-    assertWithinBounds(amountSats, 'base')
+    assertWithinBounds(amountSats, 'arkade')
     // `receive` pins the TAKE leg: the trader is credited `amount` and the
     // payer is shown `amount + fee`, which is what `give` carries below.
     // Driving starts before the invoice comes back, so the monitored set is
@@ -870,14 +1067,31 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const outcomeOf = useCallback((id: string) => outcomes.get(id), [outcomes])
   const errorOf = useCallback((id: string) => errors.get(id), [errors])
 
-  const swapAvailable = markets.length > 0 && Boolean(emulatorPubkey)
+  const hasOnchainPayout = allMarketsRef.current.some((card) => {
+    const side = marketCorridor(card, 'base') === 'arkade' ? 'base' : 'quote'
+    if (marketCorridor(card, side) !== 'arkade') return false
+    const from = side === 'base' ? card.base_asset.id : card.quote_asset.id
+    return Boolean(findMarket([card], from, btcOn('bitcoin', aspInfo.network as NetworkName))?.market)
+  })
+  const hasAssetToDiscover = availableAssetBalances?.some(
+    ({ assetId, amount }) => /^[0-9a-f]{68}$/.test(assetId) && BigInt(amount) > 0n,
+  )
+  const swapAvailable =
+    (markets.length > 0 || hasOnchainPayout || Boolean(hasAssetToDiscover) || availableBalance > 0) &&
+    Boolean(emulatorPubkey)
   const value = useMemo(
     () => ({
+      allMarkets: allMarketsRef.current,
       markets,
+      discoveryReady,
       swapAvailable,
       swaps,
       runDiscovery,
-      exchange,
+      quoteExchange,
+      openSwapQuotes,
+      cancelOpenSwapQuotes,
+      chooseSwapQuote,
+      acceptSwapQuote,
       cancelSwap,
       recoverSwap,
       quotePay,
@@ -891,6 +1105,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       markets,
+      discoveryReady,
+      discoveryScope,
       swapAvailable,
       swaps,
       svcWallet,

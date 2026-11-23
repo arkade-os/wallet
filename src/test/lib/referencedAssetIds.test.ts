@@ -28,6 +28,17 @@ describe('referencedAssetIds', () => {
     expect(referencedAssetIds({ owned: [{ assetId: 'btc' }], rows: [''], swaps: ['btc'] }).size).toBe(0)
   })
 
+  it('caps the set and prioritizes owned assets over history and swap rows', () => {
+    const owned = Array.from({ length: 101 }, (_, index) => ({ assetId: `owned-${index}` }))
+    const ids = referencedAssetIds({ owned, rows: ['history-only'], swaps: ['swap-only'] })
+
+    expect(ids.size).toBe(100)
+    expect(ids.has('owned-99')).toBe(true)
+    expect(ids.has('owned-100')).toBe(false)
+    expect(ids.has('history-only')).toBe(false)
+    expect(ids.has('swap-only')).toBe(false)
+  })
+
   it('tolerates every source being absent', () => {
     expect(referencedAssetIds({}).size).toBe(0)
   })

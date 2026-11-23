@@ -46,6 +46,7 @@ import { SwapsContext } from '../../../providers/swaps'
 import { createSendRouter, LNURL_ARKADE_RAIL, LNURL_LIGHTNING_RAIL } from '../../../lib/sendRouter'
 import { Currencies, Unit } from '../../../lib/types'
 import fixtures from '../../fixtures.json'
+import { saveContact } from '../../../lib/contacts'
 import { fromSatoshis, prettyNumber } from '@/lib/format'
 
 type TreeOptions = {
@@ -93,6 +94,16 @@ const sendFormTree = ({
 describe('Send screen', () => {
   const renderSendForm = (options: TreeOptions = {}) => render(sendFormTree(options))
 
+  it('fills the recipient from a saved contact picker', async () => {
+    const address = 'alice@pay.example'
+    saveContact(address, 'Alice')
+    renderSendForm()
+    fireEvent.click(screen.getByRole('button', { name: 'Contacts' }))
+    fireEvent.click(await screen.findByRole('button', { name: /Alice/ }))
+    await waitFor(() =>
+      expect(document.querySelector<HTMLInputElement>('input[name="send-address"]')?.value).toBe(address),
+    )
+  })
   it('fills the amount field when an LNURL resolves to a fixed amount', async () => {
     // regression: a fixed-amount LNURL (minSendable === maxSendable) must
     // populate the read-only amount input instead of leaving it blank
@@ -790,13 +801,17 @@ describe('a changed recipient', () => {
       { id: 'ark', type: 'arkade' },
     ],
   }
-  const lnurlServer = (held?: Promise<void>, over: { callbackHeld?: Promise<void>; body?: object } = {}) => {
+  const lnurlServer = (
+    held?: Promise<void>,
+    over: { callbackHeld?: Promise<void>; body?: object; arkAddress?: string } = {},
+  ) => {
     const fetchMocker = createFetchMock(vi)
     fetchMocker.enableMocks()
     fetchMocker.mockResponse(async (req) => {
       if (req.url.includes('paymentOption=') || req.url.includes('method=ark')) {
         await over.callbackHeld
-        return JSON.stringify({ paymentOption: 'ark', paymentDestination: ARK, address: ARK, expiryDate: '', hint: '' })
+        const address = over.arkAddress ?? ARK
+        return JSON.stringify({ paymentOption: 'ark', paymentDestination: address, address, expiryDate: '', hint: '' })
       }
       await held
       return JSON.stringify(over.body ?? payRequest)
@@ -804,12 +819,12 @@ describe('a changed recipient', () => {
     return fetchMocker
   }
 
-  const renderStateful = () => {
+  const renderStateful = (walletValue = walletContext) => {
     const sendRouter = vi.fn(async () => createSendRouter({ wallet: svcWallet }))
     const navigate = vi.fn()
     const { container } = render(
       <StatefulForm
-        walletContext={walletContext}
+        walletContext={walletValue}
         swapsContext={{ sendRouter }}
         navigationContext={{ ...mockNavigationContextValue, navigate }}
       />,
@@ -914,6 +929,33 @@ describe('a changed recipient', () => {
     await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails), settle)
     expect(current.pendingLnSend?.railId).toBe(LNURL_ARKADE_RAIL)
     fetchMocker.disableMocks()
+  })
+
+  it('keeps the Ark route selected until the receiving address is available', async () => {
+    let releaseAddress: (address: string) => void = () => {}
+    const receivingAddress = new Promise<string>((resolve) => (releaseAddress = resolve))
+    const body = { ...payRequest, paymentOptions: undefined, transferAmounts: [{ method: 'Ark', available: true }] }
+    const fetchMocker = lnurlServer(undefined, { body })
+    const walletValue = {
+      ...walletContext,
+      svcWallet: { ...svcWallet, getAddress: () => receivingAddress },
+    }
+    try {
+      const { sendRouter, type } = renderStateful(walletValue)
+      type(LNURL)
+      await waitFor(() => screen.getByDisplayValue(String(SATS)), settle)
+
+      expect(continueButton()).toBeDisabled()
+      expect(sendRouter).not.toHaveBeenCalled()
+
+      releaseAddress(ARK)
+      await waitFor(() => expect(continueButton()).toBeEnabled(), settle)
+      await clickContinue()
+      await waitFor(() => expect(fetchMocker.requests().some((r) => r.url.includes('method=ark'))).toBe(true), settle)
+      expect(sendRouter).not.toHaveBeenCalled()
+    } finally {
+      fetchMocker.disableMocks()
+    }
   })
 
   it('ignores an LNURL that resolves after the recipient changed', async () => {
@@ -1049,6 +1091,23 @@ describe('a changed recipient', () => {
     expect(navigate).not.toHaveBeenCalledWith(Pages.SendDetails)
     fetchMocker.disableMocks()
   })
+
+  it('clears a mismatched LNURL Ark address error when the recipient changes', async () => {
+    const body = { ...payRequest, paymentOptions: undefined, transferAmounts: [{ method: 'Ark', available: true }] }
+    const fetchMocker = lnurlServer(undefined, { body, arkAddress: fixtures.lib.address.ark[1].address })
+    const { type } = renderStateful()
+    type(LNURL)
+    await waitFor(() => screen.getByDisplayValue(String(SATS)), settle)
+    await clickContinue()
+    await waitFor(() => screen.getByText('Arkade server key mismatch'), settle)
+    expect(continueButton()).toBeDisabled()
+
+    type(ARK)
+    await waitFor(() => expect(current.arkAddress).toBe(ARK), settle)
+    await waitFor(() => expect(continueButton()).toBeEnabled(), settle)
+    fetchMocker.disableMocks()
+  })
+
   it.each([500, 200_000])(
     'quotes a valid %i sat Arkade amount outside the default Lightning bounds',
     async (amount) => {

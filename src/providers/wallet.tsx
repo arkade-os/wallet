@@ -18,11 +18,16 @@ import {
   clearStorage,
   readWalletFromStorage,
   saveWalletToStorage,
+  readLastSats,
+  saveLastSats,
   saveAssetMetadataToStorage,
   readAssetMetadataFromStorage,
   readAllTransactionActivityMetadata,
   CachedAssetDetails,
   ASSET_METADATA_TTL_MS,
+  ASSET_METADATA_FAILURE_TTL_MS,
+  readAssetMetadataFailuresFromStorage,
+  saveAssetMetadataFailuresToStorage,
   type TransactionActivityMetadata,
 } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
@@ -66,6 +71,8 @@ const MESSAGE_BUS_INIT_TIMEOUT_MS = 30_000
 const DEV_AUTO_INIT_TIMEOUT_MS = 60_000
 const DEV_INITIAL_DATA_TIMEOUT_MS = 20_000
 const DEV_AUTO_INIT_RELOAD_KEY = 'arkade-dev-auto-init-reload-attempted'
+const ASSET_METADATA_FETCH_CONCURRENCY = 4
+const ASSET_METADATA_FETCH_TIMEOUT_MS = 5_000
 
 interface InitSvcWorkerWalletParams {
   arkServerUrl: string
@@ -133,6 +140,8 @@ interface WalletContextProps {
   dataReady: boolean
   /** The worker's first contract sync since setup has not landed: balances and history are stored data. */
   syncing?: boolean
+  satsPreview?: number
+  booting?: boolean
   loadError: string | null
   dismissLoadError: () => void
   authState: WalletAuthState
@@ -211,14 +220,16 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     exits: ExitRecord[]
   }>({ activities: [], metadata: {}, lnSends: [], exits: [] })
   const [assetSwaps, setAssetSwaps] = useState<WalletAssetSwap[]>([])
-  const [balance, setBalance] = useState(0)
-  const [availableBalance, setAvailableBalance] = useState(0)
   const [wallet, setWallet] = useState(() => readWalletFromStorage() ?? defaultWallet)
+  const satsPreview = useMemo(() => readLastSats(wallet.pubkey), [wallet.pubkey])
+  const [balance, setBalance] = useState(() => readLastSats(wallet.pubkey) ?? 0)
+  const [availableBalance, setAvailableBalance] = useState(0)
   const walletLoaded = true
   const [initialized, setInitialized] = useState<boolean>(false)
   const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
   const [dataReady, setDataReady] = useState(false)
-  const [syncing, setSyncing] = useState(false)
+  const [syncing, setSyncing] = useState(() => Boolean(wallet.pubkey))
+  const [booting, setBooting] = useState(() => Boolean(wallet.pubkey))
   const [loadError, setLoadError] = useState<string | null>(null)
   const [authState, setAuthState] = useState<WalletAuthState>('unknown')
   const [vtxos, setVtxos] = useState<{ spendable: Vtxo[]; spent: Vtxo[] }>({ spendable: [], spent: [] })
@@ -231,6 +242,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // A passkey-unlocked wallet has no default password to test, so whether it is open is whether this session opened it.
   const openedThisSession = useRef(false)
   const assetMetadataCache = useRef<Map<string, CachedAssetDetails>>(readAssetMetadataFromStorage() ?? new Map())
+  const assetMetadataFailures = useRef(readAssetMetadataFailuresFromStorage())
+  const assetMetadataFetches = useRef(new Set<string>())
+  const assetMetadataPrefetchRunning = useRef<{
+    pending?: { wallet: ServiceWorkerWallet; assetIds: Set<string> }
+  } | null>(null)
   // Every asset the UI can still be asked to name (see `referencedAssetIds`).
   // A ref because it gates persistence in `setCacheEntry`, not rendering.
   const referencedAssetIdsRef = useRef<Set<string>>(new Set())
@@ -282,6 +298,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // user's saved theme (applyTheme(Auto) then falls back to the OS palette).
   const configRef = useRef(config)
   configRef.current = config
+  const walletRef = useRef(wallet)
+  walletRef.current = wallet
   // Same hazard: a listener that captured an early `aspInfo` captured it before
   // the server answered, when the network was still unset. The exit timestamp
   // lookup needs the live one to pick an explorer. Synced after commit rather
@@ -330,7 +348,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const isVerifiedAsset = (assetId: string): boolean =>
     Boolean(assetId) && (iconApprovalManager.isVerified(assetId) || isRegistered(assetId))
 
-  const setCacheEntry = (assetId: string, details: AssetDetails): CachedAssetDetails => {
+  const cacheAssetDetails = (assetId: string, details: AssetDetails): CachedAssetDetails => {
     const hasIcon = !!details.metadata?.icon
     const moderated =
       hasIcon && (!iconApprovalManager.isApproved(assetId) || !isValidUrl(details.metadata?.icon ?? ''))
@@ -339,12 +357,109 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const entry: CachedAssetDetails = { ...moderated, cachedAt: Date.now(), hasIcon }
     const previous = assetMetadataCache.current.get(assetId)
     assetMetadataCache.current.set(assetId, entry)
-    saveAssetMetadataToStorage(assetMetadataCache.current, referencedAssetIdsRef.current)
     // Only what `assetDisplay` reads is worth a repaint. A TTL refresh rewriting
-    // the same name must not re-derive every row, and the prefetch loop writes
-    // one entry per owned asset with an await between each.
+    // the same name must not re-derive every row.
     if (assetNameChanged(previous?.metadata, entry.metadata)) setAssetDisplayVersion((version) => version + 1)
     return entry
+  }
+
+  const setCacheEntry = (assetId: string, details: AssetDetails): CachedAssetDetails => {
+    const entry = cacheAssetDetails(assetId, details)
+    if (assetMetadataFailures.current.delete(assetId)) {
+      saveAssetMetadataFailuresToStorage(assetMetadataFailures.current)
+    }
+    saveAssetMetadataToStorage(assetMetadataCache.current, referencedAssetIdsRef.current)
+    return entry
+  }
+
+  const prefetchAssetMetadata = async (swWallet: ServiceWorkerWallet, assetIds: Set<string>) => {
+    if (assetMetadataPrefetchRunning.current) {
+      // The latest reload is authoritative; coalesce overlapping requests into one follow-up.
+      assetMetadataPrefetchRunning.current.pending = { wallet: swWallet, assetIds }
+      return
+    }
+    const run: { pending?: { wallet: ServiceWorkerWallet; assetIds: Set<string> } } = {}
+    assetMetadataPrefetchRunning.current = run
+    try {
+      const now = Date.now()
+      let failuresChanged = false
+      for (const [assetId, expiresAt] of assetMetadataFailures.current) {
+        if (expiresAt <= now) {
+          assetMetadataFailures.current.delete(assetId)
+          failuresChanged = true
+        }
+      }
+      const ids = [...assetIds].filter((assetId) => {
+        const cached = assetMetadataCache.current.get(assetId)
+        if (cached && now - cached.cachedAt < ASSET_METADATA_TTL_MS) return false
+        if ((assetMetadataFailures.current.get(assetId) ?? 0) > now) return false
+        if (assetMetadataFetches.current.has(assetId)) return false
+        assetMetadataFetches.current.add(assetId)
+        return true
+      })
+      let nextIndex = 0
+      let cacheChanged = false
+
+      const fetchNext = async () => {
+        while (nextIndex < ids.length) {
+          const assetId = ids[nextIndex++]
+          let timeout: ReturnType<typeof setTimeout> | undefined
+          let request: Promise<AssetDetails | undefined> | undefined
+          let timedOut = false
+          try {
+            request = Promise.resolve().then(() => swWallet.assetManager.getAssetDetails(assetId))
+            const meta = await Promise.race([
+              request,
+              new Promise<never>((_, reject) => {
+                timeout = setTimeout(() => {
+                  timedOut = true
+                  reject(new Error('Asset metadata request timed out'))
+                }, ASSET_METADATA_FETCH_TIMEOUT_MS)
+              }),
+            ])
+            if (meta) {
+              cacheAssetDetails(assetId, meta)
+              cacheChanged = true
+              failuresChanged ||= assetMetadataFailures.current.delete(assetId)
+            } else {
+              assetMetadataFailures.current.set(assetId, Date.now() + ASSET_METADATA_FAILURE_TTL_MS)
+              failuresChanged = true
+            }
+          } catch (err) {
+            assetMetadataFailures.current.set(assetId, Date.now() + ASSET_METADATA_FAILURE_TTL_MS)
+            failuresChanged = true
+            if (timedOut) {
+              saveAssetMetadataFailuresToStorage(assetMetadataFailures.current)
+              failuresChanged = false
+            }
+            consoleError(err, `error prefetching metadata for ${assetId}`)
+          } finally {
+            if (timeout) clearTimeout(timeout)
+            if (timedOut && request) await request.catch(() => undefined)
+            assetMetadataFetches.current.delete(assetId)
+          }
+        }
+        if (cacheChanged) {
+          saveAssetMetadataToStorage(assetMetadataCache.current, referencedAssetIdsRef.current)
+          cacheChanged = false
+        }
+        if (failuresChanged) {
+          saveAssetMetadataFailuresToStorage(assetMetadataFailures.current)
+          failuresChanged = false
+        }
+      }
+
+      await Promise.all(Array.from({ length: Math.min(ASSET_METADATA_FETCH_CONCURRENCY, ids.length) }, fetchNext))
+    } finally {
+      if (assetMetadataPrefetchRunning.current === run) {
+        assetMetadataPrefetchRunning.current = null
+        if (run.pending) {
+          prefetchAssetMetadata(run.pending.wallet, run.pending.assetIds).catch((err) =>
+            consoleError(err, 'Error prefetching asset metadata'),
+          )
+        }
+      }
+    }
   }
 
   // wallet is read synchronously in useState initializer above
@@ -472,6 +587,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       consoleError(new Error('Dev initial wallet data load timed out'), 'Dev initial data watchdog')
       hasLoadedOnce.current = true
       setDataReady(true)
+      setBooting(false)
     }, DEV_INITIAL_DATA_TIMEOUT_MS)
 
     return () => window.clearTimeout(timer)
@@ -551,8 +667,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const reloadWallet = async (swWallet = svcWallet) => {
     if (!swWallet) return
+    const pubkeyAtStart = walletRef.current.pubkey
+    const stillThisWallet = () => walletRef.current.pubkey === pubkeyAtStart
     const isFirstLoad = !hasLoadedOnce.current
-    if (isFirstLoad) setLoadError(null)
+    if (isFirstLoad && stillThisWallet()) {
+      setLoadError(null)
+      setBooting(true)
+    }
     try {
       if (isFirstLoad) setLoadingStatus(t('loading.fetchingCoins'))
       const vtxos = await getVtxos(swWallet)
@@ -595,19 +716,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         ),
         swaps: await readSwapRecordAssets(),
       })
+      if (!stillThisWallet()) return
       referencedAssetIdsRef.current = referenced
       if (isFirstLoad && referenced.size > 0) setLoadingStatus(t('loading.loadingAssetMetadata'))
-      for (const assetId of referenced) {
-        const cached = assetMetadataCache.current.get(assetId)
-        if (cached && Date.now() - cached.cachedAt < ASSET_METADATA_TTL_MS) continue
-        try {
-          const meta = await swWallet.assetManager.getAssetDetails(assetId)
-          if (meta) setCacheEntry(assetId, meta)
-        } catch (err) {
-          consoleError(err, `error prefetching metadata for ${assetId}`)
-        }
-      }
-      setBalance(total - unrolled)
+      const sats = total - unrolled
+      setBalance(sats)
+      if (pubkeyAtStart) saveLastSats(pubkeyAtStart, sats)
       setAvailableBalance(available)
       setAssetBalances(ownedAssets)
       setAvailableAssetBalances(availableAssets)
@@ -620,10 +734,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       if (!hasLoadedOnce.current) {
         hasLoadedOnce.current = true
         setDataReady(true)
+        setBooting(false)
       }
+      prefetchAssetMetadata(swWallet, referenced).catch((err) => consoleError(err, 'Error prefetching asset metadata'))
     } catch (err) {
+      if (!stillThisWallet()) return
       consoleError(err, 'Error reloading wallet')
       if (!hasLoadedOnce.current) {
+        setBooting(false)
         setLoadError('Unable to load wallet data. Check your connection and try again.')
       }
     }
@@ -633,6 +751,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setLoadError(null)
     hasLoadedOnce.current = true
     setDataReady(true)
+    setBooting(false)
   }
 
   const initSvcWorkerWallet = async (params: InitSvcWorkerWalletParams): Promise<boolean> => {
@@ -758,12 +877,22 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // never witness first-hand, so pull them once the wallet is usable.
       // Deliberately not awaited: an unreachable lnurl-server must cost the
       // activity view its attribution, never the wallet its startup.
-      const syncLnurl = async () => {
-        const arkadeAddress = await svcWallet.getAddress()
-        const boardingAddress = await svcWallet.getBoardingAddress().catch(() => undefined)
-        const { synced, failures } = await syncLnurlActivity(identity, arkadeAddress, { boardingAddress, signal })
-        if (failures.length) consoleError(failures, 'lnurl activity sync failed')
-        return synced
+      let lnurlSyncTail = Promise.resolve(0)
+      const syncLnurl = () => {
+        const next = lnurlSyncTail
+          .catch(() => 0)
+          .then(async () => {
+            if (signal.aborted) return 0
+            const arkadeAddress = await svcWallet.getAddress()
+            if (signal.aborted) return 0
+            const boardingAddress = await svcWallet.getBoardingAddress().catch(() => undefined)
+            if (signal.aborted) return 0
+            const { synced, failures } = await syncLnurlActivity(identity, arkadeAddress, { boardingAddress, signal })
+            if (failures.length) consoleError(failures, 'lnurl activity sync failed')
+            return synced
+          })
+        lnurlSyncTail = next
+        return next
       }
       const reloadAfterSync = () => {
         if (!signal.aborted) reloadWallet(svcWallet).catch(consoleError)
@@ -1042,7 +1171,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setAuthState('locked')
     setInitialized(false)
     setDataReady(false)
+    setBooting(true)
     hasLoadedOnce.current = false
+    assetMetadataFailures.current = new Map()
+    assetMetadataFetches.current = new Set()
+    assetMetadataPrefetchRunning.current = null
   }
 
   const resetWallet = async () => {
@@ -1061,6 +1194,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     reloadTimerRef.current = undefined
     removeServiceWorkerMessageHandler()
     forgetLnurlSends()
+    // clearStorage() wipes every key, so contacts and recents go with it.
     await clearStorage()
     // swap records outlive localStorage now: without this a reset leaves the
     // previous wallet's swaps in the activity list. Never fatal — a reset that
@@ -1073,7 +1207,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     await svcWallet.contractRepository.clear()
     openedThisSession.current = false
     setDataReady(false)
+    setBooting(false)
     hasLoadedOnce.current = false
+    assetMetadataFailures.current = new Map()
+    assetMetadataFetches.current = new Set()
+    assetMetadataPrefetchRunning.current = null
   }
 
   const settlePreconfirmed = async () => {
@@ -1130,6 +1268,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         iconApprovalManager,
         isVerifiedAsset,
         dataReady,
+        satsPreview,
+        booting,
         syncing,
         loadError,
         dismissLoadError,
