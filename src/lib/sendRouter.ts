@@ -27,9 +27,10 @@ import {
   lightningRail,
   onchainSwapRail,
   type Outcome,
+  type SwapClient,
   type SwapRailClient,
 } from '@arkade-os/swap'
-import { assetIdOf, marketCorridor, sideLimits, type DiscoveredMarket } from '@arkade-os/solver-discovery'
+import { assetIdOf, marketCorridor, sideLimits, solverId, type DiscoveredMarket } from '@arkade-os/solver-discovery'
 import { createLnurlClient, type LnurlClient } from '@arkade-os/lnurl-client'
 import {
   firstQuote,
@@ -45,6 +46,7 @@ import { prettyNumber } from './format'
 import type { AppIntentState } from './appIntent'
 import type { SendInfo } from '../providers/flow'
 import { defaultFee } from './constants'
+import { quoteProviderMarket } from './paymentQuotes'
 
 export const WALLET_EXIT_RAIL = 'onchain'
 
@@ -114,9 +116,10 @@ export const assetRail = (deps: { assets: Asset[] }): PaymentRail => ({
 export interface SendRouterDeps {
   wallet: IWallet
   /** The driving tab's client; a tab without the Web Lock has none. */
-  client?: SwapRailClient
+  client?: SwapRailClient & Pick<SwapClient, 'quote'>
   /** sat/vB the L1 claim is priced at; it comes out of the recipient's payout. */
   claimFeeRateSatVb?: number
+  onchainRouting?: { network: string; preferredSolverId?: string }
   outputFee?: () => number
   /** The operator's programs, which price each coin the exit spends. */
   intentFee?: () => IntentFeeConfig | undefined
@@ -125,6 +128,42 @@ export interface SendRouterDeps {
   assets?: Asset[]
   lnurl?: LnurlClient
   preferExit?: boolean
+}
+
+function namedOnchainRail(
+  client: NonNullable<SendRouterDeps['client']>,
+  claimFeeRateSatVb: number,
+  { network, preferredSolverId }: NonNullable<SendRouterDeps['onchainRouting']>,
+): PaymentRail {
+  const fees = { claimFeeRateSatVb }
+  return {
+    ...onchainSwapRail(client, fees),
+    async quote(req, ctx) {
+      let provider: { providerName: string; providerId: string } | undefined
+      const scopedClient: SwapRailClient = {
+        resolve: (input) => client.resolve(input),
+        quote: async (input) => {
+          const quote = await (preferredSolverId
+            ? client.quote(input, { solverId: preferredSolverId })
+            : client.quote(input))
+          const market = quoteProviderMarket(quote)
+          if (market) provider = { providerName: market.solver, providerId: solverId(market, network) }
+          if (preferredSolverId && provider?.providerId !== preferredSolverId)
+            throw new Error('The selected provider did not quote this payment')
+          return quote
+        },
+        accept: (quote) => client.accept(quote),
+        onUpdate: (listener) => client.onUpdate(listener),
+      }
+      const priced = await onchainSwapRail(scopedClient, fees).quote(req, ctx)
+      const expiresAt = priced.meta?.expiresAt
+      return {
+        ...priced,
+        ...(typeof expiresAt === 'number' && Number.isSafeInteger(expiresAt) ? { validUntil: expiresAt } : {}),
+        ...(provider ? { meta: { ...priced.meta, ...provider } } : {}),
+      }
+    },
+  }
 }
 
 export const createSendRouter = (deps: SendRouterDeps): PaymentRouter => {
@@ -142,7 +181,12 @@ export const createSendRouter = (deps: SendRouterDeps): PaymentRouter => {
   })
 
   if (deps.client && deps.claimFeeRateSatVb) {
-    router.use(onchainSwapRail(deps.client, { claimFeeRateSatVb: deps.claimFeeRateSatVb }))
+    const { client, claimFeeRateSatVb, onchainRouting } = deps
+    router.use(
+      onchainRouting
+        ? namedOnchainRail(client, claimFeeRateSatVb, onchainRouting)
+        : onchainSwapRail(client, { claimFeeRateSatVb }),
+    )
   }
   if (deps.outputFee) {
     // Refused at wiring rather than dropped: without them an exit underpays or emits a change arkd refuses.

@@ -1,9 +1,12 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { makeHandle } from '@arkade-os/sdk'
+import { makeHandle, type NetworkName } from '@arkade-os/sdk'
+import { btcOn } from '@arkade-os/swap'
 import { PRICING_BUDGET_MS } from '../../../lib/sendRouter'
 import SendDetails from '../../../screens/Wallet/Send/Details'
 import { readAllTransactionActivityMetadata } from '../../../lib/storage'
+import { readOnchainSendPreference, saveOnchainSendPreference } from '../../../lib/openOfferPolicy'
+import { readSolverRouting, saveSolverRouting } from '../../../lib/solverRouting'
 import { InsufficientFundsError } from '../../../lib/asp'
 import { Unit } from '../../../lib/types'
 import { AspContext } from '../../../providers/asp'
@@ -44,9 +47,16 @@ vi.mock('../../../lib/logs', async (importOriginal) => ({
 
 /** Built from the request, as the real router is: the exit rail must pay
  *  whatever address it was asked to, or the last test below proves nothing. */
-let optionsFor: (req: { raw: string; amount?: number }) => unknown[] = () => []
+let optionsFor: (req: { raw: string; amount?: number }, onchainSolverId?: string) => unknown[] = () => []
 /** The router the driving tab hands the screen, stubbed at the context seam. */
-const swaps = { sendRouter: async () => ({ options: async (req: any) => optionsFor(req) }) }
+const onchainPaymentRouteCandidates =
+  vi.fn<(address: string, amount: number) => Promise<{ id: string; name: string }[]>>()
+const swaps = {
+  onchainPaymentRouteCandidates,
+  sendRouter: async ({ onchainSolverId }: { onchainSolverId?: string } = {}) => ({
+    options: async (req: { raw: string; amount?: number }) => optionsFor(req, onchainSolverId),
+  }),
+}
 
 const ADDRESS = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
 const OTHER = 'bcrt1pq6gt72nxevsxk5fwl3h2sx56jeah6qfzh98mksxyakkg5l0q65gsa27khh'
@@ -66,7 +76,7 @@ const settledHandle = (result: any) =>
 
 /** A solver option whose quote is whatever the test says. `send()` records the
  *  call so a refusal is distinguishable from a spend. */
-const solverOption = (quote: { amount: number; total: number }, sent: () => void) => ({
+const solverOption = (quote: { amount: number; total: number; meta?: Record<string, unknown> }, sent: () => void) => ({
   railId: 'onchain-swap',
   quote: async () => ({
     railId: 'onchain-swap',
@@ -196,8 +206,10 @@ const sendFailure = () => consoleError.mock.calls.find((c) => c[1] === 'error se
 
 describe('signing an on-chain send', () => {
   beforeEach(() => {
+    localStorage.clear()
     collaborativeExitWithFees.mockClear()
     consoleError.mockClear()
+    onchainPaymentRouteCandidates.mockReset().mockResolvedValue([])
     optionsFor = () => []
   })
 
@@ -346,6 +358,86 @@ describe('signing an on-chain send', () => {
 
     await waitFor(() => expect(sent).toHaveBeenCalledTimes(1))
     expect(collaborativeExitWithFees).not.toHaveBeenCalled()
+  })
+
+  it('remembers the exit picked in Change route after the wallet funds it', async () => {
+    const network = mockAspContextValue.aspInfo.network
+    const sent = vi.fn()
+    optionsFor = (req) => [solverOption({ amount: 9_500, total: 10_030 }, sent), exitOption(req)]
+    let settleExit!: (txid: string) => void
+    collaborativeExitWithFees.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          settleExit = resolve
+        }),
+    )
+    renderSign({ address: ADDRESS, satoshis: 10_000 })
+
+    const change = await screen.findByRole('button', { name: 'Change route' })
+    expect(screen.queryByRole('checkbox', { name: 'Remember this next time' })).not.toBeInTheDocument()
+    fireEvent.click(change)
+    const picker = within(await screen.findByRole('dialog', { name: 'Change route' }))
+    fireEvent.click(picker.getByRole('checkbox', { name: 'Remember this next time' }))
+    fireEvent.click(picker.getByRole('button', { name: /Collaborative exit/ }))
+    expect(readOnchainSendPreference(network)).toBe('solver')
+
+    await sign()
+    await waitFor(() => expect(collaborativeExitWithFees).toHaveBeenCalledOnce())
+    expect(readOnchainSendPreference(network)).toBe('solver')
+    await act(async () => settleExit('exit-txid'))
+    await waitFor(() => expect(readOnchainSendPreference(network)).toBe('exit'))
+    expect(sent).not.toHaveBeenCalled()
+  })
+
+  it('names the current Bitcoin provider and remembers the selected provider only after funding', async () => {
+    const network = mockAspContextValue.aspInfo.network as NetworkName
+    const direction = JSON.stringify([network, btcOn('arkade', network), btcOn('bitcoin', network)])
+    const original = { providerName: 'Harbor', providerId: 'harbor' }
+    const selected = { providerName: 'My solver', providerId: 'custom' }
+    const originalSent = vi.fn()
+    const selectedSent = vi.fn()
+    const consulted = vi.fn((req: { raw: string; amount?: number }, onchainSolverId?: string) => [
+      onchainSolverId === selected.providerId
+        ? solverOption({ amount: 9_500, total: 10_060, meta: selected }, selectedSent)
+        : solverOption({ amount: 9_500, total: 10_030, meta: original }, originalSent),
+      exitOption(req),
+    ])
+    optionsFor = consulted
+    onchainPaymentRouteCandidates.mockResolvedValue(
+      [original, selected].map(({ providerId, providerName }) => ({
+        id: providerId,
+        name: providerName,
+      })),
+    )
+    saveOnchainSendPreference(network, 'exit')
+    saveSolverRouting(network, direction, { mode: 'cost', priority: [original.providerId] })
+    renderSign({ address: ADDRESS, satoshis: 10_000 }, { config: satsConfig })
+
+    expect(await screen.findByTestId('Solver')).toHaveTextContent(original.providerName)
+    fireEvent.click(screen.getByRole('button', { name: 'Change route' }))
+    expect(screen.queryByText('About these offers')).not.toBeInTheDocument()
+    const picker = within(await screen.findByRole('dialog', { name: 'Change route' }))
+    expect(picker.getByText(original.providerName)).toBeVisible()
+    fireEvent.click(picker.getByRole('checkbox', { name: 'Remember this next time' }))
+    fireEvent.click(await picker.findByRole('button', { name: selected.providerName }))
+
+    expect(await screen.findByTestId('Solver')).toHaveTextContent(selected.providerName)
+    expect(screen.getByTestId('Total')).toHaveTextContent(/10.?060/)
+    expect(consulted).toHaveBeenLastCalledWith({ raw: ADDRESS, amount: 9_500 }, selected.providerId)
+    expect(readOnchainSendPreference(network)).toBe('exit')
+    expect(readSolverRouting(network, direction).preferFirst).toBeUndefined()
+
+    await sign()
+    await waitFor(() =>
+      expect(readSolverRouting(network, direction)).toMatchObject({
+        mode: 'cost',
+        priority: [original.providerId],
+        preferFirst: selected.providerId,
+      }),
+    )
+    expect(readOnchainSendPreference(network)).toBe('solver')
+    expect(originalSent).not.toHaveBeenCalled()
+    expect(selectedSent).toHaveBeenCalledOnce()
   })
 
   it('funds the reviewed quote even if a fresh quote would ask for a higher total', async () => {

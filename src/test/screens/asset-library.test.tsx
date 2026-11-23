@@ -6,6 +6,8 @@ import type { AssetDetails } from '@arkade-os/sdk'
 import AppAssetDetail from '../../screens/Apps/Assets/Detail'
 import AppAssetImport from '../../screens/Apps/Assets/Import'
 import AppAssets from '../../screens/Apps/Assets/Index'
+import AppAssetMintSuccess from '../../screens/Apps/Assets/MintSuccess'
+import AppAssetsSettings from '../../screens/Apps/Assets/Settings'
 import AssetsSection from '../../screens/Wallet/AssetsSection'
 import { MAINNET_DEPIX_ASSET_ID } from '../../lib/accountAssets'
 import type { Config } from '../../lib/types'
@@ -43,6 +45,7 @@ function renderLibrary(
   component: ReactElement,
   options: {
     config?: Partial<Config>
+    balance?: number
     holdings?: { assetId: string; amount: bigint }[]
     registry?: string[]
     cache?: AssetDetails[]
@@ -53,6 +56,7 @@ function renderLibrary(
   const backupAndUpdateConfig = vi.fn()
   const replace = vi.fn()
   const goBack = vi.fn()
+  const navigate = vi.fn()
   const cache = new Map(options.cache?.map((entry) => [entry.assetId, { ...entry, cachedAt: 0 }]))
   const sdkAssets = new Map(
     [asset(custom, 'Northstar Asset', 'STAR'), asset(second, 'Independent Dollar', 'IND')].map((entry) => [
@@ -64,6 +68,7 @@ function renderLibrary(
   const isRegistered = (id: string) => (options.registry ?? []).includes(id)
   const walletValue = {
     ...mockWalletContextValue,
+    balance: options.balance ?? mockWalletContextValue.balance,
     assetBalances: options.holdings ?? [],
     svcWallet: { assetManager: { getAssetDetails } },
     assetMetadataCache: cache,
@@ -82,7 +87,7 @@ function renderLibrary(
       <ConfigContext.Provider value={{ ...mockConfigContextValue, config }}>
         <AssetsContext.Provider value={{ isRegistered, registryAssetIds: options.registry, registryStatus: 'ready' }}>
           <BackupContext.Provider value={{ ...mockBackupContextValue, backupAndUpdateConfig }}>
-            <NavigationContext.Provider value={{ ...mockNavigationContextValue, replace, goBack }}>
+            <NavigationContext.Provider value={{ ...mockNavigationContextValue, replace, goBack, navigate }}>
               <WalletContext.Provider value={walletValue}>
                 <FlowContext.Provider
                   value={{ ...mockFlowContextValue, assetInfo: options.selected ?? mockFlowContextValue.assetInfo }}
@@ -96,7 +101,7 @@ function renderLibrary(
       </ConfigContext.Provider>
     </AspContext.Provider>,
   )
-  return { backupAndUpdateConfig, getAssetDetails, goBack, replace }
+  return { backupAndUpdateConfig, getAssetDetails, goBack, navigate, replace }
 }
 
 describe('asset library', () => {
@@ -116,6 +121,38 @@ describe('asset library', () => {
     expect(within(tracking).queryByText('DePix', { exact: true })).not.toBeInTheDocument()
     expect(screen.queryByText('BRL', { exact: true })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add asset' })).toBeVisible()
+  })
+
+  it('keeps the Assets library free of mint controls when minting is enabled', () => {
+    renderLibrary(<AppAssets />, { config: { apps: { assets: { enabled: true } } } })
+
+    expect(screen.queryAllByRole('button', { name: /mint/i })).toHaveLength(0)
+    expect(screen.queryByText('Advanced', { exact: true })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add asset' })).toBeVisible()
+  })
+
+  it('launches minting from the dedicated screen when enabled and funded', async () => {
+    const user = userEvent.setup()
+    const { navigate } = renderLibrary(<AppAssetsSettings />, {
+      config: { apps: { assets: { enabled: true } } },
+      balance: 1000,
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Mint' }))
+    expect(navigate).toHaveBeenCalledWith(Pages.AppAssetMint)
+  })
+
+  it('opens a minted asset with the library in the back stack', async () => {
+    const user = userEvent.setup()
+    const { navigate, replace } = renderLibrary(<AppAssetMintSuccess />, {
+      selected: asset(custom, 'Northstar Asset', 'STAR'),
+    })
+
+    await user.click(screen.getByRole('button', { name: 'View Asset' }))
+
+    expect(replace).toHaveBeenCalledWith(Pages.AppAssets, Pages.Settings)
+    expect(navigate).toHaveBeenCalledWith(Pages.AppAssetDetail)
+    expect(replace.mock.invocationCallOrder[0]).toBeLessThan(navigate.mock.invocationCallOrder[0])
   })
 
   it('honors Home visibility only for verified IDs, including a pinned zero balance', () => {

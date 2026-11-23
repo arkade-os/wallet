@@ -37,6 +37,7 @@ const ReactSwapsDefault = {
   quoteAssetPayment: vi.fn(),
   quotePaymentRoute: vi.fn(),
   paymentRouteCandidates: vi.fn(),
+  onchainPaymentRouteCandidates: vi.fn(),
   acceptPay: vi.fn(),
   acceptPaymentQuote: vi.fn(),
   receiveLightning: vi.fn(),

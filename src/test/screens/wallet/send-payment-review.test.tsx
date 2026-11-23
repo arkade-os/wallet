@@ -80,6 +80,7 @@ const lightningQuote = (id: string, total: number, route = harbor): Quote => ({
 const quotePaymentRoute = vi.fn<(request: PaymentQuoteRequest, solverId?: string) => Promise<Quote>>()
 const sendRouter = vi.fn()
 const paymentRouteCandidates = vi.fn<() => Promise<{ id: string; name: string }[]>>()
+const onchainPaymentRouteCandidates = vi.fn().mockResolvedValue([])
 const openPaymentQuotes = vi.fn<() => Promise<OpenRfqAuction>>()
 const chooseSwapQuote = vi.fn<() => Promise<Quote>>()
 const acceptPaymentQuote = vi.fn()
@@ -110,6 +111,7 @@ const review = (info: SendInfo = sendInfo) => (
                     {
                       quotePaymentRoute,
                       paymentRouteCandidates,
+                      onchainPaymentRouteCandidates,
                       openPaymentQuotes,
                       chooseSwapQuote,
                       acceptPaymentQuote,
@@ -203,16 +205,17 @@ describe('reviewing a solver payment', () => {
     render(review())
 
     expect(await screen.findByTestId('Total')).toHaveTextContent('2,110')
+    expect(screen.queryByRole('checkbox', { name: 'Remember this next time' })).toBeNull()
     fireEvent.click(button('Change route'))
     const routes = await screen.findByRole('dialog', { name: 'Change route' })
     expect(within(routes).getByRole('button', { name: 'Find open offers' })).toBeVisible()
     expect(openPaymentQuotes).not.toHaveBeenCalled()
+    fireEvent.click(within(routes).getByRole('checkbox', { name: 'Remember this next time' }))
     fireEvent.click(within(routes).getByRole('button', { name: bay.solver }))
 
     await waitFor(() => expect(screen.getByTestId('Total')).toHaveTextContent('2,150'))
     expect(quotePaymentRoute).toHaveBeenLastCalledWith(lightningRequest, bayId)
     expect(acceptPaymentQuote).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Remember this next time' }))
     expect(readSolverRouting(network, direction).preferFirst).toBeUndefined()
     fireEvent.click(pay())
 

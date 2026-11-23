@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { DiscoveredMarket } from '@arkade-os/solver-discovery'
+import { solverId, type DiscoveredMarket } from '@arkade-os/solver-discovery'
 import { makeHandle, type PaymentHandle } from '@arkade-os/sdk'
 import { createLnurlClient } from '@arkade-os/lnurl-client'
 import { ONCHAIN_SWAP_RAIL, claimFeeSats, type SwapRailClient } from '@arkade-os/swap'
@@ -183,6 +183,58 @@ describe('the send router replaces the refusal enum with ranking', () => {
 
   it('registers no solver rail without a claim fee rate — it would quote a fee it does not charge', async () => {
     expect(await railIds(router({ claimFeeRateSatVb: undefined }))).toEqual([WALLET_EXIT_RAIL])
+  })
+})
+
+describe('on-chain solver selection', () => {
+  const network = 'regtest'
+  const provider = { solver: 'Harbor', source: 'registry', sourceType: 'registry' as const }
+  const providerId = solverId(provider, network)
+  const namedQuote = () =>
+    vi.fn(async ({ amount = 0n }: { amount?: bigint }) => ({
+      id: 'quote-1',
+      expiresAt: Math.floor(Date.now() / 1000) + 60,
+      market: { ...provider, kind: 'card', key: 'market-1' },
+      give: { amount: amount + SPREAD },
+      take: { amount },
+      fee: { amount: SPREAD },
+    }))
+
+  it.each([false, true])('discloses the actual provider with a manual pick: %s', async (manual) => {
+    const quote = namedQuote()
+    const client = fakeClient({ quote: quote as never, outcome: 'claimed' })
+    const preferredSolverId = manual ? providerId : undefined
+    const options = await router({ client, onchainRouting: { network, preferredSolverId } }).options({
+      raw: RECIPIENT,
+      amount: 50_000,
+    })
+    const prepared = await options[0].quote()
+    expect(quote).toHaveBeenCalledExactlyOnceWith(
+      { to: RECIPIENT, amount: 50_000n + CLAIM_FEE, amountOn: 'take' },
+      ...(manual ? [{ solverId: providerId }] : []),
+    )
+    const firm = await quote.mock.results[0].value
+    expect(prepared).toMatchObject({
+      railId: ONCHAIN_SWAP_RAIL,
+      amount: 50_000,
+      validUntil: firm.expiresAt,
+      meta: { providerName: 'Harbor', providerId },
+    })
+    expect(accept).not.toHaveBeenCalled()
+    await (await prepared.send()).settled()
+    expect(accept).toHaveBeenCalledExactlyOnceWith(firm)
+  })
+
+  it('refuses a quote from a provider other than the one the user picked', async () => {
+    const quote = namedQuote()
+    const preferredSolverId = solverId({ ...provider, solver: 'Different provider' }, network)
+    const options = await router({
+      client: fakeClient({ quote: quote as never }),
+      onchainRouting: { network, preferredSolverId },
+    }).options({ raw: RECIPIENT, amount: 50_000 })
+
+    await expect(options[0].quote()).rejects.toThrow('The selected provider did not quote this payment')
+    expect(accept).not.toHaveBeenCalled()
   })
 })
 

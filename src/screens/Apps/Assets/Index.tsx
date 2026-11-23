@@ -3,7 +3,6 @@ import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
 import Header from '../../../components/Header'
 import Padded from '../../../components/Padded'
-import Text from '../../../components/Text'
 import Button from '../../../components/Button'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../../providers/navigation'
@@ -11,9 +10,7 @@ import { WalletContext } from '../../../providers/wallet'
 import { ConfigContext } from '../../../providers/config'
 import { FlowContext } from '../../../providers/flow'
 import { consoleError } from '../../../lib/logs'
-import { SettingsIconLight } from '../../../icons/Settings'
 import { EmptyAssetsList } from '../../../components/Empty'
-import { AspContext } from '../../../providers/asp'
 import AssetCard from '../../../components/AssetCard'
 import { truncatedAssetId } from '../../../lib/assets'
 import { normalizeAssetId, trackedAssetIds } from '../../../lib/assetLibrary'
@@ -25,7 +22,6 @@ export default function AppAssets() {
   const { assetBalances, balance, svcWallet, assetMetadataCache, setCacheEntry } = useContext(WalletContext)
   const { config } = useContext(ConfigContext)
   const { setAssetInfo } = useContext(FlowContext)
-  const { aspInfo } = useContext(AspContext)
   const { t } = useTranslation()
   const [loading, setLoading] = useState(false)
 
@@ -87,13 +83,7 @@ export default function AppAssets() {
 
   return (
     <>
-      <Header
-        text={t('assets.title')}
-        back
-        auxAriaLabel={t('mint.settingsTitle')}
-        auxFunc={() => navigate(Pages.AppAssetsSettings)}
-        auxIcon={<SettingsIconLight />}
-      />
+      <Header text={t('assets.title')} back />
       <Content>
         <Padded>
           <FlexCol>
@@ -121,28 +111,6 @@ export default function AppAssets() {
               </section>
             ) : null}
             {balance === 0 && owned.length === 0 && watching.length === 0 ? <EmptyAssetsList /> : null}
-            <details>
-              <summary className='min-h-11 cursor-pointer content-center text-sm text-muted-foreground'>
-                {t('assets.advanced')}
-              </summary>
-              {config.apps.assets.enabled ? (
-                <Button
-                  label={t('mint.mint')}
-                  onClick={() => navigate(Pages.AppAssetMint)}
-                  disabled={balance < aspInfo.dust}
-                  secondary
-                />
-              ) : (
-                <FlexCol gap='0.5rem'>
-                  <Text color='neutral-500'>{t('mint.arkadeMintDisabled')}</Text>
-                  <Button
-                    label={t('mint.enableArkadeMint')}
-                    onClick={() => navigate(Pages.AppAssetsSettings)}
-                    secondary
-                  />
-                </FlexCol>
-              )}
-            </details>
           </FlexCol>
         </Padded>
       </Content>

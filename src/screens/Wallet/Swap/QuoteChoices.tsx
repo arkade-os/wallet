@@ -332,12 +332,14 @@ export default function QuoteChoices({
               {error}
             </p>
           ) : null}
-          <details className='text-xs text-muted-foreground'>
-            <summary className='min-h-11 cursor-pointer rounded py-3 focus-visible:outline-2 focus-visible:outline-primary'>
-              {t('swap.aboutOffers')}
-            </summary>
-            <p className='pt-1 leading-relaxed'>{t('swap.openOffersDisclosure')}</p>
-          </details>
+          {allowOpenOffers ? (
+            <details className='text-xs text-muted-foreground'>
+              <summary className='min-h-11 cursor-pointer rounded py-3 focus-visible:outline-2 focus-visible:outline-primary'>
+                {t('swap.aboutOffers')}
+              </summary>
+              <p className='pt-1 leading-relaxed'>{t('swap.openOffersDisclosure')}</p>
+            </details>
+          ) : null}
         </div>
       </DrawerContent>
     </Drawer>

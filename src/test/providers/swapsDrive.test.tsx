@@ -2,7 +2,14 @@ import { useContext, useState } from 'react'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { OpenRfqAuction, Outcome, Quote, Swap, SwapUpdate } from '@arkade-os/swap'
+import {
+  claimFeeSats,
+  type OpenRfqAuction,
+  type Outcome,
+  type Quote,
+  type Swap,
+  type SwapUpdate,
+} from '@arkade-os/swap'
 import { AspContext } from '../../providers/asp'
 import { WalletContext } from '../../providers/wallet'
 import { SwapsContext, SwapsProvider } from '../../providers/swaps'
@@ -29,6 +36,7 @@ const ready = vi.hoisted(() => vi.fn())
 const dispose = vi.hoisted(() => vi.fn())
 const accept = vi.hoisted(() => vi.fn())
 const clientQuote = vi.hoisted(() => vi.fn())
+const clientCandidates = vi.hoisted(() => vi.fn())
 const openRfq = vi.hoisted(() => vi.fn())
 const quoteBid = vi.hoisted(() => vi.fn())
 const offboard = vi.hoisted(() => vi.fn())
@@ -48,6 +56,7 @@ vi.mock('../../lib/swapClient', async (importOriginal) => ({
     accept,
     cancel: vi.fn(),
     quote: clientQuote,
+    candidates: clientCandidates,
     openRfq,
     quoteBid,
     receive,
@@ -91,6 +100,7 @@ vi.mock('../../lib/swapMarkets', async (importOriginal) => ({
 const SWAP_ID = 'rfq:quote-1'
 /** A swept offer's id, as the wallet's swap list carries it. */
 const OFFER_ID = 'funding-txid'
+const RECIPIENT = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
 
 /** A negotiated payment, reduced to what `acceptPay` hands the client. */
 const quote = { id: 'quote-1' } as unknown as Quote
@@ -127,6 +137,7 @@ function Harness({ tab = 'a' }: { tab?: string }) {
     outcomeOf,
     errorOf,
     sendRouter,
+    onchainPaymentRouteCandidates,
     openSwapQuotes,
     chooseSwapQuote,
     acceptSwapQuote,
@@ -136,6 +147,7 @@ function Harness({ tab = 'a' }: { tab?: string }) {
   const [routed, setRouted] = useState('')
   const [recovered, setRecovered] = useState('')
   const [router, setRouter] = useState('')
+  const [providers, setProviders] = useState('')
   const [auction, setAuction] = useState<OpenRfqAuction>()
   const [chosen, setChosen] = useState<Quote>()
   const [accepted, setAccepted] = useState('')
@@ -183,6 +195,13 @@ function Harness({ tab = 'a' }: { tab?: string }) {
       >{`Router ${tab}`}</button>
       <button
         onClick={() =>
+          onchainPaymentRouteCandidates(RECIPIENT, 5_000)
+            .then((choices) => setProviders(choices.map(({ name }) => name).join(',')))
+            .catch((err: Error) => setRejected(err.name))
+        }
+      >{`Bitcoin providers ${tab}`}</button>
+      <button
+        onClick={() =>
           receiveLightning(1000)
             .then((accepted) => setInvoice(accepted.invoice))
             .catch((err: Error) => setRejected(err.name))
@@ -201,6 +220,7 @@ function Harness({ tab = 'a' }: { tab?: string }) {
       <span data-testid='invoice'>{invoice || 'none'}</span>
       <span data-testid='recovered'>{recovered || 'none'}</span>
       <span data-testid='router'>{router || 'none'}</span>
+      <span data-testid='providers'>{providers || 'none'}</span>
     </div>
   )
 }
@@ -310,6 +330,7 @@ beforeEach(() => {
   dispose.mockReset().mockResolvedValue(undefined)
   accept.mockReset().mockResolvedValue(monitored('funded'))
   clientQuote.mockReset()
+  clientCandidates.mockReset().mockResolvedValue([])
   openRfq.mockReset()
   quoteBid.mockReset()
   claimFeeRate.mockReset().mockResolvedValue(2)
@@ -414,6 +435,29 @@ describe('SwapsProvider single-driver rule', () => {
     expect(deps.client).toBe(client)
     expect(deps.claimFeeRateSatVb).toBe(7)
     expect(deps.outputFee?.()).toBe(100)
+  })
+
+  it('lists unique onchain RFQ providers at the payout plus the claim fee without requesting a quote', async () => {
+    claimFeeRate.mockResolvedValue(7)
+    const rfqProvider = (solverId: string, solver: string) => ({ solverId, backend: 'rfq', card: { solver } })
+    clientCandidates.mockResolvedValue([
+      rfqProvider('harbor', 'Harbor'),
+      rfqProvider('harbor', 'Harbor'),
+      { solverId: 'other', backend: 'offer', card: { solver: 'Other' } },
+      rfqProvider('bay', 'Bay'),
+    ])
+    renderProvider()
+    await waitFor(() => expect(reloadWallet).toHaveBeenCalled())
+    await userEvent.click(screen.getByText('Bitcoin providers a'))
+
+    await waitFor(() => expect(screen.getByTestId('providers')).toHaveTextContent('Harbor,Bay'))
+    expect(clientCandidates).toHaveBeenCalledExactlyOnceWith({
+      to: RECIPIENT,
+      amountOn: 'take',
+      amount: 5_000n + claimFeeSats({ claimFeeRateSatVb: 7 }),
+    })
+    expect(clientQuote).not.toHaveBeenCalled()
+    expect(accept).not.toHaveBeenCalled()
   })
 
   it('refuses a follower send router without quoting, accepting or offboarding', async () => {

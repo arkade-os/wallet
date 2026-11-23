@@ -45,13 +45,21 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { asset, type Asset, type IntentFeeConfig, type NetworkName, type PaymentRouter } from '@arkade-os/sdk'
+import {
+  asset,
+  btcTarget,
+  type Asset,
+  type IntentFeeConfig,
+  type NetworkName,
+  type PaymentRouter,
+} from '@arkade-os/sdk'
 import { generateSecretKey } from 'nostr-tools'
-import { BTC_ASSET_ID, findMarket } from '@arkade-os/swap/protocol'
+import { BTC_ASSET_ID, findMarket, ONCHAIN_DUST_SATS } from '@arkade-os/swap/protocol'
 import {
   arkadeAsset,
   assetSwapIdOf,
   btcOn,
+  claimFeeSats,
   isSwapError,
   type AssetId,
   type AssetSwapId,
@@ -167,6 +175,7 @@ interface SwapsContextProps {
   quoteAssetPayment: (request: AssetPaymentRequest) => Promise<Quote>
   quotePaymentRoute: (request: PaymentQuoteRequest, solverId?: string) => Promise<Quote>
   paymentRouteCandidates: (request: PaymentQuoteRequest) => Promise<{ id: string; name: string }[]>
+  onchainPaymentRouteCandidates: (address: string, amount: number) => Promise<{ id: string; name: string }[]>
   acceptPaymentQuote: (quote: Quote, request: PaymentQuoteRequest, reviewId?: string) => Promise<Swap>
   cancelSwap: (id: string) => Promise<void>
   /** Run a recovery round for a swept offer deposit. Resolves with whether THIS
@@ -190,6 +199,7 @@ interface SwapsContextProps {
     assets?: Asset[]
     swapsOptional?: boolean
     exitOnly?: boolean
+    onchainSolverId?: string
   }) => Promise<PaymentRouter>
   /** Where a driven swap stands, or undefined when it is not monitored. */
   outcomeOf: (id: string) => Outcome | undefined
@@ -219,6 +229,7 @@ export const SwapsContext = createContext<SwapsContextProps>({
   quoteAssetPayment: notInitialized,
   quotePaymentRoute: notInitialized,
   paymentRouteCandidates: notInitialized,
+  onchainPaymentRouteCandidates: notInitialized,
   acceptPaymentQuote: notInitialized,
   cancelSwap: notInitialized,
   recoverSwap: notInitialized,
@@ -984,11 +995,30 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const paymentRouteCandidates = (request: PaymentQuoteRequest): Promise<{ id: string; name: string }[]> =>
     runOnDriver('paymentRouteCandidates', [request])
 
-  const paymentRouteCandidatesHere = async (request: PaymentQuoteRequest) => {
-    const client = await driving()
-    const candidates = await client.candidates(paymentQuoteInput(request, aspInfo.network as NetworkName))
+  const routeCandidates = async (client: SwapClient, input: QuoteInput) => {
+    const candidates = await client.candidates(input)
     const ranked = candidates.filter(({ backend }) => backend === 'rfq')
     return [...new Map(ranked.map(({ solverId: id, card }) => [id, { id, name: card.solver }])).values()]
+  }
+
+  const paymentRouteCandidatesHere = async (request: PaymentQuoteRequest) =>
+    routeCandidates(await driving(), paymentQuoteInput(request, aspInfo.network as NetworkName))
+
+  const onchainPaymentRouteCandidates = async (address: string, amount: number) => {
+    const to = btcTarget(address)
+    const issuer = held.current
+    if (!to || !Number.isSafeInteger(amount) || BigInt(amount) < ONCHAIN_DUST_SATS || !issuer) return []
+    const [client, claimFeeRateSatVb] = await Promise.all([
+      issuer,
+      claimFeeRate(onchainClaimEndpoint(aspInfo.network as NetworkName)),
+    ])
+    if (!claimFeeRateSatVb || held.current !== issuer) return []
+    const candidates = await routeCandidates(client, {
+      to,
+      amount: BigInt(amount) + claimFeeSats({ claimFeeRateSatVb }),
+      amountOn: 'take',
+    })
+    return held.current === issuer ? candidates : []
   }
 
   const quotePaymentRouteHere = async (request: PaymentQuoteRequest, preferredId?: string): Promise<Quote> => {
@@ -1273,16 +1303,11 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
   /** The fee rate is read per router, not pinned: the solver rail grosses the
    *  take leg up by it, so a stale one short-pays the recipient. */
-  const sendRouter = async ({
+  const sendRouter: SwapsContextProps['sendRouter'] = async ({
     swapsOptional,
     exitOnly,
+    onchainSolverId,
     ...deps
-  }: {
-    outputFee?: () => number
-    intentFee?: () => IntentFeeConfig | undefined
-    assets?: Asset[]
-    swapsOptional?: boolean
-    exitOnly?: boolean
   } = {}): Promise<PaymentRouter> => {
     if (exitOnly) return createSendRouter({ wallet: svcWallet!, dust: () => Number(aspInfo.dust), ...deps })
     if (!held.current && granted.current) {
@@ -1302,6 +1327,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       wallet: svcWallet!,
       client,
       claimFeeRateSatVb,
+      onchainRouting: { network: aspInfo.network, preferredSolverId: onchainSolverId },
       dust: () => Number(aspInfo.dust),
       preferExit: readOnchainSendPreference(aspInfo.network) === 'exit',
       ...deps,
@@ -1340,6 +1366,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       quoteAssetPayment,
       quotePaymentRoute,
       paymentRouteCandidates,
+      onchainPaymentRouteCandidates,
       acceptPaymentQuote,
       cancelSwap,
       recoverSwap,

@@ -17,10 +17,14 @@ const assetPages = new Set([
   Pages.AppAssets,
   Pages.AppAssetDetail,
   Pages.AppAssetImport,
-  Pages.AppAssetMint,
-  Pages.AppAssetMintSuccess,
   Pages.AppAssetReissue,
   Pages.AppAssetBurn,
+])
+const settingsPages = new Set([
+  Pages.Settings,
+  Pages.Vtxos,
+  Pages.AppAssetMint,
+  Pages.AppAssetMintSuccess,
   Pages.AppAssetsSettings,
 ])
 
@@ -39,7 +43,7 @@ export default function DesktopWalletShell({ logoVisible, page }: DesktopWalletS
   const { t } = useTranslation()
 
   const activityActive = page === Pages.Activity || page === Pages.Transaction
-  const settingsActive = page === Pages.Settings || page === Pages.Vtxos
+  const settingsActive = settingsPages.has(page)
   const assetsActive = assetPages.has(page)
   const homeActive = !assetsActive && !activityActive && !settingsActive
 

@@ -18,6 +18,8 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
 
 ## Recovering an asset mint
 
+Open **Settings → Advanced → Arkade Mint** to enable minting or resume a previous mint.
+
 Minting with a new control asset requires two separate issuances. The wallet saves a local recovery record before
 submitting each one and imports the control asset as soon as its issuance is known. If the control asset is not yet
 spendable, the wait ends after 60 seconds; return to the mint screen and resume the original mint without issuing
@@ -230,6 +232,8 @@ Switch off a card to pause it across all directions, or switch off a solver in a
 Choose **Try first** on a provider row to prioritize it when it can quote. Other providers follow the pair's selected order. **Clear** returns the preferred provider to the regular order. A missing or paused first choice stays saved and eligible fallbacks can still quote.
 
 For BTC from Arkade to Bitcoin, **First payment method** lets you try a saved solver route or collaborative exit first when both paths are available. Provider ordering applies within the solver route. The solver's recipient amount is an estimate because the claim fee can change. A Bitcoin URI with a fixed amount uses the collaborative exit to pay that exact amount. Lightning receive uses the wallet's LNURL server.
+
+On the send review, **Change route** shows the current provider and other eligible saved providers. For an address-only Bitcoin send it also offers collaborative exit. Tick **Remember this next time** in the picker before choosing a route to save that choice after funding.
 
 **Open offers** starts at **Ask first**. Choose **When needed** to allow public searches when a compatible saved route cannot quote or **Off** to disable them. Public searches share the pair and amount.
 

@@ -21,7 +21,7 @@ export default function Menu({ rows, styled }: MenuProps) {
   const selectOption = (option: SettingsOptions) => {
     hapticSubtle()
     if (option === SettingsOptions.ArkadeMint) {
-      navigate(Pages.AppAssets)
+      navigate(Pages.AppAssetsSettings)
       return
     }
     setOption(option)
