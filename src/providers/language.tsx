@@ -47,6 +47,7 @@ export function useTranslation() {
 
 export const SETTINGS_OPTION_KEY: Record<SettingsOptions, string> = {
   [SettingsOptions.Menu]: 'settings.title',
+  [SettingsOptions.Contacts]: 'contacts.title',
   [SettingsOptions.About]: 'settings.about',
   [SettingsOptions.Advanced]: 'settings.advanced',
   [SettingsOptions.ArkadeMint]: 'settings.arkadeMint',

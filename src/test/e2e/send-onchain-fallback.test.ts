@@ -8,7 +8,7 @@ import { test, expect, createWallet, fundWallet, prePay } from './utils'
  *  test pins a card that really advertises `arkade:BTC -> onchain:BTC` and asserts
  *  the refusal it provoked: two failing alike would be one test twice. */
 const RFQ_KIND = 24859
-const RELAY = 'ws://localhost:10547'
+const RELAY = 'ws://localhost:7777'
 /** On-curve and nobody's: an off-curve key fails at decompression, before any relay is dialled. */
 const SOLVER = '79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798'
 const RECIPIENT = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
@@ -112,7 +112,7 @@ test.describe('on-chain send when the solver rail fails', () => {
   test('pays through the collaborative exit when the solver never answers', async ({ page, isMobile }) => {
     test.setTimeout(180_000)
     await silentSolver(async (delivered) => {
-      await pinSolver(page, ['wss://localhost:10548'])
+      await pinSolver(page, ['ws://localhost:7777'])
       await fundedWalletOnDetails(page, isMobile)
 
       await page.getByText('Tap to Sign').click()
@@ -145,7 +145,7 @@ test.describe('on-chain send when the solver rail fails', () => {
   test('completes the send the user walked away from, without hijacking the screen', async ({ page, isMobile }) => {
     test.setTimeout(180_000)
     await silentSolver(async () => {
-      await pinSolver(page, ['wss://localhost:10548'])
+      await pinSolver(page, ['ws://localhost:7777'])
       await fundedWalletOnDetails(page, isMobile)
 
       await page.getByText('Tap to Sign').click()

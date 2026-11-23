@@ -7,6 +7,7 @@ import SwapComingSoonSheet from '../../components/SwapComingSoonSheet'
 import { SwapsContext } from '../../providers/swaps'
 import { emptyRecvInfo, emptySendInfo, FlowContext } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
+import { WalletContext } from '../../providers/wallet'
 import { hapticLight } from '../../lib/haptics'
 import { useTranslation } from '../../providers/language'
 
@@ -20,6 +21,8 @@ interface HomeAction {
 
 export default function HomeQuickActions() {
   const { navigate } = useContext(NavigationContext)
+  const { booting, dataReady } = useContext(WalletContext)
+  const homeBusy = Boolean(booting) && !dataReady
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { swapAvailable } = useContext(SwapsContext)
   const [swapSheetOpen, setSwapSheetOpen] = useState(false)
@@ -34,6 +37,7 @@ export default function HomeQuickActions() {
         navigate(Pages.ReceiveQRCode)
       },
       testId: 'home-action-receive',
+      disabled: homeBusy,
     },
     {
       icon: <SendIcon />,
@@ -43,6 +47,7 @@ export default function HomeQuickActions() {
         navigate(Pages.SendForm)
       },
       testId: 'home-action-send',
+      disabled: homeBusy,
     },
     {
       icon: <SwapIcon />,
@@ -52,6 +57,7 @@ export default function HomeQuickActions() {
         else setSwapSheetOpen(true)
       },
       testId: 'home-action-swap',
+      disabled: homeBusy,
     },
     {
       icon: <ScanIcon />,
@@ -60,6 +66,7 @@ export default function HomeQuickActions() {
         navigate(Pages.WalletScan)
       },
       testId: 'home-action-scan',
+      disabled: homeBusy,
     },
   ]
 

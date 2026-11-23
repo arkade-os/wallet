@@ -24,11 +24,14 @@ import Contracts from './Contracts'
 import Solvers from './Solvers'
 import LanguageSettings from './Language'
 import Lnurl from './Lnurl'
+import Contacts from './Contacts'
 
 function settingsContent(option: SettingsOptions): JSX.Element {
   switch (option) {
     case SettingsOptions.Menu:
       return <SettingsMenu />
+    case SettingsOptions.Contacts:
+      return <Contacts />
     case SettingsOptions.About:
       return <About />
     case SettingsOptions.Advanced:

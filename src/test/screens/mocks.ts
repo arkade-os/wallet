@@ -54,6 +54,16 @@ export const mockAspContextValue = {
   setAspInfo: () => {},
 }
 
+export const mockBackupContextValue = {
+  backupConfig: () => Promise.resolve(),
+  backupContacts: () => Promise.resolve(),
+  backupSolverCards: () => Promise.resolve(),
+  backupAndUpdateConfig: () => Promise.resolve(),
+  fullBackup: () => Promise.resolve(),
+  restore: () => Promise.resolve(),
+  initialiseNostrBackup: () => {},
+}
+
 export const mockConfigContextValue = {
   config: {
     announcementsSeen: [],
@@ -237,13 +247,3 @@ export const mockSvcWallet = {
   getStatus: undefined,
   reload: undefined,
 }
-
-/** A wallet that answers the receive addresses a test pre-fills in `recvInfo`, since Receive reads them on every mount. */
-export const svcWalletWithAddresses = <T extends object>(
-  base: T,
-  { offchainAddr, boardingAddr }: { offchainAddr: string; boardingAddr: string },
-) => ({
-  ...base,
-  getAddress: () => Promise.resolve(offchainAddr),
-  getBoardingAddress: () => Promise.resolve(boardingAddr),
-})

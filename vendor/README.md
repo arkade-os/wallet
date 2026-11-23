@@ -5,12 +5,12 @@ integration needs (`registerBoarding`, `registerRenewal`). `pnpm-workspace.yaml`
 overrides both packages with these tarballs.
 
 Packed from [arkade-os/ts-sdk](https://github.com/arkade-os/ts-sdk) at
-`35606a09` (branch `feat/non-interactive-boarding`):
+`8d00ae62` (branch `feat/non-interactive-boarding`):
 
 | File                        | Package                  |
 | --------------------------- | ------------------------ |
 | `arkade-os-sdk-0.5.11.tgz`  | `@arkade-os/sdk` 0.5.11  |
-| `arkade-os-swap-0.1.11.tgz` | `@arkade-os/swap` 0.1.11 |
+| `arkade-os-swap-0.1.13.tgz` | `@arkade-os/swap` 0.1.13 |
 
 To refresh, from a ts-sdk checkout next to this repository:
 
