@@ -130,6 +130,7 @@ export default function SendDetails() {
   const firmFee = firm && firm.fee.asset === firm.give.asset ? Number(firm.fee.amount) : undefined
   const enableDiscovery = Boolean(firmRequest && openOfferPolicy !== 'off')
   const automaticFallback = enableDiscovery && openOfferPolicy === 'when-needed' && review.quoteError === 'no-provider'
+  const showSavedQuoteReview = !automaticFallback && !(enableDiscovery && routePicker)
 
   useEffect(() => {
     automaticDiscovery.current = false
@@ -646,13 +647,13 @@ export default function SendDetails() {
   )
   const statusMessage = firmRequest
     ? error ||
-      (review.loading
+      (review.loading || !showSavedQuoteReview
         ? ''
         : review.expired || review.quoteError === 'expired'
           ? t('swap.offerExpired')
           : review.quoteError === 'unverified'
             ? t('send.paymentQuoteUnverified')
-            : review.quoteError === 'unavailable' || (review.quoteError === 'no-provider' && !automaticFallback)
+            : review.quoteError === 'unavailable' || review.quoteError === 'no-provider'
               ? t('send.noPaymentQuote')
               : firmTotal !== undefined && firmTotal > availableBalance
                 ? t('send.insufficientFunds')
@@ -758,7 +759,7 @@ export default function SendDetails() {
       <ButtonsOnBottom>
         {sending ? null : firmRequest ? (
           <>
-            {automaticFallback ? null : (
+            {showSavedQuoteReview ? (
               <Button
                 onClick={handleContinue}
                 label={
@@ -768,8 +769,8 @@ export default function SendDetails() {
                 }
                 disabled={!verifiedQuoteReady || Boolean(error) || commitStarted.current}
               />
-            )}
-            {!automaticFallback &&
+            ) : null}
+            {showSavedQuoteReview &&
             !pricing &&
             !review.loading &&
             !commitStarted.current &&

@@ -227,16 +227,19 @@ describe('reviewing a solver payment', () => {
   it('keeps Pay disabled when saved routing fails and asks before publishing an open offer request', async () => {
     saveOpenOfferPolicy(network, 'ask')
     quotePaymentRoute.mockRejectedValue(noProvider())
-    openPaymentQuotes.mockResolvedValue({
+    let finishAuction!: (auction: OpenRfqAuction) => void
+    openPaymentQuotes.mockReturnValueOnce(new Promise<OpenRfqAuction>((resolve) => (finishAuction = resolve)))
+    const emptyAuction = {
       id: 'auction',
       input: { to: invoice },
       pair: direction,
       closedAt: now,
       bids: [],
-    })
+    }
     render(review())
 
     expect(await screen.findByText('No provider could quote this payment.')).toBeVisible()
+    expect(button('Refresh quote')).toBeEnabled()
     expect(pay()).toBeDisabled()
     expect(screen.getByText('Searching shares your pair and amount publicly.')).toBeVisible()
     fireEvent.click(pay())
@@ -244,10 +247,18 @@ describe('reviewing a solver payment', () => {
     expect(acceptPaymentQuote).not.toHaveBeenCalled()
 
     fireEvent.click(button('Find open offers'))
-    expect(await screen.findByRole('region', { name: 'Open offers' })).toBeVisible()
+    const offers = within(await screen.findByRole('region', { name: 'Open offers' }))
+    expect(offers.getByRole('status')).toHaveTextContent('Waiting for solver offers')
     await waitFor(() =>
       expect(openPaymentQuotes).toHaveBeenCalledExactlyOnceWith(lightningRequest, expect.any(String), true),
     )
+    expect(screen.queryByText('No provider could quote this payment.')).toBeNull()
+    expect(screen.queryByText('Refresh quote')).toBeNull()
+    await act(async () => finishAuction(emptyAuction))
+    expect(offers.getByRole('status')).toHaveTextContent('No open offers arrived')
+    expect(screen.queryByText('No provider could quote this payment.')).toBeNull()
+    expect(screen.queryByText('Refresh quote')).toBeNull()
+    expect(acceptPaymentQuote).not.toHaveBeenCalled()
   })
 
   it('quotes the chosen saved provider, displays its total, and remembers it only after payment', async () => {
