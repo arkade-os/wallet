@@ -80,7 +80,7 @@ export default function InitConnect() {
       <Header text={t('init.connectingToServer')} />
       <Content>
         <LoadingLogo
-          text={loadingStatus || t('init.connectingToServerStatus')}
+          text={loadingStatus || t('init.connectingToServer')}
           exitMode={connectDone ? 'fly-up' : 'none'}
           onExitComplete={handleExitComplete}
           done={connectDone}

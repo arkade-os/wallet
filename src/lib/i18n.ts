@@ -264,7 +264,6 @@ export const translations = {
       biometricsDescription:
         'This will allow you to log in easily through biometrics without a need to remember the password.',
       connectingToServer: 'Connecting to server',
-      connectingToServerStatus: 'Connecting to server',
       connectionFailed: 'Connection failed',
       createNewWallet: 'Create new wallet',
       createPasskey: 'Create passkey',
@@ -1252,7 +1251,6 @@ export const translations = {
       biometricsDescription:
         'Esto te permitirá iniciar sesión fácilmente con datos biométricos sin necesidad de recordar la contraseña.',
       connectingToServer: 'Conectando al servidor',
-      connectingToServerStatus: 'Conectando al servidor',
       connectionFailed: 'Conexión fallida',
       createNewWallet: 'Crear nueva wallet',
       createPasskey: 'Crear passkey',
@@ -2249,7 +2247,6 @@ export const translations = {
       biometricsDescription:
         'Isso permitirá que você entre facilmente usando dados biométricos, sem precisar lembrar a senha.',
       connectingToServer: 'Conectando ao servidor',
-      connectingToServerStatus: 'Conectando ao servidor',
       connectionFailed: 'Falha na conexão',
       createNewWallet: 'Criar nova carteira',
       createPasskey: 'Criar chave de acesso',
