@@ -508,7 +508,7 @@ export default function WalletSwap() {
       ),
   )
   const searchOpenByDefault = Boolean(
-    openOfferPolicy !== 'off' &&
+    openOfferPolicy === 'when-needed' &&
       canViewQuotes &&
       (openOffersFirst || (discoveryReady && (!hasSavedSolver || (currentPlan && solvable === false)))),
   )

@@ -906,6 +906,36 @@ describe('Wallet swap flow', () => {
     }
   })
 
+  it('waits for Find open offers when the open-offer policy is Ask first', async () => {
+    const network = 'mutinynet'
+    const direction = solverDirectionKey(btcUsdt, 'base', network)
+    const previousPolicy = readOpenOfferPolicy(network)
+    const openSwapQuotes = vi.fn().mockResolvedValue({ id: 'ask-first', bids: [] })
+    saveOpenOfferPolicy(network, 'ask')
+    saveOpenOffersFirst(network, direction, true)
+    const view = renderSwap({
+      config: { currency: Currencies.BTC, unit: Unit.SATS },
+      flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() },
+      wallet: NO_ASSETS,
+      swap: { openSwapQuotes },
+    })
+    try {
+      fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+      fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+      for (const key of ['1', '0', '0', '0', '0']) fireEvent.click(screen.getByRole('button', { name: key }))
+      expect(screen.queryByText('Searching shares your pair and amount publicly.')).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'View quotes' }))
+      const find = await screen.findByRole('button', { name: 'Find open offers' })
+      expect(openSwapQuotes).not.toHaveBeenCalled()
+      fireEvent.click(find)
+      await waitFor(() => expect(openSwapQuotes).toHaveBeenCalledOnce())
+    } finally {
+      view.unmount()
+      saveOpenOffersFirst(network, direction, false)
+      saveOpenOfferPolicy(network, previousPolicy)
+    }
+  })
+
   it('keeps open offers off when no saved provider serves the pair', async () => {
     const previousPolicy = readOpenOfferPolicy('mutinynet')
     saveOpenOfferPolicy('mutinynet', 'off')
