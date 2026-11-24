@@ -153,6 +153,15 @@ describe('Taxi claim watch', () => {
     await waitFor(() => expect(offered()).toHaveTextContent(claimKey(TAXI, 't1')))
   })
 
+  it('watches the renewal contract the session shows even when it belongs to a rotated key', async () => {
+    feed.claims = [claimFor(ROTATED)]
+    const rotated = { ...row('renewal', ROTATED), metadata: { signingDescriptor: "tr([00000000/86'/1'/0']xpub/0/1)" } }
+    renderClaims({ svcWallet: walletWith(async () => [rotated]), executorRenewalAddress: ROTATED })
+
+    await waitFor(() => expect(offered()).toHaveTextContent(claimKey(TAXI, 't1')))
+    expect(feed.subscribed.sort()).toEqual([OWN, ROTATED].sort())
+  })
+
   it('keeps watching its own address when the contract repository cannot be read', async () => {
     feed.claims = [claimFor(OWN)]
     const svcWallet = {

@@ -15,8 +15,7 @@ export {
   type ReceiverClaim,
 } from '@arkade-taxi/client/wallet'
 
-/** The Executor renewal contracts of the wallet's own key, whichever session, params or wallet mode registered them:
- * Receive may have shown any of them. A rotated HD key's row signs by descriptor, and Receive never shows it. */
+/** Renewal contracts of the wallet's own key, from any session or mode; a rotated key's row signs by descriptor. */
 export const renewalAddresses = async (wallet: Pick<IWallet, 'getContractManager'>): Promise<string[]> => {
   const rows = await (await wallet.getContractManager()).getContracts({ type: 'executor' })
   return rows
