@@ -2253,7 +2253,7 @@ export const translations = {
       createReadyText: 'Sua carteira foi criada e já está pronta para uso.',
       createWallet: 'Criar carteira',
       createWithPasskey: 'Criar com passkey',
-      logInWithPasskey: 'Entrar com passekey',
+      logInWithPasskey: 'Entrar com passkey',
       passkeyFailed: 'Não foi possível usar essa passkey. Tente de novo ou crie uma carteira sem ela.',
       passkeyHasNoWords: 'Essa passkey não contém uma carteira. Restaure com sua frase de recuperação.',
       passkeyIntro:
