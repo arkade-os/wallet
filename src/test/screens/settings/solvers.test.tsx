@@ -266,7 +266,22 @@ describe('Solvers screen', () => {
     expect(rows()[0]).toHaveTextContent(market.solver)
     expect(rows()[0]).toHaveTextContent('First choice')
 
+    fireEvent.click(dialog.getByRole('button', { name: `Clear first choice: ${market.solver}` }))
     fireEvent.click(dialog.getByRole('button', { name: 'Try first: Collaborative exit' }))
+    const setItem = Storage.prototype.setItem
+    const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation((key, value) => {
+      if (key.startsWith('paymentRoutePolicy:onchain')) throw new Error('full')
+      setItem.call(localStorage, key, value)
+    })
+    try {
+      fireEvent.click(dialog.getByRole('button', { name: `Try first: ${market.solver}` }))
+      expect(dialog.getByText(/Failed to save/)).toBeInTheDocument()
+      expect(readOnchainSendPreference('mutinynet')).toBe('exit')
+      expect(readSolverRouting('mutinynet', direction).preferFirst).toBeUndefined()
+    } finally {
+      write.mockRestore()
+    }
+
     fireEvent.click(dialog.getByRole('button', { name: `Try first: ${market.solver}` }))
     expect(readOnchainSendPreference('mutinynet')).toBe('solver')
     expect(readSolverRouting('mutinynet', direction)).toMatchObject({ mode: 'usage', preferFirst: id })

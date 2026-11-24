@@ -395,7 +395,12 @@ function DirectionRouting({
                           preferFirst: preferred ? undefined : id,
                           ...(!preferred && routeSupportsOffers ? { openOffersFirst: false } : {}),
                         })
-                        if (!preferred && exitFirst) saveOnchainSendPreference(network, 'solver')
+                        try {
+                          if (!preferred && exitFirst) saveOnchainSendPreference(network, 'solver')
+                        } catch (failure) {
+                          saveSolverRouting(network, direction, prefs)
+                          throw failure
+                        }
                       })
                     }
                   >
