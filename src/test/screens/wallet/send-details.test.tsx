@@ -10,6 +10,9 @@ import { FlowContext, type SendInfo } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import { NavigationContext } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
+import { BackupContext } from '../../../providers/backup'
+import { readContacts } from '../../../lib/contacts'
+import fixtures from '../../fixtures.json'
 import {
   mockAspContextValue,
   mockConfigContextValue,
@@ -96,28 +99,33 @@ describe('Send details amount hierarchy', () => {
 })
 
 describe('Send details refresh', () => {
-  const renderArkSend = (reloadWallet: () => Promise<void>, send: () => Promise<string>) =>
+  const renderArkSend = (
+    reloadWallet: () => Promise<void>,
+    send: () => Promise<string>,
+    sendInfo: SendInfo = { arkAddress: 'tark1destination', satoshis: 1_000 },
+    backupContacts = vi.fn(() => Promise.resolve()),
+  ) =>
     render(
       <NavigationContext.Provider value={mockNavigationContextValue}>
         <ConfigContext.Provider value={mockConfigContextValue}>
           <FiatContext.Provider value={mockFiatContextValue}>
             <AspContext.Provider value={mockAspContextValue}>
-              <FlowContext.Provider
-                value={{ ...mockFlowContextValue, sendInfo: { arkAddress: 'tark1destination', satoshis: 1_000 } }}
-              >
-                <WalletContext.Provider
-                  value={{
-                    ...mockWalletContextValue,
-                    balance: 10_000,
-                    reloadWallet,
-                    svcWallet: { ...mockSvcWallet, send } as any,
-                  }}
-                >
-                  <LimitsContext.Provider value={mockLimitsContextValue}>
-                    <SendDetails />
-                  </LimitsContext.Provider>
-                </WalletContext.Provider>
-              </FlowContext.Provider>
+              <BackupContext.Provider value={{ backupContacts } as any}>
+                <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo }}>
+                  <WalletContext.Provider
+                    value={{
+                      ...mockWalletContextValue,
+                      balance: 10_000,
+                      reloadWallet,
+                      svcWallet: { ...mockSvcWallet, send } as any,
+                    }}
+                  >
+                    <LimitsContext.Provider value={mockLimitsContextValue}>
+                      <SendDetails />
+                    </LimitsContext.Provider>
+                  </WalletContext.Provider>
+                </FlowContext.Provider>
+              </BackupContext.Provider>
             </AspContext.Provider>
           </FiatContext.Provider>
         </ConfigContext.Provider>
@@ -149,5 +157,29 @@ describe('Send details refresh', () => {
 
     await waitFor(() => expect(send).toHaveBeenCalled())
     expect(reloadWallet).not.toHaveBeenCalled()
+  })
+
+  const ark = fixtures.lib.address.ark[0].address
+  const sendWithTick = async (saveAsContact: SendInfo['saveAsContact']) => {
+    localStorage.clear()
+    const reloadWallet = vi.fn(() => Promise.resolve())
+    const backupContacts = vi.fn(() => Promise.resolve())
+    const send = vi.fn(() => Promise.resolve('sent-txid'))
+    renderArkSend(reloadWallet, send, { arkAddress: ark, satoshis: 1_000, saveAsContact }, backupContacts)
+    fireEvent.click(await screen.findByText('Tap to Sign'))
+    await waitFor(() => expect(reloadWallet).toHaveBeenCalled())
+    return backupContacts
+  }
+
+  it('saves the ticked payee under its name and backs the contacts up', async () => {
+    const backupContacts = await sendWithTick({ address: ark, name: 'Alice' })
+    expect(readContacts()).toMatchObject([{ address: ark, name: 'Alice', sendCount: 1 }])
+    expect(backupContacts).toHaveBeenCalledTimes(1)
+  })
+
+  it('saves no contact for a tick left from another payee', async () => {
+    const backupContacts = await sendWithTick({ address: 'alice@pay.example', name: 'Alice' })
+    expect(readContacts()).toEqual([])
+    expect(backupContacts).not.toHaveBeenCalled()
   })
 })
