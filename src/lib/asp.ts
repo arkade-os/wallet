@@ -23,6 +23,8 @@ import * as Sentry from '@sentry/react'
 import { hex } from '@scure/base'
 import { arkTransactionToTx, sortLocalTxs } from './transactionHistory'
 import { walletFingerprint } from './sentry'
+import { getActiveLanguage } from './language'
+import { translations } from './i18n'
 
 const emptyFees: FeeInfo = {
   intentFee: { offchainInput: '', offchainOutput: '', onchainInput: '', onchainOutput: '' },
@@ -82,7 +84,8 @@ export const byExpiryAsc = (a: { expiresAt?: Date | null }, b: { expiresAt?: Dat
 
 export class InsufficientFundsError extends Error {
   constructor() {
-    super('Insufficient funds')
+    const lang = getActiveLanguage()
+    super(translations[lang].send.insufficientFunds)
     this.name = 'InsufficientFundsError'
   }
 }
@@ -415,13 +418,19 @@ export const settleVtxos = async (
   ].filter(({ input, fee }) => fee < input.value)
   const inputs = priced.map(({ input }) => input)
 
-  if (inputs.length === 0) throw new Error('No UTXOs or VTXOs eligible to settle')
+  if (inputs.length === 0) {
+    const lang = getActiveLanguage()
+    throw new Error(translations[lang].errors.noTXOstoSettle)
+  }
 
   const address = await wallet.getAddress()
   const net = priced.reduce((sum, { input, fee }) => sum + input.value - fee, 0)
   const amount = outputAfterItsFee(estimator, address, net)
 
-  if (amount < Number(dustAmount)) throw new Error('Total amount is below dust threshold')
+  if (amount < Number(dustAmount)) {
+    const lang = getActiveLanguage()
+    throw new Error(translations[lang].errors.amountBelowThreshold)
+  }
 
   const outputs = [{ address, amount: BigInt(amount) }]
 

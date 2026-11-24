@@ -85,6 +85,9 @@ function collectUsedKeys(): Set<string> {
       used.add(match[1])
       used.add(match[2])
     }
+    // ex: translations[lang].common.total
+    for (const match of content.matchAll(/translations\[lang\]\.([A-Za-z0-9_.]+)/g))
+      used.add(match[1].replace(/\.replace$/, ''))
   }
   // special case, not found by regexps above. check lnSwapLabel in src/lib/swapDisplay.ts
   const stemKeys = ['Send', 'Receive']

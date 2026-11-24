@@ -217,7 +217,12 @@ export const translations = {
       searchPlaceholder: 'Search type, address, script…',
     },
     errors: {
+      amountBelowThreshold: 'Total amount is below dust threshold',
       amountBetween: 'Amount must be between {min} and {max} sats',
+      assetMintInProgress: 'An asset mint is already in progress in another tab',
+      assetMintRecoveryRequiresWebLocks: 'Asset mint recovery requires browser Web Locks support',
+      invalidPendingAssetMintRecord: 'Invalid pending asset mint record. Do not retry until it has been investigated.',
+      noTXOstoSettle: 'No UTXOs or VTXOs eligible to settle',
       outdatedWallet:
         'Your wallet is outdated and needs to be updated to be compatible with the latest Arkade version.',
       recentlySettledHours: 'Your funds were recently settled onchain — please try again in a few hours',
@@ -345,6 +350,8 @@ export const translations = {
       enterControlAmount: 'Enter control asset amount',
       enterName: 'Enter a name',
       enterTicker: 'Enter a ticker',
+      errorMintingControlAsset:
+        'Timed out waiting for the control asset to become spendable. Retry to resume this mint.',
       exceedsBalance: 'Cannot burn more than your balance ({balance} {ticker})',
       existing: 'Existing',
       hideIcon: 'Hide icon',
@@ -704,6 +711,10 @@ export const translations = {
       marketsLabel: 'Markets',
       noStoredCards: 'You have no solver cards stored in your wallet.',
       originalLabel: 'Original',
+      outOfBounds: 'Amount outside solver bounds',
+      outOfBoundsDetails: 'Amount outside solver bounds ({amount})',
+      noLightningServer:
+        'No Lightning solver took this payment (solvers take {amount}). The router does not report why a rail dropped; the reason is in the console log.',
       publishedMarkets: 'Markets published by the solver',
       remoteChecking: 'Checking for the current card…',
       remoteError: 'Could not load the current card.',
@@ -777,6 +788,7 @@ export const translations = {
       quoteBelowEstimate: 'The solver’s final quote is lower than the estimate. Check the amount before you confirm.',
       quoteTermsUpdated: 'The receive amount changed. Review it and confirm again.',
       quoteUnavailable: 'Quote unavailable',
+      quoteUnavailableStale: 'This quote is no longer available — refresh to try again',
       receive: 'Receive',
       reviewSwap: 'Review swap',
       reviewSwapDescription: 'Check the route and estimated totals.',
@@ -793,6 +805,10 @@ export const translations = {
       title: 'Swap',
       useMaximum: 'Use maximum {balance}',
       waitingForFill: 'Waiting for fill',
+      heldElsewhere: 'Tab is held elsewhere',
+      noTabAnswered: 'No tab answered as the swap driver',
+      driverTimedOut: 'The swap driver did not answer in time',
+      driverPromoted: 'This tab became the swap driver',
     },
     table: {
       keyboardNavIntro: 'Pressing Enter enables keyboard navigation of the table',
@@ -1166,7 +1182,14 @@ export const translations = {
       searchPlaceholder: 'Buscar tipo, dirección, script…',
     },
     errors: {
+      amountBelowThreshold: 'El monto total está por debajo del umbral de polvo',
       amountBetween: 'El monto debe estar entre {min} y {max} sats',
+      assetMintInProgress: 'Ya hay una acuñación de activos en curso en otra pestaña',
+      assetMintRecoveryRequiresWebLocks:
+        'La recuperación de la acuñación de activos requiere soporte de Web Locks en el navegador',
+      invalidPendingAssetMintRecord:
+        'Registro de acuñación de activos pendiente no válido. No reintentes hasta que se haya investigado.',
+      noTXOstoSettle: 'No hay UTXOs o VTXOs elegibles para liquidar',
       outdatedWallet:
         'Tu wallet está desactualizada y necesita actualizarse para ser compatible con la última versión de Arkade.',
       recentlySettledHours: 'Tus fondos se liquidaron recientemente en la cadena — inténtalo de nuevo en unas horas',
@@ -1295,6 +1318,8 @@ export const translations = {
       enterControlAmount: 'Ingresa el monto del activo de control',
       enterName: 'Ingresa un nombre',
       enterTicker: 'Ingresa un ticker',
+      errorMintingControlAsset:
+        'Tiempo de espera agotado esperando que el activo de control sea gastable. Reintenta para continuar con esta acuñación.',
       exceedsBalance: 'No puedes quemar más de tu saldo ({balance} {ticker})',
       existing: 'Existente',
       hideIcon: 'Ocultar icono',
@@ -1656,6 +1681,10 @@ export const translations = {
       marketsLabel: 'Mercados',
       noStoredCards: 'No tienes tarjetas de solver guardadas en tu wallet.',
       originalLabel: 'Original',
+      outOfBounds: 'Importe fuera de los límites del solver',
+      outOfBoundsDetails: 'Importe fuera de los límites del solver ({amount})',
+      noLightningServer:
+        'Ningún solver Lightning tomó este pago (los solvers toman {amount}). El router no informa por qué se descartó un rail; la razón está en el registro de la consola.',
       publishedMarkets: 'Mercados publicados por el solver',
       remoteChecking: 'Buscando la tarjeta actual…',
       remoteError: 'No se pudo cargar la tarjeta actual.',
@@ -1732,6 +1761,7 @@ export const translations = {
         'La cotización final del solver es menor que la estimación. Revisa el importe antes de confirmar.',
       quoteTermsUpdated: 'El importe a recibir cambió. Revísalo y confirma de nuevo.',
       quoteUnavailable: 'Cotización no disponible',
+      quoteUnavailableStale: 'Esta cotización ya no está disponible — actualiza para intentarlo de nuevo',
       receive: 'Recibir',
       reviewSwap: 'Revisar swap',
       reviewSwapDescription: 'Comprueba la ruta y los totales estimados.',
@@ -1748,6 +1778,10 @@ export const translations = {
       title: 'Intercambio',
       useMaximum: 'Usar máximo {balance}',
       waitingForFill: 'Esperando ejecución',
+      heldElsewhere: 'El swap está gestionado en otra pestaña',
+      noTabAnswered: 'Ninguna pestaña respondió como el controlador del swap',
+      driverTimedOut: 'El controlador del swap no respondió a tiempo',
+      driverPromoted: 'Esta pestaña se convirtió en el controlador del swap',
     },
     table: {
       keyboardNavIntro: 'Presionar Enter habilita la navegación con teclado de la tabla',
@@ -2124,7 +2158,13 @@ export const translations = {
       searchPlaceholder: 'Buscar tipo, endereço, script…',
     },
     errors: {
+      amountBelowThreshold: 'O montante total está abaixo do limite de pó',
       amountBetween: 'O valor deve estar entre {min} e {max}',
+      assetMintInProgress: 'Já há uma cunhagem de ativos em andamento em outra aba',
+      assetMintRecoveryRequiresWebLocks: 'A recuperação da cunhagem de ativos requer suporte a Web Locks no navegador',
+      invalidPendingAssetMintRecord:
+        'Registo de cunhagem de ativo pendente inválido. Não tente novamente até que tenha sido investigado.',
+      noTXOstoSettle: 'Não há UTXOs ou VTXOs elegíveis para liquidar',
       outdatedWallet:
         'Sua carteira está desatualizada e precisa ser atualizada para ser compatível com a versão mais recente da Arkade.',
       recentlySettledHours: 'Seus fundos foram liquidados on-chain recentemente — tente novamente em algumas horas',
@@ -2252,6 +2292,8 @@ export const translations = {
       enterControlAmount: 'Insira o valor do ativo de controle',
       enterName: 'Insira um nome',
       enterTicker: 'Insira um ticker',
+      errorMintingControlAsset:
+        'O tempo de espera para que o ativo de controle se torne gastável expirou. Tente novamente para continuar esta emissão.',
       exceedsBalance: 'Você não pode queimar mais do que seu saldo ({balance} {ticker})',
       existing: 'Existente',
       hideIcon: 'Ocultar ícone',
@@ -2565,6 +2607,10 @@ export const translations = {
       noneEnabled: 'Nenhum solver ativo nesta direção.',
       routingHint: 'Escolha uma direção para definir a prioridade dos solvers.',
       noDirections: 'As direções de troca disponíveis aparecerão aqui.',
+      outOfBounds: 'Valor fora dos limites do solver',
+      outOfBoundsDetails: 'Valor fora dos limites do solver ({amount})',
+      noLightningServer:
+        'Nenhum solver Lightning aceitou este pagamento (os solvers aceitam {amount}). O roteador não informa por que um rail foi descartado; o motivo está no log do console.',
       solverCountSingular: '{count} solver',
       solverCountPlural: '{count} solvers',
       editorTitle: 'Cartão de solver',
@@ -2684,6 +2730,7 @@ export const translations = {
       quoteBelowEstimate: 'A cotação final do solver é menor que a estimativa. Confira o valor antes de confirmar.',
       quoteTermsUpdated: 'O valor a receber mudou. Confira e confirme novamente.',
       quoteUnavailable: 'Cotação indisponível',
+      quoteUnavailableStale: 'Esta cotação já não está disponível — atualize para tentar novamente',
       receive: 'Receber',
       reviewSwap: 'Revisar swap',
       reviewSwapDescription: 'Confira a rota e os totais estimados.',
@@ -2700,6 +2747,10 @@ export const translations = {
       title: 'Troca',
       useMaximum: 'Usar o máximo {balance}',
       waitingForFill: 'Aguardando execução',
+      heldElsewhere: 'O swap está gerenciado em outra aba',
+      noTabAnswered: 'Nenhuma aba respondeu como o controlador do swap',
+      driverTimedOut: 'O controlador do swap não respondeu a tempo',
+      driverPromoted: 'Esta aba se tornou o controlador do swap',
     },
     table: {
       keyboardNavIntro: 'Pressione Enter para ativar a navegação pelo teclado na tabela',
