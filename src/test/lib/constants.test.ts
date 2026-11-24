@@ -1,5 +1,11 @@
 import { afterEach, describe, it, expect, vi } from 'vitest'
-import { getExecutorParams, getExecutorUrlForNetwork, getSolverRegistryUrl, isMainnet } from '../../lib/constants'
+import {
+  getExecutorParams,
+  getExecutorUrlForNetwork,
+  getSolverRegistryUrl,
+  isExecutorEnabled,
+  isMainnet,
+} from '../../lib/constants'
 
 describe('isMainnet', () => {
   it('returns true for bitcoin and unrecognized networks', () => {
@@ -42,6 +48,20 @@ describe('getSolverRegistryUrl', () => {
   it('reads an unsubstituted runtime placeholder as no override, not a URL', () => {
     vi.stubEnv('VITE_SOLVER_REGISTRY_URL', '__VITE_SOLVER_REGISTRY_URL__')
     expect(getSolverRegistryUrl('bitcoin')).toBe('https://arkade-os.github.io/solver-registry/bitcoin.json')
+  })
+})
+
+describe('isExecutorEnabled', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  it('is off only when the build sets false', () => {
+    vi.stubEnv('VITE_EXECUTOR_ENABLED', 'false')
+    expect(isExecutorEnabled()).toBe(false)
+  })
+
+  it.each(['', 'true', '__VITE_EXECUTOR_ENABLED__'])('is on for %j', (value) => {
+    vi.stubEnv('VITE_EXECUTOR_ENABLED', value)
+    expect(isExecutorEnabled()).toBe(true)
   })
 })
 
