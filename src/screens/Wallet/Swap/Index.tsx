@@ -1673,7 +1673,7 @@ function ReviewDrawer({
             ) : null}
           </AnimatePresence>
           <Button
-            label={t(onViewActivity ? 'swap.viewActivity' : onViewQuotes ? 'swap.viewQuotes' : 'swap.confirmSwap')}
+            label={onViewActivity ? t('swap.viewActivity') : t(onViewQuotes ? 'swap.viewQuotes' : 'swap.confirmSwap')}
             disabled={(!onViewActivity && !onViewQuotes && !canConfirm) || confirming}
             loading={confirming}
             onClick={onViewActivity ?? onViewQuotes ?? onConfirm}
