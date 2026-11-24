@@ -26,11 +26,9 @@ import {
 
 /**
  * Two ways the Lightning half of this screen can fail, and they must not read
- * the same. "Lightning unavailable" is true of a missing solver or an
- * out-of-bounds amount. It is FALSE when another tab holds the swap client's
- * lock: nothing is unavailable, the swaps are being driven perfectly well, just
- * not here — and the fix is closing that tab, which the copy has to say or the
- * user has nothing to act on.
+ * the same. A missing solver is the corridor's to fix. A tab that holds the swap
+ * client and does not answer is the user's: the fix is closing that tab, which
+ * the copy has to say or the user has nothing to act on.
  */
 vi.mock('qr', () => ({ default: () => Array.from({ length: 21 }, () => new Uint8Array(21).fill(1)) }))
 
@@ -117,17 +115,15 @@ beforeEach(() => {
 })
 
 describe('Receive screen, Lightning failures', () => {
-  it('offers a retry, not a chore, when no tab is driving', async () => {
+  it('says the wallet may be open in another tab, and offers a retry, when that tab does not answer', async () => {
     receiveLightning.mockRejectedValue(new SwapsHeldElsewhere())
     renderWithTrack()
 
-    // This used to name the other tab and tell the user to close it. It no
-    // longer can: another tab holding the client is not a failure at all —
-    // the receive is negotiated ON that tab and comes back here. What is left
-    // is nobody driving, which is temporary and worth a retry, and says nothing
-    // about tabs because the user has nothing to do with tabs.
-    expect(await screen.findByText(/Lightning unavailable: No Lightning solver available/)).toBeInTheDocument()
-    expect(screen.queryByText(/tab/i)).not.toBeInTheDocument()
+    // The solver was never asked, so the copy must not blame it.
+    expect(
+      await screen.findByText(/Lightning unavailable: This wallet may be open in another tab or window/),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/No Lightning solver available/)).not.toBeInTheDocument()
     expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument()
   })
 

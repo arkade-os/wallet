@@ -26,8 +26,8 @@
  * None of which is a reason to refuse the other tab. Starting a swap is not a
  * race at all — a fresh receive mints its own preimage, rfq id and lockup — so
  * a follower posts the action to the holder over `swapDriverChannel` and the
- * holder runs it against the one live client. `SwapsHeldElsewhere` survives as
- * the last resort, for when no tab answers as the driver at all.
+ * holder runs it against the one live client. `SwapsHeldElsewhere` is left for a
+ * holder that does not answer, and for `sendRouter`, which needs the client here.
  *
  * It runs page-side rather than in the service worker on the precedent
  * `watchOfferSwaps` set: the worker hosts `MessageBus` and the wallet reaches
@@ -696,8 +696,6 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       return await channel.ask<T>(op, args, granted.current)
     } catch (err) {
       if (err instanceof DriverPromoted) return locally()
-      // The one case left: no tab answered at all. Nothing is driving these
-      // swaps, which is the only thing `SwapsHeldElsewhere` still means.
       if (err instanceof DriverUnavailable) throw new SwapsHeldElsewhere()
       throw err
     }

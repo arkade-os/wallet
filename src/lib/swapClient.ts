@@ -45,6 +45,13 @@ import { solverHealth } from './solverHealth'
 import { getActiveLanguage } from './language'
 import { translations } from './i18n'
 
+/**
+ * This tab does not have the swap client, and the tab that does could not run
+ * the action for it: a send needs the client here, or that tab did not answer.
+ *
+ * The corridor itself is fine, so it is worth retrying where it stands. The text
+ * says "may be", because a client this tab is still replacing looks the same.
+ */
 export class SwapsHeldElsewhere extends Error {
   constructor() {
     const lang = getActiveLanguage()

@@ -20,11 +20,7 @@ export default function SwapRailStatus({ rail }: { rail: SwapRail }) {
       ) : null}
       {rail.error ? (
         <FlexCol gap='0.25rem' centered>
-          <TextSecondary>
-            {rail.noDriver
-              ? t('receive.lightningUnavailable', { error: t('receive.noLightningSolver') })
-              : t('receive.lightningUnavailable', { error: rail.error })}
-          </TextSecondary>
+          <TextSecondary>{t('receive.lightningUnavailable', { error: rail.error })}</TextSecondary>
           {rail.retryable ? <Button label={t('common.tryAgain')} onClick={rail.retry} secondary /> : null}
         </FlexCol>
       ) : null}
