@@ -221,8 +221,10 @@ describe('Executor registration state', () => {
   const registration = (address: string) => ({ address, templateId: 't', variables: {}, keys: [], params: {} })
   const withExecutor = () => vi.stubEnv('VITE_EXECUTOR_URL', 'https://executor.example')
   // a promise's state, without waiting on it
-  const isPending = async (p: Promise<unknown>) =>
-    (await Promise.race([p.then(() => false), Promise.resolve(true)])) as boolean
+  const isPending = async (p: Promise<unknown>) => {
+    const sentinel = Symbol('pending')
+    return (await Promise.race([p, Promise.resolve(sentinel)])) === sentinel
+  }
 
   it('settles after both registrations and records the renewal address of a static wallet', async () => {
     withExecutor()
