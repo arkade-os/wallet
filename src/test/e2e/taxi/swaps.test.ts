@@ -40,9 +40,19 @@ async function swap(
   const taxiBefore = await advances()
   await navigateHome(page)
   await navigateToSwaps(page)
-  await page.getByTestId(forward ? 'swap-asset-row-sats' : 'swap-asset-row-arfq').click()
+  // The pickers list an unregistered asset, as the native ARFQ is, only once unverified assets are shown.
+  const pick = async (testId: string) => {
+    const row = page.getByTestId(testId)
+    const reveal = page
+      .getByRole('button', { name: tr.swap.showUnverifiedAssets, exact: true })
+      .filter({ visible: true })
+    await row.or(reveal).first().waitFor()
+    if (!(await row.isVisible())) await reveal.first().click()
+    await row.click()
+  }
+  await pick(forward ? 'swap-asset-row-sats' : 'swap-asset-row-arfq')
   await page.locator('.swap-receive-card').click()
-  await page.getByTestId(forward ? 'swap-asset-row-arfq' : 'swap-asset-row-sats').click()
+  await pick(forward ? 'swap-asset-row-arfq' : 'swap-asset-row-sats')
   const assetMode = page.getByRole('button', { name: 'Show asset amount first', exact: true })
   if (await assetMode.isVisible()) await assetMode.click()
   for (const digit of amount) await page.getByRole('button', { name: digit, exact: true }).click()
