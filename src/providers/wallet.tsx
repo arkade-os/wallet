@@ -944,6 +944,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         // async, so that even a synchronous throw lands in the catch rather than failing the startup
         ;(async () => {
           const executor = await svcWallet.getExecutorManager()
+          if (!isCurrent()) return
           if (!executor) return settle(noExecutorSettlement)
           const params = getExecutorParams(network)
           // the emulator key swaps already trust; undefined keeps the SDK's pinned one
@@ -958,6 +959,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
             failed = true
             consoleError(err, 'Executor boarding registration failed')
           }
+          // Boarding cannot be cancelled: a lock, reset or newer init may have ended this session while it ran.
+          if (!isCurrent()) return
           // Only a static wallet shows the renewal contract as its Ark address. On an HD wallet a coin there
           // rotates the boarding address, and `registerRenewal().address` is exactly that contract.
           let renewalAddress: string | undefined

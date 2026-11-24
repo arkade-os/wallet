@@ -315,6 +315,47 @@ describe('Executor registration state', () => {
     expect(wallet.executorSettledCount).toBe(0)
   })
 
+  it.each(['resolves', 'rejects'])(
+    'does not start the renewal of a session locked while boarding %s',
+    async (outcome) => {
+      withExecutor()
+      const { executor } = mocks.current.service
+      let finish!: () => void
+      executor.registerBoarding.mockReturnValue(
+        new Promise<void>(
+          (resolve, reject) => (finish = outcome === 'resolves' ? resolve : () => reject(new Error('late'))),
+        ),
+      )
+      Object.assign(mocks.current.service, { clear: vi.fn(async () => {}) })
+      await startWallet()
+      await vi.waitFor(() => expect(executor.registerBoarding).toHaveBeenCalled())
+
+      await act(() => wallet.lockWallet())
+      await act(async () => finish())
+      await new Promise((r) => setTimeout(r, 50))
+
+      expect(executor.registerRenewal).not.toHaveBeenCalled()
+    },
+  )
+
+  it('does not start the renewal of a session replaced while boarding was pending', async () => {
+    withExecutor()
+    const { executor } = mocks.current.service
+    let first!: () => void
+    executor.registerBoarding.mockReturnValueOnce(new Promise<void>((r) => (first = r)))
+    await startWallet()
+    await vi.waitFor(() => expect(executor.registerBoarding).toHaveBeenCalledTimes(1))
+
+    executor.registerBoarding.mockResolvedValueOnce(undefined)
+    await act(() => wallet.initWallet({ privateKey: new Uint8Array(32).fill(1) }))
+    await vi.waitFor(() => expect(executor.registerRenewal).toHaveBeenCalledTimes(1))
+    await act(async () => first())
+    await new Promise((r) => setTimeout(r, 50))
+
+    // only the new session's renewal
+    expect(executor.registerRenewal).toHaveBeenCalledTimes(1)
+  })
+
   it('does not let an old session settle a new one', async () => {
     withExecutor()
     const { executor } = mocks.current.service
