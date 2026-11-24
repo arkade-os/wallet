@@ -518,6 +518,39 @@ describe('reviewing a solver payment', () => {
     expect(quotePaymentRoute).toHaveBeenCalledExactlyOnceWith(lightningRequest, bayId)
   })
 
+  it('replaces a reviewed open offer when open offers are turned off', async () => {
+    const bid = {
+      id: 'bay-bid',
+      solverPubkey: bay.discovery_pubkey,
+      solverName: bay.solver,
+      fromAmount: 2_170n,
+      toAmount: BigInt(amountSats),
+      expiresAt: now + 60,
+    } as OpenRfqOffer
+    quotePaymentRoute.mockResolvedValue(lightningQuote('harbor-quote', 2_110))
+    openPaymentQuotes.mockResolvedValue({
+      id: 'auction',
+      input: { to: invoice },
+      pair: direction,
+      closedAt: now,
+      bids: [bid],
+    })
+    chooseSwapQuote.mockResolvedValue(lightningQuote('open-quote', 2_166, bay))
+    saveOpenOfferPolicy(network, 'ask')
+    saveOpenOffersFirst(network, direction, true)
+    render(review())
+
+    const routes = within(await screen.findByRole('dialog', { name: 'Change route' }))
+    fireEvent.click(routes.getByRole('button', { name: 'Find open offers' }))
+    fireEvent.click(await routes.findByRole('button', { name: 'Select Bay' }))
+    await waitFor(() => expect(screen.getByTestId('Total')).toHaveTextContent('2,166'))
+    expect(quotePaymentRoute).not.toHaveBeenCalled()
+    act(() => saveOpenOfferPolicy(network, 'off'))
+
+    await waitFor(() => expect(screen.getByTestId('Total')).toHaveTextContent('2,110'))
+    expect(quotePaymentRoute).toHaveBeenLastCalledWith(lightningRequest, undefined)
+  })
+
   it('respects turning off open offers when no provider can quote', async () => {
     saveOpenOfferPolicy(network, 'off')
     quotePaymentRoute.mockRejectedValue(noProvider())
