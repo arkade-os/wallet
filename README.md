@@ -233,7 +233,7 @@ Switch off a card to pause it across all directions, or switch off a solver in a
 
 Choose **Try first** on a provider row to prioritize it when it can quote. Other providers follow the pair's selected order. **Clear** returns the preferred provider to the regular order. A missing or paused first choice stays saved and eligible fallbacks can still quote.
 
-For BTC from Arkade to Bitcoin, **First payment method** lets you try a saved solver route or collaborative exit first when both paths are available. Provider ordering applies within the solver route. The solver's recipient amount is an estimate because the claim fee can change. A Bitcoin URI with a fixed amount uses the collaborative exit to pay that exact amount. Lightning receive uses the wallet's LNURL server.
+For BTC from Arkade to Bitcoin, **Collaborative exit** is a row after the providers. Choose **Try first** on it to try the collaborative exit before any solver, or on a provider to put the solver route first again. Provider ordering applies within the solver route. The solver's recipient amount is an estimate because the claim fee can change. A Bitcoin URI with a fixed amount uses the collaborative exit to pay that exact amount. Lightning receive uses the wallet's LNURL server.
 
 On the send review, **Change route** shows the current provider and other eligible saved providers. For an address-only Bitcoin send it also offers collaborative exit. Tick **Remember this next time** in the picker before choosing a route to save that choice after funding.
 

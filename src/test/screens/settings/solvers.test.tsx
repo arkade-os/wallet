@@ -228,7 +228,7 @@ describe('Solvers screen', () => {
     expect(rows()[0]).toHaveTextContent(btcUsdt.solver)
   })
 
-  it('shows the wallet exit without a solver and keeps method selection separate from solver order', () => {
+  it('shows the wallet exit without a solver and orders it as a row without changing solver order', () => {
     const walletOnly = renderSolvers('mutinynet', [], 'priority')
     const routeName = 'Arkade BTC → Bitcoin BTC'
     expect(screen.getByRole('button', { name: routeName })).toHaveTextContent('Collaborative exit')
@@ -244,14 +244,34 @@ describe('Solvers screen', () => {
     saveSolverRouting('mutinynet', direction, { mode: 'usage', preferFirst: id })
     renderSolvers('mutinynet', [market], 'priority')
     fireEvent.click(screen.getByRole('button', { name: routeName }))
-    const dialog = screen.getByRole('dialog')
-    expect(within(dialog).queryByRole('button', { name: 'Try first: Open offers' })).not.toBeInTheDocument()
-    const method = within(dialog).getByRole('combobox', { name: 'First payment method' })
-    expect(method).toHaveValue('solver')
-    expect(within(dialog).getAllByRole('listitem')).toHaveLength(1)
-    fireEvent.change(method, { target: { value: 'exit' } })
+    const dialog = within(screen.getByRole('dialog'))
+    const rows = () => dialog.getAllByRole('listitem')
+    expect(dialog.queryByRole('button', { name: 'Try first: Open offers' })).not.toBeInTheDocument()
+    expect(dialog.queryByRole('combobox', { name: 'First payment method' })).not.toBeInTheDocument()
+    expect(rows()).toHaveLength(2)
+    expect(rows()[0]).toHaveTextContent(market.solver)
+    expect(rows()[1]).toHaveTextContent('Collaborative exit')
+    expect(rows()[1].firstElementChild).toHaveTextContent(/^2$/)
+
+    fireEvent.click(dialog.getByRole('button', { name: 'Try first: Collaborative exit' }))
     expect(readOnchainSendPreference('mutinynet')).toBe('exit')
     expect(readSolverRouting('mutinynet', direction)).toMatchObject({ mode: 'usage', preferFirst: id })
+    expect(rows()[0]).toHaveTextContent('Collaborative exit')
+    expect(rows()[0].firstElementChild).toHaveTextContent(/^1$/)
+    expect(rows()[1].firstElementChild).toHaveTextContent(/^2$/)
+    expect(dialog.getAllByText('First choice')).toHaveLength(1)
+
+    fireEvent.click(dialog.getByRole('button', { name: 'Clear first choice: Collaborative exit' }))
+    expect(readOnchainSendPreference('mutinynet')).toBe('solver')
+    expect(rows()[0]).toHaveTextContent(market.solver)
+    expect(rows()[0]).toHaveTextContent('First choice')
+
+    fireEvent.click(dialog.getByRole('button', { name: 'Try first: Collaborative exit' }))
+    fireEvent.click(dialog.getByRole('button', { name: `Try first: ${market.solver}` }))
+    expect(readOnchainSendPreference('mutinynet')).toBe('solver')
+    expect(readSolverRouting('mutinynet', direction)).toMatchObject({ mode: 'usage', preferFirst: id })
+    expect(rows()[0]).toHaveTextContent(market.solver)
+    expect(rows()[1]).toHaveTextContent('Collaborative exit')
   })
 
   it('explains reliability demotion while keeping the preferred choice and enable switch', async () => {
