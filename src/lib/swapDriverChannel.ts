@@ -121,8 +121,11 @@ export class DriverPromoted extends Error {
 }
 
 type Wire =
-  | { kind: 'request'; id: string; op: DriverOp; args: unknown[] }
-  | { kind: 'ack'; id: string }
+  // `confirms` is absent from a tab on a build from before `confirm` existed: its request runs at the ack.
+  | { kind: 'request'; id: string; op: DriverOp; args: unknown[]; confirms?: true }
+  // `token` names the one ack that a `confirm` answers. A build from before it existed sends none.
+  | { kind: 'ack'; id: string; token?: string }
+  | { kind: 'confirm'; token: string }
   | { kind: 'result'; id: string; ok: true; value: unknown }
   | { kind: 'result'; id: string; ok: false; error: WireError }
   | { kind: 'update'; update: DriverUpdate }
@@ -189,26 +192,35 @@ export const openDriverChannel = (): DriverChannel => {
   /** Asks this tab is waiting on, by request id. */
   const pending = new Map<
     string,
-    { ack: () => void; settle: (wire: Wire & { kind: 'result' }) => void; fail: (err: Error) => void }
+    { ack: (token?: string) => void; settle: (wire: Wire & { kind: 'result' }) => void; fail: (err: Error) => void }
   >()
+  /** Requests this tab acked and has not run, by ack token. */
+  const acked = new Map<string, () => Promise<void>>()
   const updateListeners = new Set<(update: DriverUpdate) => void>()
   /** Set only while this tab holds the lock — which is what makes it the one
    * tab that acks, since the lock grants to exactly one holder. */
   let handler: DriverHandler | undefined
 
-  const answer = async (request: Wire & { kind: 'request' }) => {
+  const answer = (request: Wire & { kind: 'request' }) => {
     const run = handler
     if (!run) return
+    const work = async () => {
+      try {
+        const value = await run(request.op, request.args)
+        channel.postMessage({ kind: 'result', id: request.id, ok: true, value } satisfies Wire)
+      } catch (err) {
+        channel.postMessage({ kind: 'result', id: request.id, ok: false, error: toWire(err) } satisfies Wire)
+      }
+    }
     // Ack before the work, not after: it is the only thing that tells the
     // asking tab a driver exists, and the work it is acking for can take a
     // solver round trip to finish.
-    channel.postMessage({ kind: 'ack', id: request.id } satisfies Wire)
-    try {
-      const value = await run(request.op, request.args)
-      channel.postMessage({ kind: 'result', id: request.id, ok: true, value } satisfies Wire)
-    } catch (err) {
-      channel.postMessage({ kind: 'result', id: request.id, ok: false, error: toWire(err) } satisfies Wire)
-    }
+    const token = crypto.randomUUID()
+    channel.postMessage({ kind: 'ack', id: request.id, token } satisfies Wire)
+    // The work waits for the asking tab's `confirm`. If that tab gave up before
+    // it got the ack, it has told the user to try again, so this must not run.
+    if (request.confirms) acked.set(token, work)
+    else void work()
   }
 
   channel.onmessage = (event: MessageEvent<Wire>) => {
@@ -216,10 +228,14 @@ export const openDriverChannel = (): DriverChannel => {
     if (!message || typeof message !== 'object') return
     switch (message.kind) {
       case 'request':
-        void answer(message)
+        answer(message)
         return
       case 'ack':
-        pending.get(message.id)?.ack()
+        pending.get(message.id)?.ack(message.token)
+        return
+      case 'confirm':
+        void acked.get(message.token)?.()
+        acked.delete(message.token)
         return
       case 'result':
         pending.get(message.id)?.settle(message)
@@ -246,9 +262,12 @@ export const openDriverChannel = (): DriverChannel => {
         // driving, so there is nothing to wait for.
         timer = setTimeout(() => done(() => reject(new DriverUnavailable())), ACK_MS)
         pending.set(id, {
-          ack: () => {
+          ack: (token) => {
+            // The first ack only, so that one tab runs this even if a second one acks it late.
+            pending.get(id)!.ack = () => {}
             clearTimeout(timer)
             timer = setTimeout(() => done(() => reject(new DriverTimedOut())), RESULT_MS)
+            if (token) channel.postMessage({ kind: 'confirm', token } satisfies Wire)
           },
           settle: (result) => done(() => (result.ok ? resolve(result.value as T) : reject(fromWire(result.error)))),
           fail: (err) => done(() => reject(err)),
@@ -262,7 +281,7 @@ export const openDriverChannel = (): DriverChannel => {
           },
           () => {},
         )
-        channel.postMessage({ kind: 'request', id, op, args } satisfies Wire)
+        channel.postMessage({ kind: 'request', id, op, args, confirms: true } satisfies Wire)
       })
     },
     serve(next: DriverHandler) {
