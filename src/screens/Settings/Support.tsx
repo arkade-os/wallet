@@ -31,10 +31,16 @@ export default function Support() {
 
   // Fetch wallet addresses
   useEffect(() => {
-    if (svcWallet) {
-      getDisplayAddresses(svcWallet, { settled: executorSettled })
-        .then(setAddresses)
-        .catch((err) => console.error('Failed to get addresses:', err))
+    if (!svcWallet) return
+    // A superseded read could otherwise overwrite the renewal address with the own-address fallback
+    let stale = false
+    getDisplayAddresses(svcWallet, { settled: executorSettled })
+      .then((addrs) => {
+        if (!stale) setAddresses(addrs)
+      })
+      .catch((err) => console.error('Failed to get addresses:', err))
+    return () => {
+      stale = true
     }
   }, [svcWallet, executorSettled, executorSettledCount])
 
