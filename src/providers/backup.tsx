@@ -2,6 +2,7 @@ import { Config } from '@/lib/types'
 import { Contact, readContacts, restoreContacts } from '@/lib/contacts'
 import { ConfigContext } from './config'
 import { consoleError } from '@/lib/logs'
+import { isExecutorEnabled } from '@/lib/constants'
 import { BackupEvent, NostrStorage } from '@/lib/nostr'
 import { readSolverCards, saveSolverCards } from '@/lib/solverCards'
 import { LocalCardInput } from '@arkade-os/solver-discovery'
@@ -121,8 +122,9 @@ export const BackupProvider = ({ children }: { children: ReactNode }) => {
 
     const data = (await loadData(provider)) as NostrStorageData
 
-    // we enforce delegates on restore, and the server stays the locally configured one
-    if (data?.config) updateConfig({ ...data.config, aspUrl: configRef.current.aspUrl, delegate: true })
+    // a restored wallet registers with the Executor again, which re-watches its boarded coins,
+    // unless this build switches the Executor off; the server stays the locally configured one
+    if (data?.config) updateConfig({ ...data.config, aspUrl: configRef.current.aspUrl, executor: isExecutorEnabled() })
 
     if (data?.contacts) {
       if (!restoreContacts(data.contacts, data.contactsSplitVersion === 1)) {
