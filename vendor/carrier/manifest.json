@@ -1,96 +1,60 @@
 {
-  "note": "Single unpublished Taxi v1 cohort. Use these exact archives together; funded qualification is recorded separately. Archive bytes are immutable.",
-  "assembledAtUtc": "2026-11-19T12:58:14.2940457Z",
+  "note": "Taxi v1 cohort on ts-sdk 7584c23c (SDK 0.5.14-taxi.1, swap 0.1.16-taxi.1). The Taxi archives are unchanged and pin @arkade-os/sdk 0.5.9-taxi-v1; pnpm-workspace.yaml overrides that to the single vendored SDK. Archive bytes are immutable.",
+  "assembledAtUtc": "2026-11-24T22:03:35.140Z",
   "sourceTreeMeaning": "tree and directoryTree identify the package directory; repositoryTree identifies the complete source commit tree.",
   "artifacts": [
     {
       "package": "@arkade-os/sdk",
-      "version": "0.5.9-taxi-v1",
-      "file": "arkade-os-sdk-0.5.9-taxi-v1-9674c5a1.tgz",
-      "sha256": "7170c65d3237b06fbe59bd31e00a3e778c591a31d68ac67d3a67270bd180276b",
-      "integrity": "sha512-20v86brGaUhgtTSNs4fcT+EnBZPsqRgSbpUoRmfYmJdgoHVXU+goo4wOfXPigA6gBOaTqJwu1VFera/ZqgCzMQ==",
-      "bytes": 2985886,
+      "version": "0.5.14-taxi.1",
+      "file": "arkade-os-sdk-0.5.14-taxi.1-7584c23c.tgz",
+      "sha256": "6c42fc4b1f06115b9936eb789e221f5d49f124b302d5865092d12672c3646b33",
+      "integrity": "sha512-6FxJSk8TuccLZ2MpDmgLD803SzlwO3BxJaZqW3aEUThMr/EKuY42LOsCFFQA8SuAoGykmrKfpSFzdML0jFvJ1Q==",
+      "bytes": 3139866,
       "license": "MIT",
       "source": {
         "repository": "https://github.com/arkade-os/ts-sdk.git",
-        "commit": "9674c5a1c0e9db2347127915eda09ba888c470a2",
+        "commit": "7584c23ce08b974e0e5e8e7651f8b45399bee7d7",
+        "branch": "provenance/taxi-cohort-20261124",
         "directory": "packages/sdk",
-        "tree": "11d896c405152d7e94ee670a8f5dcee6f676329f",
-        "directoryTree": "11d896c405152d7e94ee670a8f5dcee6f676329f",
-        "repositoryTree": "afd91ec4e56f84304920c00f580451abc3ef404f"
+        "tree": "7968cc14c97b97a35119648c849b3d69c0658606",
+        "directoryTree": "7968cc14c97b97a35119648c849b3d69c0658606",
+        "repositoryTree": "6d4a652c84e4297143c2190e821b54191cb9d3e6"
       },
+      "provenance": "ts-sdk master 7bc7669c + #1282 (input ownership across lock and restart) + #1283 (swap fund-once, Quote.depositCarrierSats); directed-only asset RFQ.",
       "toolchain": {
         "node": "v24.22.1",
         "pnpm": "10.25.0",
         "typescript": "5.9.2",
         "platform": "win32-x64",
-        "command": "pnpm -C packages/sdk pack --pack-destination C:/Git/outputs/arkade-taxi/bundles-v1-20261119"
+        "command": "pnpm -C packages/sdk pack (coordinator build: C:/Git/outputs/ts-sdk/taxi-cohort-20261124/pack/final/arkade-os-sdk-0.5.14-taxi.1-7584c23c.tgz)"
       }
     },
     {
       "package": "@arkade-os/swap",
-      "version": "0.2.0-taxi-v1",
-      "file": "arkade-os-swap-0.2.0-taxi-v1-ba2996cd.tgz",
-      "sha256": "7dadccc3d89b117e17fd0a42cbcef6d57afa329cc41c0748143e94880996ecf7",
-      "integrity": "sha512-zqMO0Yj5KMUs5lDvmpe+QYTVqSwHjaNVfBSbR4c+JbbN7/G2/Ti2lFhKEdqmnM2EmlzQibMLmD+zSP5MrcQ4ew==",
-      "bytes": 682763,
+      "version": "0.1.16-taxi.1",
+      "file": "arkade-os-swap-0.1.16-taxi.1-7584c23c.tgz",
+      "sha256": "282c308dc3ac4529c52b05e488bf962e9edaa0678b3dafec7fd16ec7140808c8",
+      "integrity": "sha512-XZFFnRhToFsQI6begvqjKv0Q2bV+jFFwR67ILEF8FStqlng728bsY53/vPMqDY+GXW2miyp77h8+ZTa4VKqJWQ==",
+      "bytes": 743881,
       "license": "MIT",
       "source": {
         "repository": "https://github.com/arkade-os/ts-sdk.git",
-        "commit": "ba2996cdf2cb93c6906c2eeef952df00a6209cc7",
+        "commit": "7584c23ce08b974e0e5e8e7651f8b45399bee7d7",
+        "branch": "provenance/taxi-cohort-20261124",
         "directory": "packages/swap",
-        "tree": "08c68ffeacbbdc1a4bca2b5c1feb9f14d7202f34",
-        "directoryTree": "08c68ffeacbbdc1a4bca2b5c1feb9f14d7202f34",
-        "repositoryTree": "3336ea2dea3cbb0f8e0142945c3fa1bedb714d6d"
+        "tree": "0ff4b237641bdd4c9185fa76c41ffe58225e0895",
+        "directoryTree": "0ff4b237641bdd4c9185fa76c41ffe58225e0895",
+        "repositoryTree": "6d4a652c84e4297143c2190e821b54191cb9d3e6"
       },
+      "provenance": "ts-sdk master 7bc7669c + #1282 (input ownership across lock and restart) + #1283 (swap fund-once, Quote.depositCarrierSats); directed-only asset RFQ.",
       "toolchain": {
         "node": "v24.22.1",
         "pnpm": "10.25.0",
-        "typescript": "Version 5.9.2",
+        "typescript": "5.9.2",
         "platform": "win32-x64",
-        "command": "pnpm -C packages/swap pack --out C:/Git/outputs/arkade-taxi/bundles-v1-20261119/arkade-os-swap-0.2.0-taxi-v1-ba2996cd.tgz"
+        "command": "pnpm -C packages/swap pack (coordinator build: C:/Git/outputs/ts-sdk/taxi-cohort-20261124/pack/final/arkade-os-swap-0.1.16-taxi.1-7584c23c.tgz)"
       },
-      "compiler": {
-        "upstreamSourceCommit": "d9e55f619c0f097a29b4f4f6360c7aac709315ad",
-        "executedDuringRefresh": false,
-        "compilerRevision": null,
-        "binarySha256": null,
-        "provenance": "Committed canonical artifacts remain unchanged from upstream d9, fdf and b1; compiler binary identity is not encoded. No regeneration during packaging closure.",
-        "artifacts": [
-          {
-            "source": "src/contracts/asset-swap.ark",
-            "sourceSha256": "ca8f8d5fd37bc1ae652001528c0e4fa9aba391e6e5f7218dfa753b712482b399",
-            "artifact": "src/contracts/asset-swap.json",
-            "artifactSha256": "82719d002c65277fdf4e5c8b06e48c7c37e5463c02b1bcf4613d13532ca5ea76",
-            "fingerprint": "sha256:e2b80add6237f6c7e2c69a96ae46d55abe6de5f71c3718106f4d5b22ac9e6d0a",
-            "compiler": {
-              "name": "arkadec",
-              "version": "0.1.0-rc.1",
-              "options": {
-                "optimize": true
-              }
-            },
-            "embeddedSourceMatches": true
-          },
-          {
-            "source": "src/contracts/sats-swap.ark",
-            "sourceSha256": "1b449cf6d009a508abab78f63e895c979fc895339260d68627df832809b76f5e",
-            "artifact": "src/contracts/sats-swap.json",
-            "artifactSha256": "1542c885ab5af379e459670687ccddeb3af33367641a33d8955b6f68f883ece9",
-            "fingerprint": "sha256:d7a60ab2178ede40a2e4867816689ea022641531cc662b562bebd7caa1ef96c4",
-            "compiler": {
-              "name": "arkadec",
-              "version": "0.1.0-rc.1",
-              "options": {
-                "optimize": true
-              }
-            },
-            "embeddedSourceMatches": true
-          }
-        ]
-      },
-      "sdkDependency": "0.5.9-taxi-v1",
-      "workerSdkRequirement": "0.5.9-taxi-v1"
+      "sdkDependency": "0.5.14-taxi.1"
     },
     {
       "package": "@arkade-taxi/client",
@@ -171,5 +135,5 @@
       "registryPublished": false
     }
   ],
-  "status": "All five archives passed public runtime imports, packed/installed manifest and resolved-entry byte checks, single SDK resolution, strict ESM/CJS TypeScript declarations and saved covenant vectors. Funded consumer qualification is pending."
+  "status": "SDK/swap from source commit 7584c23c; Taxi archives unchanged from the 2026-11-19 cohort. Funded consumer qualification is pending."
 }

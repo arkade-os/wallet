@@ -29,6 +29,7 @@ import UnverifiedBadge from './UnverifiedBadge'
 import { useTransactionAmountDisplay } from '../hooks/useTransactionAmountDisplay'
 import { isTaxiOnlyTx, taxiActivityView } from '../lib/taxiActivity'
 import { useTranslation } from '../providers/language'
+import { contactAddressForActivity, contactDisplayNameForAddress } from '../lib/contacts'
 
 const border = '1px solid color-mix(in srgb, var(--fg) 6%, transparent)'
 
@@ -47,6 +48,8 @@ const TransactionLine = ({
   const { toFiatAmount } = useContext(FiatContext)
   const { assetMetadataCache } = useContext(WalletContext)
   const { language, t } = useTranslation()
+  const contactAddress = contactAddressForActivity(tx)
+  const contactName = contactDisplayNameForAddress(contactAddress)
 
   const date = tx.createdAt
     ? prettyDate(tx.createdAt, language)
@@ -115,6 +118,7 @@ const TransactionLine = ({
 
   const kind =
     (taxiOnly ? t(tx.taxi?.role === 'sender' ? 'transaction.taxiPayment' : 'transaction.taxiDelivery') : undefined) ??
+    (contactName ? t('settings.contactSent', { name: contactName }) : undefined) ??
     lnSwapKind ??
     lnurlLabel(tx, t) ??
     (swap
@@ -255,6 +259,8 @@ function SwapAmountInfo({
 interface TransactionsListProps {
   /** Show only transactions for a specific asset. Use 'btc' for bitcoin-only activity. */
   assetIdFilter?: string | string[]
+  /** Show only rows whose reusable destination is exactly this address. */
+  addressFilter?: string
   /** Show only transactions of this type. */
   typeFilter?: Tx['type']
   /** 'virtual' (default) uses virtualization; 'static' renders a simple list. */
@@ -265,6 +271,7 @@ interface TransactionsListProps {
 
 export default function TransactionsList({
   assetIdFilter,
+  addressFilter,
   typeFilter,
   mode = 'virtual',
   limit,
@@ -275,6 +282,7 @@ export default function TransactionsList({
   const { t } = useTranslation()
   const visibleTxs = allTxs
     .filter((tx) => !shouldHideDevAssetTx(tx, assetMetadataCache))
+    .filter((tx) => !addressFilter || contactAddressForActivity(tx) === addressFilter)
     .filter((tx) => matchesAssetFilter(tx, assetIdFilter))
     .filter((tx) => !typeFilter || tx.type === typeFilter)
   const txs = mode === 'static' && limit ? visibleTxs.slice(0, limit) : visibleTxs

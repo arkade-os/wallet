@@ -18,18 +18,20 @@ import Theme from './Theme'
 import Currency from './Currency'
 import BitcoinUnit from './BitcoinUnit'
 import Password from './Password'
-import Delegates from './Delegates'
 import SettingsPageTransition from '../../components/SettingsPageTransition'
 import Haptics from './Haptics'
 import Contracts from './Contracts'
 import Solvers from './Solvers'
 import LanguageSettings from './Language'
 import Lnurl from './Lnurl'
+import Contacts from './Contacts'
 
 function settingsContent(option: SettingsOptions): JSX.Element {
   switch (option) {
     case SettingsOptions.Menu:
       return <SettingsMenu />
+    case SettingsOptions.Contacts:
+      return <Contacts />
     case SettingsOptions.About:
       return <About />
     case SettingsOptions.Advanced:
@@ -38,8 +40,6 @@ function settingsContent(option: SettingsOptions): JSX.Element {
       return <Backup />
     case SettingsOptions.Contracts:
       return <Contracts />
-    case SettingsOptions.Delegates:
-      return <Delegates />
     case SettingsOptions.BitcoinUnit:
       return <BitcoinUnit />
     case SettingsOptions.Display:

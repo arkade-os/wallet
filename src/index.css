@@ -279,6 +279,13 @@ button {
   padding: 1rem;
 }
 
+/* non-iOS: Android draws the page under its nav bar, covering the footer; iOS stays flush (see #725) */
+@supports not (-webkit-touch-callout: none) {
+  .buttons-on-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+  }
+}
+
 .tappable {
   cursor: pointer;
   &:active {
@@ -1370,6 +1377,7 @@ button {
 
 .table-row__label {
   display: flex;
+  flex: none;
   min-width: 0;
   align-items: center;
   gap: 0.5rem;
@@ -1402,6 +1410,7 @@ button {
 
 .table-row__value-wrap {
   display: flex;
+  flex-wrap: wrap;
   min-width: 0;
   align-items: center;
   justify-content: flex-end;
@@ -1416,6 +1425,34 @@ button {
   align-items: center;
   justify-content: center;
   color: color-mix(in srgb, var(--fg) 45%, transparent);
+}
+
+.table-row__save {
+  order: 1;
+  flex: 0 0 100%;
+  padding: 0.125rem 0;
+  color: var(--purpletext);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.table-row__save:active {
+  opacity: 0.65;
+}
+
+.table-row__contact-badge {
+  max-width: 9rem;
+  flex: none;
+  overflow: hidden;
+  padding: 0.125rem 0.4375rem;
+  border-radius: var(--radius-full);
+  background: var(--purple10);
+  color: color-mix(in srgb, var(--purple-500) 70%, var(--fg));
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .table-row__value {
@@ -3804,6 +3841,22 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   overflow: hidden;
 }
 
+.swap-quotes [data-slot='drawer-title'] {
+  font-size: 1.125rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.swap-quotes button:focus-visible,
+.swap-quotes summary:focus-visible {
+  outline: 2px solid var(--purpletext);
+  outline-offset: 2px;
+}
+
+.swap-quotes article button:focus-visible {
+  outline-offset: -2px;
+}
+
 .swap-review-header {
   align-items: flex-start !important;
   gap: 0.25rem !important;
@@ -4240,6 +4293,17 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   transition-delay: 0s, 0s, var(--invoice-exit);
 }
 
+.receive-invoice-expired {
+  animation: receive-invoice-enter var(--invoice-enter) var(--invoice-ease);
+}
+
+@keyframes receive-invoice-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
 .receive-invoice-pixels {
   display: grid;
   opacity: 0;
@@ -4274,6 +4338,10 @@ html.palette-dark .settings-row--danger .settings-row__chevron {
   .receive-invoice-stage[data-generating='true'] .receive-invoice-pixels span {
     animation: none;
     opacity: 0.65;
+  }
+
+  .receive-invoice-expired {
+    animation: none;
   }
 }
 

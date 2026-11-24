@@ -178,8 +178,9 @@ export async function runFundingProof(
   const installed = async (name) => json(resolve(dirname(require.resolve(name)), '../package.json'))
   const sdkPackage = await installed('@arkade-os/sdk')
   const swapPackage = await installed('@arkade-os/swap')
-  assert.equal(sdkPackage.version, '0.5.9-taxi-v1')
-  assert.equal(swapPackage.version, '0.2.0-taxi-v1')
+  const pinned = (name) => manifest.artifacts.find((artifact) => artifact.package === name)?.version
+  assert.equal(sdkPackage.version, pinned('@arkade-os/sdk'))
+  assert.equal(swapPackage.version, pinned('@arkade-os/swap'))
   const fixtureFile = resolve(env.TAXI_NATIVE_REGTEST_FIXTURE_FILE)
   assert.equal(fixtureFile, resolve(root, 'fixture.json'))
   const fixture = await json(fixtureFile)

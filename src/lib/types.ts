@@ -17,7 +17,8 @@ export type Config = {
   autoClaimFreeTaxi?: boolean
   aspUrl: string
   currency: Currencies
-  delegate: boolean
+  /** Board deposits and renew them through the network's Executor while the wallet is offline. Not exposed in the UI: VITE_EXECUTOR_ENABLED sets it. */
+  executor: boolean
   importedAssets: string[]
   language?: Language
   haptics: boolean
@@ -35,14 +36,6 @@ export type Config = {
   // deprecated
   currencyDisplay?: string
   fiat?: Currencies
-}
-
-export type Delegate = {
-  fee: number
-  url: string
-  name: string
-  pubkey: string
-  address: string
 }
 
 export enum Currencies {
@@ -71,6 +64,7 @@ export enum SettingsSections {
 
 export enum SettingsOptions {
   Menu = 'menu',
+  Contacts = 'contacts',
   About = 'about',
   Advanced = 'advanced',
   ArkadeMint = 'Arkade Mint',
@@ -78,7 +72,6 @@ export enum SettingsOptions {
   BitcoinUnit = 'bitcoin unit',
   Contracts = 'contracts',
   Currency = 'Currency',
-  Delegates = 'delegates',
   Display = 'display',
   General = 'general',
   Haptics = 'haptic feedback',

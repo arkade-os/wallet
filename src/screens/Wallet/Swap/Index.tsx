@@ -1,8 +1,9 @@
 import Decimal from 'decimal.js'
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion'
-import { fromAtomic, type OfferPlan } from '@arkade-os/solver-discovery'
-import type { AssetId, Quote } from '@arkade-os/swap'
-import { useOfferQuote } from '@arkade-os/solver-discovery/react'
+import { fromAtomic, isNetwork, type OfferPlan } from '@arkade-os/solver-discovery'
+import { btcOn, type OpenRfqOffer, type Quote } from '@arkade-os/swap'
+import type { NetworkName } from '@arkade-os/sdk'
+import { useSolverQuote } from '../../../hooks/useSolverQuote'
 import { type ReactNode, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import AssetAvatar from '../../../components/AssetAvatar'
 import Button from '../../../components/Button'
@@ -23,9 +24,8 @@ import { extractError } from '../../../lib/error'
 import { formatFiatAmountParts, normalizeBitcoinUnit, prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
 import { swapRouteTicker } from '../../../lib/swapDisplay'
-import { displayAssetOf } from '../../../lib/swapRecords'
-import { BTC_ASSET_ID, findMarket, makeCachedFeedFetch, QUOTE_OPTIONS, validatePlan } from '@arkade-os/swap/protocol'
-import { preFeeDisplayRate } from '../../../lib/swapMarkets'
+import { BTC_ASSET_ID, findMarket, l1ScriptForAddress, validatePlan } from '@arkade-os/swap/protocol'
+import { marketLegId, preFeeDisplayRate } from '../../../lib/swapMarkets'
 import { type AssetSwapQuoteSnapshot } from '../../../lib/swapRepository'
 import { Currencies, Unit } from '../../../lib/types'
 import { AspContext } from '../../../providers/asp'
@@ -37,11 +37,15 @@ import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import { usePortfolioFiat, type PortfolioRow } from '../../../hooks/usePortfolioFiat'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
-import { verifiedDesignatedCurrency, walletAssetPresentationForId } from '../../../lib/accountAssets'
+import { verifiedDesignatedCurrency } from '../../../lib/accountAssets'
 import { useTranslation } from '../../../providers/language'
+import { readSolverCards, saveSolverCards } from '../../../lib/solverCards'
+import { l1NetworkOf } from '../../../lib/onchainPayout'
+import { isSolverEnabled } from '../../../lib/solverRouting'
+import QuoteChoices, { formatQuoteAmount } from './QuoteChoices'
 
 type AssetTarget = 'from' | 'to'
-type DrawerState = 'to' | 'review' | null
+type DrawerState = 'to' | 'quotes' | 'refresh-quotes' | 'review' | null
 type SwapStep = 'select-from' | 'compose'
 type AmountMode = 'asset' | 'fiat'
 type SwapValidationState = 'idle' | 'insufficient-balance' | 'quote-unavailable'
@@ -56,6 +60,9 @@ interface SwapAsset {
   fiatText?: string
   icon?: string
   usdPrice?: number
+  external?: boolean
+  receiveOnly?: boolean
+  networkLabel?: string
 }
 
 interface SwapQuote {
@@ -86,29 +93,45 @@ const emptySwapAsset: SwapAsset = {
   balance: BigInt(0),
   usdPrice: 0,
 }
+const validAssetDecimals = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 36
 
 export default function WalletSwap() {
   const { aspInfo } = useContext(AspContext)
-  const { quoteExchange, exchange, markets, swapAvailable } = useContext(SwapsContext)
+  const {
+    quoteExchange,
+    acceptSwapQuote,
+    markets,
+    allMarkets = [],
+    discoveryReady,
+    swapAvailable,
+  } = useContext(SwapsContext)
   const { config } = useContext(ConfigContext)
   const { fiatDecimals, fromFiatAmount, toFiat, toFiatAmount } = useContext(FiatContext)
   const { swapFromAssetId, setSwapFromAssetId } = useContext(FlowContext)
   const { goBack, navigate } = useContext(NavigationContext)
-  const { assetMetadataCache, availableAssetBalances, availableBalance, isVerifiedAsset, svcWallet } =
-    useContext(WalletContext)
+  const { assetMetadataCache, availableAssetBalances, availableBalance, isVerifiedAsset } = useContext(WalletContext)
   const { rows } = usePortfolioFiat()
   const prefersReduced = useReducedMotion()
   const { t } = useTranslation()
+  const solverNetwork = isNetwork(aspInfo.network) ? aspInfo.network : undefined
 
   const btcUnit = normalizeBitcoinUnit(config.unit)
   const swapAssets = useMemo<SwapAsset[]>(() => {
-    const marketAssets = markets.flatMap((market) => [market.base_asset, market.quote_asset])
-    const uniqueAssets = new Map(
-      marketAssets.map((asset) => {
-        const id = displayAssetOf(asset.id as AssetId)
-        return [id, { ...asset, id }]
-      }),
-    )
+    const marketAssets = markets
+      .flatMap((market) => [market.base_asset, market.quote_asset])
+      .map((asset) => ({ ...asset, id: marketLegId(asset) }))
+    const ownedAssets = rows.flatMap((row) => {
+      const id = row.sourceAsset?.assetId ?? row.assetId
+      const decimals = row.sourceAsset?.decimals ?? row.decimals
+      if (!/^[0-9a-f]{68}$/.test(id) || !validAssetDecimals(decimals)) return []
+      if (BigInt(row.sourceAsset?.balance ?? row.spendableBalance) <= 0n) return []
+      return [{ id, name: row.name, ticker: row.ticker, decimals }]
+    })
+    const uniqueAssets = new Map(ownedAssets.map((asset) => [asset.id, asset]))
+    for (const asset of marketAssets) {
+      if (asset.id !== BTC_ASSET_ID && !uniqueAssets.has(asset.id)) uniqueAssets.set(asset.id, asset)
+    }
     uniqueAssets.set(BTC_ASSET_ID, {
       id: BTC_ASSET_ID,
       name: 'Bitcoin',
@@ -138,29 +161,30 @@ export default function WalletSwap() {
         }
       }
 
-      const row = rows.find((candidate) => candidate.assetId === asset.id)
+      const row = rows.find((candidate) => (candidate.sourceAsset?.assetId ?? candidate.assetId) === asset.id)
+      const rowDecimals = row?.sourceAsset?.decimals ?? row?.decimals
+      const cached = assetMetadataCache.get(asset.id)?.metadata
+      const cachedDecimals = cached?.decimals
+      const cachedName = typeof cached?.name === 'string' && cached.name.trim() ? cached.name.trim() : undefined
+      const cachedTicker = typeof cached?.ticker === 'string' && cached.ticker.trim() ? cached.ticker.trim() : undefined
       // spendable, not owned: the composer offers this as a max
       const spendable = availableAssetBalances.find((balance) => balance.assetId === asset.id)
       const designatedCurrency = verifiedDesignatedCurrency(aspInfo.network, asset.id, isVerifiedAsset)
-      const metadata = assetMetadataCache.get(asset.id)?.metadata
-      const presentation = walletAssetPresentationForId(
-        aspInfo.network,
-        asset.id,
-        isVerifiedAsset,
-        metadata,
-        asset.name,
-      )
       return {
         assetId: asset.id,
-        name: row?.name ?? presentation.name,
-        ticker: row?.ticker ?? (presentation.ticker || asset.ticker),
+        name: row?.name ?? designatedCurrency ?? cachedName ?? asset.name,
+        ticker: row?.ticker ?? designatedCurrency ?? cachedTicker ?? asset.ticker,
         currency: designatedCurrency,
-        decimals: asset.decimals,
+        decimals: validAssetDecimals(rowDecimals)
+          ? rowDecimals
+          : validAssetDecimals(cachedDecimals)
+            ? cachedDecimals
+            : asset.decimals,
         balance: BigInt(spendable?.amount ?? 0),
         fiatText: row?.hasFiatPrice
           ? prettyFiatAmount(row.fiatAmount, config.currency, { bitcoinUnit: config.unit })
           : undefined,
-        icon: metadata?.icon,
+        icon: assetMetadataCache.get(asset.id)?.metadata?.icon,
         usdPrice: row ? estimateRowUsdPrice(row, config.currency, fromFiatAmount, toFiat, toFiatAmount) : 0,
       }
     })
@@ -180,10 +204,39 @@ export default function WalletSwap() {
     toFiat,
     toFiatAmount,
   ])
+  const swapTargets = useMemo<SwapAsset[]>(() => {
+    const targets = new Map(swapAssets.map((asset) => [asset.assetId, asset]))
+    for (const [assetId, entry] of assetMetadataCache) {
+      const metadata = entry?.metadata
+      if (!/^[0-9a-f]{68}$/.test(assetId) || targets.has(assetId) || !metadata) continue
+      if (
+        typeof metadata.name !== 'string' ||
+        !metadata.name.trim() ||
+        typeof metadata.ticker !== 'string' ||
+        !metadata.ticker.trim()
+      )
+        continue
+      if (!validAssetDecimals(metadata.decimals)) continue
+      const row = rows.find((candidate) => (candidate.sourceAsset?.assetId ?? candidate.assetId) === assetId)
+      const decimals = row?.sourceAsset?.decimals ?? row?.decimals ?? metadata.decimals
+      if (!validAssetDecimals(decimals)) continue
+      const currency = verifiedDesignatedCurrency(aspInfo.network, assetId, isVerifiedAsset)
+      targets.set(assetId, {
+        assetId,
+        name: row?.name ?? currency ?? metadata.name.trim(),
+        ticker: row?.ticker ?? currency ?? metadata.ticker.trim(),
+        currency,
+        decimals,
+        balance: 0n,
+        icon: metadata.icon,
+        receiveOnly: true,
+      })
+    }
+    return [...targets.values()]
+  }, [assetMetadataCache, aspInfo.network, isVerifiedAsset, rows, swapAssets])
   const initialFromAssetId = resolveInitialFromAssetId(swapAssets, swapFromAssetId)
   const openedWithPreselectedAsset = useRef(Boolean(swapFromAssetId))
   const [step, setStep] = useState<SwapStep>(swapFromAssetId && initialFromAssetId ? 'compose' : 'select-from')
-  const [search, setSearch] = useState('')
   const [amount, setAmount] = useState('0')
   const [selectedAmountMode, setSelectedAmountMode] = useState<AmountMode>('fiat')
   // Any path that changes the effective give amount must clear this pair.
@@ -195,35 +248,63 @@ export default function WalletSwap() {
   }>()
   const [fromAssetId, setFromAssetId] = useState(initialFromAssetId ?? swapAssets[0]?.assetId ?? 'btc')
   const [toAssetId, setToAssetId] = useState<string | undefined>()
+  const [destination, setDestination] = useState('')
   const [drawer, setDrawer] = useState<DrawerState>(null)
   const [swapTurn, setSwapTurn] = useState(0)
   const [confirming, setConfirming] = useState(false)
   const [confirmError, setConfirmError] = useState('')
   const [successQuote, setSuccessQuote] = useState<SwapQuote>()
-  const [preparing, setPreparing] = useState(false)
-  const [review, setReview] = useState<{
-    executable: Quote
-    display: SwapQuote
-    plan: OfferPlan
-    key: string
-    wallet: typeof svcWallet
+  const [selectedOffer, setSelectedOffer] = useState<{
+    quote: Quote
+    offer: OpenRfqOffer
+    inputKey: string
+    destination?: string
+    lost?: boolean
   }>()
-  const [reviewExpired, setReviewExpired] = useState(false)
-  const reviewRequest = useRef(0)
-  const reviewKey = useRef('')
-  const activeFunding = useRef(false)
-  const attemptedQuotes = useRef(new Set<string>())
-  const reviewWallet = useRef(svcWallet)
-  reviewWallet.current = svcWallet
+  // Smart routing's firm quote per input, apart from a chosen offer so a late one never replaces it.
+  const [firmQuotes, setFirmQuotes] = useState<Record<string, { quote: Quote; plan: OfferPlan } | { error: string }>>(
+    {},
+  )
+  const [rememberSolver, setRememberSolver] = useState(false)
+  // Inputs with a firm quote in flight; the solver refuses the same terms again while one lives.
+  const [firmQuoting, setFirmQuoting] = useState<ReadonlySet<string>>(() => new Set())
+  const [quoteClock, setQuoteClock] = useState(() => Math.floor(Date.now() / 1000))
+  const submitting = useRef(false)
 
   const fromAsset =
     swapAssets.find((asset) => asset.assetId === fromAssetId) ??
     firstPositiveBalanceAsset(swapAssets) ??
     swapAssets[0] ??
     emptySwapAsset
+  const onchainId = btcOn('bitcoin', aspInfo.network as NetworkName)
+  const onchainTargets: SwapAsset[] =
+    fromAsset.assetId === BTC_ASSET_ID
+      ? [
+          {
+            assetId: onchainId,
+            name: t('swap.bitcoinOnchain'),
+            ticker: btcUnit === Unit.BTC ? 'BTC' : btcUnit,
+            decimals: btcUnit === Unit.BTC ? 8 : 0,
+            balance: 0n,
+            external: true,
+            networkLabel: aspInfo.network === 'bitcoin' ? t('swap.bitcoinMainnet') : aspInfo.network,
+          },
+        ]
+      : []
   const toAsset = toAssetId
-    ? swapAssets.find((asset) => asset.assetId === toAssetId && asset.assetId !== fromAsset.assetId)
+    ? [...swapTargets, ...onchainTargets].find(
+        (asset) => asset.assetId === toAssetId && asset.assetId !== fromAsset.assetId,
+      )
     : undefined
+  const destinationValid = useMemo(() => {
+    if (!toAsset?.external) return true
+    try {
+      l1ScriptForAddress(destination.trim(), l1NetworkOf(aspInfo.network))
+      return true
+    } catch {
+      return false
+    }
+  }, [aspInfo.network, destination, toAsset?.external])
   const unitOfAccountUsd = toFiatAmount(fromFiatAmount(1, config.currency), Currencies.USD)
   const currencyConversionUseful = hasDistinctCurrencyConversion(fromAsset, config.currency, unitOfAccountUsd)
   const amountMode = currencyConversionUseful ? selectedAmountMode : 'asset'
@@ -236,49 +317,39 @@ export default function WalletSwap() {
   }, [currencyConversionUseful, selectedAmountMode])
 
   const pair = toAsset ? findMarket(markets, fromAsset.assetId, toAsset.assetId) : undefined
-  // per-mount cache: a burst of keystroke-debounced quotes reuses one feed
-  // value instead of getting rate-limited into "Quote unavailable"
-  const feedFetch = useMemo(() => makeCachedFeedFetch(), [])
-  const { plan, setGiveAmount, solvable, status } = useOfferQuote(pair?.market ?? null, {
-    give: pair?.give,
-    fetchImpl: feedFetch,
-    ...QUOTE_OPTIONS,
-  })
+  const previewTargetId = toAsset?.external ? undefined : toAsset?.assetId
+  const quoteMarkets = useMemo(() => {
+    if (!previewTargetId) return []
+    const precisionFor = (assetId: string) => {
+      if (assetId === BTC_ASSET_ID) return 8
+      const row = rows.find((candidate) => (candidate.sourceAsset?.assetId ?? candidate.assetId) === assetId)
+      const decimals =
+        row?.sourceAsset?.decimals ?? row?.decimals ?? assetMetadataCache.get(assetId)?.metadata?.decimals
+      return validAssetDecimals(decimals) ? decimals : undefined
+    }
+    const giveDecimals = precisionFor(fromAsset.assetId)
+    const takeDecimals = precisionFor(previewTargetId)
+    return markets.filter((market) => {
+      const candidate = findMarket([market], fromAsset.assetId, previewTargetId)
+      if (!candidate?.market) return false
+      const giveAsset = candidate.give === 'base' ? market.base_asset : market.quote_asset
+      const takeAsset = candidate.give === 'base' ? market.quote_asset : market.base_asset
+      return (
+        (giveDecimals === undefined || giveAsset.decimals === giveDecimals) &&
+        (takeDecimals === undefined || takeAsset.decimals === takeDecimals)
+      )
+    })
+  }, [assetMetadataCache, fromAsset.assetId, markets, rows, previewTargetId])
+  const { plan, setGiveAmount, solvable, status } = useSolverQuote(
+    quoteMarkets,
+    fromAsset.assetId,
+    previewTargetId,
+    aspInfo.network,
+    aspInfo.dust,
+  )
   const preservedAmounts = preservedAmountPair?.assetId === fromAsset.assetId ? preservedAmountPair : undefined
   const assetAmount =
     preservedAmounts?.assetAmount ?? amountInAssetUnits(amount, amountMode, fromAsset, unitOfAccountUsd)
-  const currentReviewKey = JSON.stringify([
-    aspInfo.url,
-    aspInfo.network,
-    step,
-    fromAsset.assetId,
-    toAsset?.assetId,
-    assetAmount,
-    amountMode,
-    config.unit,
-    config.currency,
-  ])
-  reviewKey.current = currentReviewKey
-
-  useEffect(() => {
-    if (activeFunding.current) return
-    reviewRequest.current++
-    setPreparing(false)
-    setReview(undefined)
-    setDrawer(null)
-  }, [currentReviewKey, svcWallet])
-
-  useEffect(() => () => void reviewRequest.current++, [])
-
-  useEffect(() => {
-    setReviewExpired(false)
-    if (!review) return
-    const timeout = window.setTimeout(
-      () => setReviewExpired(true),
-      Math.max(0, review.executable.expiresAt * 1000 - Date.now()),
-    )
-    return () => window.clearTimeout(timeout)
-  }, [review])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -287,13 +358,40 @@ export default function WalletSwap() {
     return () => window.clearTimeout(timer)
   }, [assetAmount, fromAsset, setGiveAmount])
 
+  const amountAtomic = unitsToAtomic(assetAmount, fromAsset.decimals)
   const planMatchesAssetAmount = Boolean(
-    plan && new Decimal(plan.deposit.display).eq(amountForQuote(assetAmount, fromAsset) || '0'),
+    plan &&
+      toAsset &&
+      plan.deposit.atomic === amountAtomic &&
+      plan.receive.asset.decimals === (toAsset.assetId === BTC_ASSET_ID || toAsset.external ? 8 : toAsset.decimals) &&
+      new Decimal(plan.deposit.display).eq(amountForQuote(assetAmount, fromAsset) || '0'),
   )
   const currentPlan = status === 'success' && planMatchesAssetAmount ? plan : null
   const quoteStale = Boolean(toAsset && Number(assetAmount) > 0 && !currentPlan)
   const planError = currentPlan ? validatePlan(currentPlan, assetBalanceAtomic(fromAsset), aspInfo.dust) : undefined
-  const amountAtomic = unitsToAtomic(assetAmount, fromAsset.decimals)
+  const inputKey = `${aspInfo.network}:${fromAsset.assetId}:${fromAsset.decimals}:${toAsset?.assetId}:${toAsset?.decimals}:${amountAtomic}:${destination}`
+  const chosen = selectedOffer?.inputKey === inputKey ? selectedOffer : undefined
+  const firmHere = firmQuotes[inputKey]
+  const selected: { quote: Quote; offer?: OpenRfqOffer; plan?: OfferPlan; destination?: string } | undefined =
+    chosen ?? (firmHere && 'quote' in firmHere ? firmHere : undefined)
+  const quoteNow = Math.max(quoteClock, Math.floor(Date.now() / 1000))
+  const selectedExpired = Boolean(selected && selected.quote.expiresAt <= quoteNow)
+  const awaitingFirm = firmQuoting.has(inputKey) && !chosen
+  const firmError = !chosen && !awaitingFirm && firmHere && 'error' in firmHere ? firmHere.error : ''
+
+  useEffect(() => {
+    setSelectedOffer(undefined)
+    setRememberSolver(false)
+    setConfirmError('')
+    setDrawer((current) => (current === 'to' ? current : null))
+  }, [inputKey])
+
+  useEffect(() => {
+    if (!selected) return
+    setQuoteClock(Math.floor(Date.now() / 1000))
+    const timer = window.setInterval(() => setQuoteClock(Math.floor(Date.now() / 1000)), 1000)
+    return () => window.clearInterval(timer)
+  }, [selected])
   const exceedsBalance = amountAtomic > assetBalanceAtomic(fromAsset)
   // a partial asset deposit leaves asset change, and that change needs a second
   // dust carrier; without one the SDK fails with a bare "Insufficient funds"
@@ -301,16 +399,18 @@ export default function WalletSwap() {
     fromAsset.assetId !== BTC_ASSET_ID &&
     amountAtomic < assetBalanceAtomic(fromAsset) &&
     availableBalance < 2 * Number(aspInfo.dust)
+  // Not keyed by input: another tab can spend these funds while a cached quote is in review.
+  const fundsShort = exceedsBalance || lacksChangeCarrier
   const validationMessage = swapValidationMessage({
     amount,
     exceedsBalance,
     lacksChangeCarrier,
     fromAsset,
-    pairAvailable: toAsset ? Boolean(pair?.market) : undefined,
+    pairAvailable: toAsset && pair?.market ? true : undefined,
     plan: currentPlan,
     planError,
-    solvable: solvable ?? undefined,
-    status,
+    solvable: currentPlan || toAsset?.external || !pair?.market ? undefined : solvable,
+    status: toAsset?.external || !pair?.market ? 'idle' : status,
   })
   const quote = useMemo(
     () =>
@@ -352,12 +452,74 @@ export default function WalletSwap() {
         : 'idle'
   const balanceValidation = isBalanceLimitValidation(validationMessage) ? validationMessage : ''
 
-  const quoteLoading = status === 'loading' || (quoteStale && hasPositiveAmount)
+  const quoteLoading = Boolean(
+    !toAsset?.external && pair?.market && (status === 'loading' || (quoteStale && hasPositiveAmount)),
+  )
   const canContinue = Boolean(toAsset && currentPlan && !planError && !validationMessage)
+  const canViewQuotes = Boolean(
+    toAsset && amountAtomic > 0n && !exceedsBalance && !lacksChangeCarrier && destinationValid,
+  )
+  const reviewNeedsQuotes =
+    !awaitingFirm &&
+    Boolean(chosen?.lost || (selectedExpired && selected?.offer) || ((!selected || selectedExpired) && !canContinue))
+  const hasSavedSolver = Boolean(
+    toAsset &&
+      (toAsset.external ? allMarkets : quoteMarkets).some((market) => {
+        if (
+          toAsset.external &&
+          (typeof market.discovery_pubkey !== 'string' || !(market.transports?.nostr?.relays?.length ?? 0))
+        )
+          return false
+        const route = findMarket([market], fromAsset.assetId, toAsset.assetId)
+        return route?.market && isSolverEnabled(market, route.give, aspInfo.network)
+      }),
+  )
+  const searchOpenByDefault = Boolean(
+    discoveryReady && canViewQuotes && (!hasSavedSolver || (currentPlan && solvable === false)),
+  )
+  // The market's pre-fee rate beside the firm fee (spread plus any unreturned carrier) and amount.
+  const firmDisplay = (estimate: OfferPlan, firm: Quote): SwapQuote => {
+    const display = buildQuoteFromPlan(
+      {
+        ...estimate,
+        receive: {
+          ...estimate.receive,
+          atomic: firm.take.amount,
+          display: fromAtomic(firm.take.amount, estimate.receive.asset.decimals),
+        },
+      },
+      assetAmount,
+      preservedAmounts?.entryMode ?? amountMode,
+      fromAsset,
+      toAsset,
+      unitOfAccountUsd,
+      config.currency,
+      config.unit,
+    )
+    return { ...display, feeLabel: quoteFeeLabel(display, firm) }
+  }
+  const firmReview = !selected
+    ? quote
+    : selected.plan
+      ? firmDisplay(selected.plan, selected.quote)
+      : selectedQuoteDisplay(quote, selected.quote)
+  const net = selected && toAsset ? netBtcChange(fromAsset, toAsset, selected.quote) : undefined
+  const netText =
+    typeof net === 'bigint' && toAsset
+      ? formatAssetQuantity(formatQuoteAmount(net, toAsset.decimals), toAsset.decimals)
+      : undefined
+  const reviewQuote =
+    netText && toAsset
+      ? { ...firmReview, balanceChange: `${(net ?? 0n) > 0n ? '+' : ''}${netText} ${toAsset.ticker}` }
+      : firmReview
+  const assertVerifiableChange = (firm: Quote) => {
+    if (toAsset && netBtcChange(fromAsset, toAsset, firm) === null) throw new Error(t('swap.quoteUnavailable'))
+  }
 
   const stageTransition = prefersReduced ? { duration: 0 } : { duration: 0.28, ease: EASE_IN_OUT_QUINT_TUPLE }
 
-  const filteredAssets = useMemo(() => filterAssets(swapAssets, search), [search, swapAssets])
+  const isVerifiedPickerAsset = (asset: SwapAsset) =>
+    asset.assetId === BTC_ASSET_ID || asset.external === true || isVerifiedAsset(asset.assetId)
 
   useEffect(() => {
     if (swapAssets.length === 0) return
@@ -366,17 +528,11 @@ export default function WalletSwap() {
     setFromAssetId(resolveInitialFromAssetId(swapAssets, swapFromAssetId) ?? swapAssets[0]?.assetId ?? 'btc')
   }, [fromAssetId, swapAssets, swapFromAssetId])
 
-  const focusFromAsset = useCallback(
-    (assetId: string) => {
-      setFromAssetId(assetId)
-      setToAssetId((current) =>
-        current && current !== assetId && findMarket(markets, assetId, current)?.market ? current : undefined,
-      )
-      setSearch('')
-      setStep('compose')
-    },
-    [markets],
-  )
+  const focusFromAsset = useCallback((assetId: string) => {
+    setFromAssetId(assetId)
+    setToAssetId((current) => (current && current !== assetId ? current : undefined))
+    setStep('compose')
+  }, [])
 
   useEffect(() => {
     if (!swapFromAssetId || swapAssets.length === 0) return
@@ -392,7 +548,7 @@ export default function WalletSwap() {
     setSwapFromAssetId(undefined)
   }, [focusFromAsset, setSwapFromAssetId, swapAssets, swapAvailable, swapFromAssetId])
 
-  const swapCommitted = preparing || Boolean(review) || confirming || Boolean(successQuote)
+  const swapCommitted = confirming || Boolean(successQuote)
 
   useEffect(() => {
     if (swapCommitted || validationState === 'idle') return
@@ -416,9 +572,7 @@ export default function WalletSwap() {
 
   const openDrawer = (nextDrawer: DrawerState) => {
     hapticLight()
-    reviewRequest.current++
-    setPreparing(false)
-    setReview(undefined)
+    if (nextDrawer === 'review') setConfirmError('')
     setDrawer(nextDrawer)
   }
 
@@ -432,12 +586,13 @@ export default function WalletSwap() {
     hapticLight()
     setConfirmError('')
     setToAssetId(asset.assetId)
+    setDestination('')
     if (asset.assetId === fromAsset.assetId) setFromAssetId(toAsset?.assetId ?? fromAsset.assetId)
     setDrawer(null)
   }
 
   const swapSides = () => {
-    if (!toAsset) return
+    if (!toAsset || toAsset.external || toAsset.receiveOnly) return
     hapticLight()
     setPreservedAmountPair(undefined)
     setAmount('0')
@@ -505,9 +660,6 @@ export default function WalletSwap() {
   }
 
   const handleBack = () => {
-    reviewRequest.current++
-    setPreparing(false)
-    setReview(undefined)
     if (step === 'compose' && !openedWithPreselectedAsset.current) {
       setStep('select-from')
       return
@@ -526,62 +678,139 @@ export default function WalletSwap() {
     return () => window.clearTimeout(timer)
   }, [handleSuccessDone, successQuote])
 
-  const prepareReview = async () => {
-    if (!currentPlan || !canContinue || preparing) return
-    const request = ++reviewRequest.current
-    const key = reviewKey.current
-    const wallet = svcWallet
-    setPreparing(true)
-    setConfirmError('')
-    try {
-      const executable = await quoteExchange(currentPlan)
-      if (request !== reviewRequest.current || key !== reviewKey.current || wallet !== reviewWallet.current) return
-      if (executable.expiresAt * 1000 <= Date.now()) throw new Error(t('swap.quoteExpired'))
-      const display = buildExecutableQuote(quote, executable)
-      setReview({ executable, display, plan: currentPlan, key, wallet })
-      setDrawer('review')
-    } catch (error) {
-      if (request === reviewRequest.current && key === reviewKey.current && wallet === reviewWallet.current)
-        toast.error(extractError(error))
-    } finally {
-      if (request === reviewRequest.current) setPreparing(false)
+  // The market the plan was priced against must still name this pair, the right way round.
+  const planMatchesPair = (): boolean => {
+    if (!plan || !pair?.market || !toAsset) return false
+    const verified = findMarket([plan.market as typeof pair.market], fromAsset.assetId, toAsset.assetId)
+    return Boolean(verified?.market && verified.give === plan.give)
+  }
+
+  // Fetched as the review opens so Confirm is one tap; keyed to the input it was asked for.
+  const requestFirmQuote = async () => {
+    if (!plan || !canContinue || firmQuoting.has(inputKey)) return
+    if (!planMatchesPair()) {
+      setConfirmError(t('swap.quoteUnavailable'))
+      return
     }
+    const requested = inputKey
+    setFirmQuoting((current) => new Set(current).add(requested))
+    setConfirmError('')
+    let firm: { quote: Quote; plan: OfferPlan } | { error: string }
+    try {
+      const quoted = await quoteExchange(plan)
+      assertVerifiableChange(quoted)
+      firm = { quote: quoted, plan }
+    } catch (error) {
+      firm = { error: extractError(error) }
+    }
+    setFirmQuotes((current) => ({ ...current, [requested]: firm }))
+    setFirmQuoting((current) => {
+      const next = new Set(current)
+      next.delete(requested)
+      return next
+    })
+  }
+
+  const reportConfirmError = (error: unknown, offer?: OpenRfqOffer) => {
+    const name = (error as Error)?.name
+    const expired = name === 'QuoteExpired' || name === 'SendDeadlineExceededError'
+    const unavailable = name === 'QuoteUnavailable'
+    const message = expired ? t('swap.offerExpired') : extractError(error)
+    if (offer && (expired || unavailable))
+      setSelectedOffer((current) => (current?.offer === offer ? { ...current, lost: true } : current))
+    if (!offer && unavailable) setFirmQuotes((current) => ({ ...current, [inputKey]: { error: message } }))
+    if (expired) setQuoteClock(Math.floor(Date.now() / 1000))
+    setConfirmError(message)
   }
 
   const confirmSwap = async () => {
-    if (
-      !review ||
-      review.key !== reviewKey.current ||
-      review.wallet !== svcWallet ||
-      activeFunding.current ||
-      attemptedQuotes.current.has(review.executable.id)
-    )
+    if (submitting.current || !toAsset || confirming || awaitingFirm || fundsShort || chosen?.lost) return
+    const lapsed = selected && (selectedExpired || selected.quote.expiresAt <= Math.floor(Date.now() / 1000))
+    if (selected?.offer && lapsed) {
+      setConfirmError(t('swap.offerExpired'))
       return
-    if (review.executable.expiresAt * 1000 <= Date.now()) {
-      setReviewExpired(true)
+    }
+    // A lapsed firm quote falls through to smart routing, which quotes again.
+    if (selected && !lapsed) {
+      if (selected.quote.give.amount !== amountAtomic || selected.quote.take.amount <= 0n) return
+      const offer = selected.offer
+      submitting.current = true
+      setConfirming(true)
+      setConfirmError('')
+      try {
+        await acceptSwapQuote(
+          selected.quote,
+          selected.plan
+            ? buildQuoteSnapshot(selected.plan, reviewQuote, config.currency)
+            : {
+                fromTicker: fromAsset.ticker,
+                fromDecimals: fromAsset.decimals,
+                toTicker: toAsset.ticker,
+                toDecimals: toAsset.decimals,
+              },
+        )
+        setDrawer(null)
+        setSuccessQuote(reviewQuote)
+        if (offer && rememberSolver && solverNetwork) {
+          try {
+            const cards = readSolverCards()
+            const duplicate = cards.some(
+              (input) =>
+                input.network === solverNetwork &&
+                (input.card as { discovery_pubkey?: string }).discovery_pubkey === offer.solverPubkey,
+            )
+            if (!duplicate)
+              saveSolverCards([
+                ...cards,
+                { network: solverNetwork, label: offer.solverName.slice(0, 64), card: offer.signedCard },
+              ])
+          } catch (cause) {
+            toast.error(extractError(cause))
+          }
+        }
+        hapticLight()
+      } catch (error) {
+        reportConfirmError(error, offer)
+      } finally {
+        submitting.current = false
+        setConfirming(false)
+      }
+      return
+    }
+    if (!plan || !pair?.market || !canContinue) return
+    if (!planMatchesPair()) {
+      setConfirmError(t('swap.quoteUnavailable'))
       return
     }
 
+    // Never fund below the amount the review shows: show the new firm terms instead.
+    const shown = selected?.plan ? selected.quote.take.amount : plan.receive.atomic
     setConfirmError('')
-    attemptedQuotes.current.add(review.executable.id)
-    activeFunding.current = true
+    submitting.current = true
     setConfirming(true)
     try {
-      await exchange(review.executable, buildQuoteSnapshot(review.plan, review.display, config.currency))
+      const firm = await quoteExchange(plan)
+      assertVerifiableChange(firm)
+      // Kept before funding: a retry must accept this quote, not ask for its terms again.
+      setFirmQuotes((current) => ({ ...current, [inputKey]: { quote: firm, plan } }))
+      if (firm.take.amount < shown) {
+        setConfirmError(t('swap.quoteTermsUpdated'))
+        return
+      }
+      const funded = firmDisplay(plan, firm)
+      await acceptSwapQuote(firm, buildQuoteSnapshot(plan, funded, config.currency))
       setDrawer(null)
-      setSuccessQuote(review.display)
+      setSuccessQuote(funded)
       hapticLight()
     } catch (error) {
-      setConfirmError(extractError(error))
+      reportConfirmError(error)
     } finally {
-      activeFunding.current = false
+      submitting.current = false
       setConfirming(false)
     }
   }
 
-  const receiveAssets = swapAssets.filter((asset) =>
-    Boolean(findMarket(markets, fromAsset.assetId, asset.assetId)?.market),
-  )
+  const receiveAssets = [...swapTargets.filter((asset) => asset.assetId !== fromAsset.assetId), ...onchainTargets]
 
   return (
     <>
@@ -602,10 +831,8 @@ export default function WalletSwap() {
                   {swapAvailable ? (
                     <SwapAssetList
                       title={t('swap.chooseAssetToSwap')}
-                      search={search}
-                      assets={filteredAssets}
-                      empty={filteredAssets.length === 0}
-                      onSearch={setSearch}
+                      assets={swapAssets}
+                      isVerified={isVerifiedPickerAsset}
                       onSelect={selectFromAsset}
                     />
                   ) : (
@@ -642,13 +869,33 @@ export default function WalletSwap() {
                     quoteLoading={quoteLoading}
                     swapTurn={swapTurn}
                   />
+                  {toAsset?.external ? (
+                    <label className='mb-3 flex flex-col gap-2 text-sm'>
+                      <span>{t('swap.onchainAddress', { network: toAsset.networkLabel ?? '' })}</span>
+                      <input
+                        type='text'
+                        value={destination}
+                        autoComplete='off'
+                        autoCapitalize='none'
+                        spellCheck={false}
+                        className='rounded-xl border border-border bg-background px-4 py-3'
+                        placeholder={t('swap.pasteBitcoinAddress')}
+                        aria-label={t('swap.onchainAddress', { network: toAsset.networkLabel ?? '' })}
+                        onChange={(event) => setDestination(event.target.value)}
+                        aria-invalid={Boolean(destination && !destinationValid)}
+                      />
+                      {destination && !destinationValid ? (
+                        <span role='alert' className='text-destructive'>
+                          {t('swap.invalidBitcoinAddress')}
+                        </span>
+                      ) : null}
+                    </label>
+                  ) : null}
                   <Keypad amount={amount} onPress={pressKey} />
-                  <Button
-                    label={t('common.continue')}
-                    disabled={!canContinue || preparing}
-                    loading={preparing}
-                    onClick={prepareReview}
-                  />
+                  {searchOpenByDefault ? (
+                    <p className='text-sm text-muted-foreground'>{t('swap.noSavedSolverOffers')}</p>
+                  ) : null}
+                  <Button label={t('swap.viewQuotes')} disabled={!canViewQuotes} onClick={() => openDrawer('quotes')} />
                 </motion.section>
               )}
             </AnimatePresence>
@@ -660,6 +907,7 @@ export default function WalletSwap() {
         open={drawer === 'to'}
         target='to'
         assets={receiveAssets}
+        isVerified={isVerifiedPickerAsset}
         selectedId={toAsset?.assetId}
         onOpenChange={(open) => {
           if (!open) setDrawer(null)
@@ -667,29 +915,84 @@ export default function WalletSwap() {
         onSelect={selectToAsset}
       />
 
+      {toAsset ? (
+        <QuoteChoices
+          open={drawer === 'quotes' || drawer === 'refresh-quotes'}
+          network={aspInfo.network}
+          from={fromAsset}
+          to={toAsset}
+          amount={amountAtomic}
+          destination={toAsset.external ? destination.trim() : undefined}
+          automaticAmount={canContinue ? currentPlan?.receive.atomic : undefined}
+          autoSearch={drawer === 'quotes' && searchOpenByDefault}
+          allowSmartRouting={!toAsset.external}
+          onOpenChange={(open) => {
+            if (!open) setDrawer(null)
+          }}
+          onSmartRouting={() => {
+            setSelectedOffer(undefined)
+            openDrawer('review')
+            if (!firmHere || !('quote' in firmHere) || firmHere.quote.expiresAt <= Math.floor(Date.now() / 1000))
+              void requestFirmQuote()
+          }}
+          onChoose={(verifiedQuote, offer) => {
+            let verifiedDestination: string | undefined
+            if (toAsset.external) {
+              const take = verifiedQuote.route.take
+              if (
+                take.corridor !== 'onchain' ||
+                take.instrument.kind !== 'address' ||
+                take.asset !== toAsset.assetId ||
+                verifiedQuote.take.asset !== toAsset.assetId
+              )
+                throw new Error(t('swap.destinationChanged'))
+              const expectedScript = l1ScriptForAddress(destination.trim(), l1NetworkOf(aspInfo.network))
+              const preparedScript = l1ScriptForAddress(take.instrument.address, l1NetworkOf(aspInfo.network))
+              if (
+                expectedScript.length !== preparedScript.length ||
+                !expectedScript.every((value, index) => value === preparedScript[index])
+              )
+                throw new Error(t('swap.destinationChanged'))
+              verifiedDestination = take.instrument.address
+            }
+            assertVerifiableChange(verifiedQuote)
+            setRememberSolver(false)
+            setSelectedOffer({ quote: verifiedQuote, offer, inputKey, destination: verifiedDestination })
+            openDrawer('review')
+          }}
+        />
+      ) : null}
+
       <ReviewDrawer
         open={drawer === 'review'}
-        quote={review?.display ?? quote}
-        canConfirm={Boolean(
-          review &&
-            review.key === reviewKey.current &&
-            review.wallet === svcWallet &&
-            !reviewExpired &&
-            !attemptedQuotes.current.has(review.executable.id),
-        )}
+        quote={reviewQuote}
+        provider={selected?.offer?.solverName}
+        destination={selected?.destination}
+        rememberSolver={rememberSolver}
+        onRememberSolverChange={selected?.offer && solverNetwork ? setRememberSolver : undefined}
+        canConfirm={!awaitingFirm && !fundsShort && !reviewNeedsQuotes}
         confirming={confirming}
-        error={confirmError || (reviewExpired && !confirming ? t('swap.quoteExpired') : '')}
-        quoteLoading={false}
-        attempted={Boolean(review && attemptedQuotes.current.has(review.executable.id))}
-        onRecovery={() => navigate(Pages.Wallet)}
+        error={
+          fundsShort && !swapCommitted
+            ? swapValidationText(validationMessage, t)
+            : reviewNeedsQuotes && selectedExpired
+              ? t('swap.offerExpired')
+              : confirmError || firmError || (reviewNeedsQuotes ? t('swap.quoteUnavailable') : '')
+        }
+        note={
+          selected?.plan && selected.quote.take.amount < selected.plan.receive.atomic
+            ? t('swap.quoteBelowEstimate')
+            : undefined
+        }
+        quoteLoading={awaitingFirm || (selected ? false : quoteLoading)}
+        expiresIn={selected && !selectedExpired && !chosen?.lost ? selected.quote.expiresAt - quoteNow : undefined}
+        onViewQuotes={
+          reviewNeedsQuotes && canViewQuotes && !confirming ? () => openDrawer('refresh-quotes') : undefined
+        }
         onOpenChange={(open) => {
           // keep the drawer up while the swap is being created so a late
           // failure still has a surface to report on
-          if (!open && !confirming) {
-            reviewRequest.current++
-            setReview(undefined)
-            setDrawer(null)
-          }
+          if (!open && !confirming) setDrawer(null)
         }}
         onConfirm={confirmSwap}
       />
@@ -715,23 +1018,24 @@ function SwapUnavailableState() {
 
 function SwapAssetList({
   title,
-  search,
   assets,
-  empty,
+  isVerified,
   selectedId,
-  onSearch,
   onSelect,
 }: {
   title: string
-  search: string
   assets: SwapAsset[]
-  empty: boolean
+  isVerified: (asset: SwapAsset) => boolean
   selectedId?: string
-  onSearch: (value: string) => void
   onSelect: (asset: SwapAsset) => void
 }) {
   const prefersReduced = useReducedMotion()
   const { t } = useTranslation()
+  const [search, setSearch] = useState('')
+  const [showUnverified, setShowUnverified] = useState(false)
+  const listId = useId()
+  const verified = assets.filter(isVerified)
+  const filteredAssets = filterAssets(showUnverified ? assets : verified, search)
 
   return (
     <div className='swap-asset-list-panel'>
@@ -747,14 +1051,17 @@ function SwapAssetList({
           placeholder={t('swap.searchAssets')}
           autoComplete='off'
           spellCheck={false}
-          onChange={(event) => onSearch(event.target.value)}
+          onChange={(event) => setSearch(event.target.value)}
         />
       </label>
-      <div className='swap-token-list swap-token-list--page'>
-        {empty ? (
+      {verified.length < assets.length ? (
+        <UnverifiedAssetsToggle expanded={showUnverified} controls={listId} onToggle={setShowUnverified} />
+      ) : null}
+      <div id={listId} className='swap-token-list swap-token-list--page'>
+        {filteredAssets.length === 0 ? (
           <div className='swap-empty-state'>{t('swap.noAssetsMatch')}</div>
         ) : (
-          assets.map((asset, index) => (
+          filteredAssets.map((asset, index) => (
             <motion.div
               key={asset.assetId}
               initial={prefersReduced ? false : { opacity: 0, y: 8 }}
@@ -960,7 +1267,7 @@ function SwapComposer({
         aria-label={t('swap.switchSwapDirection')}
         animate={{ rotate: swapTurn * 180 }}
         transition={prefersReduced ? { duration: 0 } : { duration: 0.22, ease: EASE_IN_OUT_QUINT_TUPLE }}
-        disabled={!toAsset}
+        disabled={!toAsset || toAsset.external || toAsset.receiveOnly}
         onClick={onSwapSides}
       >
         <SwapIcon />
@@ -973,6 +1280,7 @@ function SwapComposer({
             <div>
               <span>
                 {t('swap.receive')} {toAsset.ticker}
+                {toAsset.external ? ` · ${toAsset.name}` : ''}
               </span>
               <small>
                 {quoteLoading ? <SwapSkeletonText width='5.75rem' /> : `${quote.toAmount} ${toAsset.ticker}`}
@@ -1123,7 +1431,7 @@ function SwapAssetRow({ asset, active, onClick }: { asset: SwapAsset; active?: b
       <TokenAvatar asset={asset} size={40} />
       <span className='swap-token-row__copy'>
         <span>{asset.name}</span>
-        <small>{formatAssetBalance(asset)}</small>
+        <small>{asset.networkLabel ?? formatAssetBalance(asset)}</small>
       </span>
       {asset.fiatText ? <strong>{asset.fiatText}</strong> : null}
     </button>
@@ -1174,6 +1482,7 @@ function AssetPickerDrawer({
   open,
   target,
   assets,
+  isVerified,
   selectedId,
   onOpenChange,
   onSelect,
@@ -1181,12 +1490,16 @@ function AssetPickerDrawer({
   open: boolean
   target: AssetTarget
   assets: SwapAsset[]
+  isVerified: (asset: SwapAsset) => boolean
   selectedId?: string
   onOpenChange: (open: boolean) => void
   onSelect: (target: AssetTarget, asset: SwapAsset) => void
 }) {
   const [query, setQuery] = useState('')
-  const filteredAssets = useMemo(() => filterAssets(assets, query), [assets, query])
+  const [showUnverified, setShowUnverified] = useState(false)
+  const listId = useId()
+  const verified = assets.filter(isVerified)
+  const filteredAssets = filterAssets(showUnverified ? assets : verified, query)
   const { t } = useTranslation()
 
   return (
@@ -1212,7 +1525,10 @@ function AssetPickerDrawer({
               onChange={(event) => setQuery(event.target.value)}
             />
           </label>
-          <div className='swap-token-list'>
+          {verified.length < assets.length ? (
+            <UnverifiedAssetsToggle expanded={showUnverified} controls={listId} onToggle={setShowUnverified} />
+          ) : null}
+          <div id={listId} className='swap-token-list'>
             {filteredAssets.map((asset) => (
               <SwapAssetRow
                 key={asset.assetId}
@@ -1228,26 +1544,60 @@ function AssetPickerDrawer({
   )
 }
 
+function UnverifiedAssetsToggle({
+  expanded,
+  controls,
+  onToggle,
+}: {
+  expanded: boolean
+  controls: string
+  onToggle: (expanded: boolean) => void
+}) {
+  const { t } = useTranslation()
+
+  return (
+    <button
+      type='button'
+      className='min-h-6 self-start rounded-sm px-1 text-xs text-muted-foreground underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring'
+      aria-expanded={expanded}
+      aria-controls={controls}
+      onClick={() => onToggle(!expanded)}
+    >
+      {t(expanded ? 'swap.hideUnverifiedAssets' : 'swap.showUnverifiedAssets')}
+    </button>
+  )
+}
+
 function ReviewDrawer({
   open,
   quote,
+  provider,
+  destination,
+  rememberSolver,
+  onRememberSolverChange,
   canConfirm,
   confirming,
   error,
+  note,
   quoteLoading,
-  attempted,
-  onRecovery,
+  expiresIn,
+  onViewQuotes,
   onOpenChange,
   onConfirm,
 }: {
   open: boolean
   quote: SwapQuote
+  provider?: string
+  destination?: string
+  rememberSolver: boolean
+  onRememberSolverChange?: (remember: boolean) => void
   canConfirm: boolean
   confirming: boolean
   error: string
+  note?: string
   quoteLoading: boolean
-  attempted: boolean
-  onRecovery: () => void
+  expiresIn?: number
+  onViewQuotes?: () => void
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
 }) {
@@ -1264,12 +1614,37 @@ function ReviewDrawer({
         <div className='swap-review-drawer-body'>
           <ReviewSummary quote={quote} loading={quoteLoading} />
           <QuoteDetails quote={quote} loading={quoteLoading} />
+          {provider ? <MetricRow label={t('swap.provider')} value={provider} loading={false} /> : null}
+          {destination ? (
+            <div className='flex flex-col gap-2 px-1 py-3 text-sm'>
+              <span className='text-muted-foreground'>{t('common.address')}</span>
+              <p className='select-text break-all font-medium'>{destination}</p>
+            </div>
+          ) : null}
+          {onRememberSolverChange ? (
+            <label className='flex cursor-pointer items-center gap-3 px-1 py-3 text-sm'>
+              <input
+                type='checkbox'
+                checked={rememberSolver}
+                disabled={confirming}
+                onChange={(event) => onRememberSolverChange(event.target.checked)}
+              />
+              {t('swap.saveSolverAfterSwap')}
+            </label>
+          ) : null}
+          {note ? <p className='px-1 py-2 text-xs text-muted-foreground'>{note}</p> : null}
         </div>
         <div className='swap-review-action'>
+          {expiresIn !== undefined && !confirming ? (
+            <p className='pb-1 text-center text-xs text-muted-foreground'>
+              {t('swap.offerExpiresIn', { seconds: expiresIn })}
+            </p>
+          ) : null}
           <AnimatePresence initial={false}>
             {error ? (
               <motion.p
                 className='swap-confirm-error'
+                role='alert'
                 initial={prefersReduced ? false : { opacity: 0, y: 6 }}
                 animate={prefersReduced ? undefined : { opacity: 1, y: 0 }}
                 exit={prefersReduced ? undefined : { opacity: 0, y: 6 }}
@@ -1280,10 +1655,10 @@ function ReviewDrawer({
             ) : null}
           </AnimatePresence>
           <Button
-            label={attempted && !confirming ? t('swap.viewActivity') : t('swap.confirmSwap')}
-            disabled={attempted && !confirming ? false : !canConfirm || confirming}
+            label={t(onViewQuotes ? 'swap.viewQuotes' : 'swap.confirmSwap')}
+            disabled={(!onViewQuotes && !canConfirm) || confirming}
             loading={confirming}
-            onClick={attempted && !confirming ? onRecovery : onConfirm}
+            onClick={onViewQuotes ?? onConfirm}
           />
         </div>
       </DrawerContent>
@@ -1321,19 +1696,27 @@ function ReviewSummary({ quote, loading }: { quote: SwapQuote; loading: boolean 
           <span>{t('swap.swapRoute')}</span>
           <h3 className='text-heading-sm'>
             {swapRouteTicker(quote.fromAsset.assetId, quote.fromAsset.ticker)} {t('swap.routeConnector')}{' '}
-            {swapRouteTicker(quote.toAsset?.assetId, quote.toAsset?.ticker) ?? t('swap.asset')}
+            {quote.toAsset?.external
+              ? 'BTC'
+              : (swapRouteTicker(quote.toAsset?.assetId, quote.toAsset?.ticker) ?? t('swap.asset'))}
           </h3>
         </div>
       </div>
       <MetricRow label={t('swap.title')} value={`${quote.fromAmount} ${quote.fromAsset.ticker}`} loading={loading} />
       <MetricRow
-        label={t('swap.receive')}
+        label={quote.toAsset?.external ? t('swap.receiveBeforeBitcoinFee') : t('swap.receive')}
         value={quote.toAsset ? `${quote.toAmount} ${quote.toAsset.ticker}` : t('swap.chooseAsset')}
         loading={loading}
       />
       <MetricRow label={t('swap.fees')} value={quote.feeLabel} loading={loading} />
       {quote.balanceChange ? (
         <MetricRow label={t('swap.balanceChange')} value={quote.balanceChange} loading={loading} />
+      ) : null}
+      {quote.toAsset?.networkLabel ? (
+        <>
+          <MetricRow label={t('common.network')} value={quote.toAsset.networkLabel} loading={false} />
+          <p className='mt-2 text-sm text-muted-foreground'>{t('swap.onchainNetworkFees')}</p>
+        </>
       ) : null}
     </div>
   )
@@ -1436,46 +1819,39 @@ function MetricRow({ label, value, loading }: { label: ReactNode; value: string;
   )
 }
 
-function buildExecutableQuote(estimate: SwapQuote, executable: Quote): SwapQuote {
-  const from = estimate.fromAsset
-  const to = estimate.toAsset
-  if (
-    !to ||
-    displayAssetOf(executable.give.asset) !== from.assetId ||
-    displayAssetOf(executable.take.asset) !== to.assetId
-  )
-    throw new Error('The quote does not match the selected assets')
-  const feeAsset = [from, to].find((asset) => asset.assetId === displayAssetOf(executable.fee.asset))
-  if (!feeAsset) throw new Error('The quote fee uses an unsupported asset')
-  const carrier = executable.depositCarrierSats
-  if (carrier !== undefined && (typeof carrier !== 'bigint' || carrier <= 0n))
-    throw new Error('The quote balance change is unavailable')
-  const ownBtcPayout =
-    from.assetId !== BTC_ASSET_ID &&
-    to.assetId === BTC_ASSET_ID &&
-    executable.route.give.instrument.kind === 'wallet' &&
-    executable.route.take.instrument.kind === 'wallet'
-  if (ownBtcPayout && carrier === undefined) throw new Error('The quote balance change is unavailable')
-  const quantity = (amount: bigint, asset: SwapAsset) =>
-    formatAssetQuantity(atomicToUnits(amount, asset.decimals), asset.decimals)
-  const carrierInTakeUnits = to.assetId === BTC_ASSET_ID ? (carrier ?? 0n) : 0n
-  const net = executable.take.amount - carrierInTakeUnits
-  const fairTake =
-    executable.take.amount + (feeAsset.assetId === to.assetId ? executable.fee.amount : 0n) - carrierInTakeUnits
-  const rate = new Decimal(fairTake.toString())
-    .div(10 ** (to.assetId === BTC_ASSET_ID ? 8 : to.decimals))
-    .div(new Decimal(executable.give.amount.toString()).div(10 ** (from.assetId === BTC_ASSET_ID ? 8 : from.decimals)))
-    .toNumber()
+function selectedQuoteDisplay(display: SwapQuote, quote: Quote): SwapQuote {
+  const to = display.toAsset
+  if (!to) return display
+  const from = display.fromAsset
+  const fromDecimals = from.assetId === BTC_ASSET_ID ? 8 : from.decimals
+  const toDecimals = to.assetId === BTC_ASSET_ID || to.external ? 8 : to.decimals
+  const rate = new Decimal(quote.take.amount.toString())
+    .div(new Decimal(10).pow(toDecimals))
+    .div(new Decimal(quote.give.amount.toString()).div(new Decimal(10).pow(fromDecimals)))
   return {
-    ...estimate,
-    fromAmount: quantity(executable.give.amount, from),
-    toAmount: quantity(executable.take.amount, to),
-    feeLabel: `${quantity(executable.fee.amount, feeAsset)} ${feeAsset.ticker}`,
-    rateLabel: feeAsset.assetId === to.assetId ? prettyNumber(rate, swapAmountDecimals(rate)) : estimate.rateLabel,
-    ...(ownBtcPayout && carrier !== 0n
-      ? { balanceChange: `${net > 0n ? '+' : ''}${quantity(net, to)} ${to.ticker}` }
-      : {}),
+    ...display,
+    fromAmount: formatQuoteAmount(quote.give.amount, from.decimals),
+    toAmount: formatQuoteAmount(quote.take.amount, to.decimals),
+    toCurrency: '',
+    toCurrencyValue: 0,
+    feeLabel: quoteFeeLabel(display, quote),
+    rateLabel: rate.toSignificantDigits(10).toFixed(),
+    rateToTicker: to.external ? 'BTC' : display.rateToTicker,
   }
+}
+
+/** An asset given for BTC paid to this wallet also funds a BTC carrier, so the net is the take less that
+ * carrier; null when the quote omits it and the change cannot be verified. */
+function netBtcChange(from: SwapAsset, to: SwapAsset, quote: Quote): bigint | null | undefined {
+  if (from.assetId === BTC_ASSET_ID || to.assetId !== BTC_ASSET_ID) return undefined
+  if (quote.route?.give.instrument.kind !== 'wallet' || quote.route?.take.instrument.kind !== 'wallet') return undefined
+  const carrier = quote.depositCarrierSats
+  return typeof carrier === 'bigint' && carrier > 0n ? quote.take.amount - carrier : null
+}
+
+function quoteFeeLabel(display: SwapQuote, quote: Quote): string {
+  const feeAsset = quote.fee.asset === quote.give.asset ? display.fromAsset : display.toAsset
+  return feeAsset ? `${formatQuoteAmount(quote.fee.amount, feeAsset.decimals)} ${feeAsset.ticker}` : display.feeLabel
 }
 
 function buildQuoteFromPlan(
@@ -1533,7 +1909,10 @@ function buildQuoteFromPlan(
     toAsset,
     fromAmount: formatAssetQuantity(fromUnits, fromAsset.decimals),
     fromCurrency: fromCurrencyAvailable ? prettyFiatAmount(selectedCurrencyAmount, currency, formatOptions) : '',
-    toAmount: toAsset ? formatAssetQuantity(received, toAsset.decimals) : '0',
+    // from the atomic amount: Number() drops the last digits of an 18-decimal token
+    toAmount: toAsset
+      ? formatAssetQuantity(plan ? formatQuoteAmount(plan.receive.atomic, toAsset.decimals) : 0, toAsset.decimals)
+      : '0',
     toCurrency: toCurrencyAvailable ? prettyFiatAmount(receivedCurrencyAmount, currency, formatOptions) : '',
     feeLabel: toAsset ? `${formatAssetQuantity(feeReceived, toAsset.decimals)} ${toAsset.ticker}` : '',
     // the rate is always quoted per whole BTC even though amounts display in

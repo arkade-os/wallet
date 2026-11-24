@@ -16,6 +16,8 @@ import WaitingForRound from '../../components/WaitingForRound'
 import { sleep } from '../../lib/sleep'
 import Text, { TextSecondary } from '../../components/Text'
 import Details, { DetailsProps } from '../../components/Details'
+import InputContainer from '../../components/InputContainer'
+import SheetModal from '../../components/SheetModal'
 import VtxosIcon from '../../icons/Vtxos'
 import CheckMarkIcon from '../../icons/CheckMark'
 import { AspContext } from '../../providers/asp'
@@ -53,6 +55,7 @@ import {
 import { consoleError } from '../../lib/logs'
 import { useTranslation } from '../../providers/language'
 import { truncatedAssetId } from '../../lib/assets'
+import { contactForAddress, readContacts, savableActivityAddress, saveContact } from '../../lib/contacts'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,6 +66,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../../components/ui/alert-dialog'
+import { BackupContext } from '@/providers/backup'
 
 const TAXI_INFO_COLOR: Record<TaxiTone, string> = {
   pending: 'orange',
@@ -77,6 +81,7 @@ const TAXI_MODE_KEY = {
 } as const
 
 export default function Transaction() {
+  const { backupContacts } = useContext(BackupContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo } = useContext(FlowContext)
   const { cancelSwap, recoverSwap, swaps } = useContext(SwapsContext)
@@ -177,6 +182,9 @@ export default function Transaction() {
   const [recoverConfirmOpen, setRecoverConfirmOpen] = useState(false)
   const [recoverFailed, setRecoverFailed] = useState(false)
   const [recoveringSwap, setRecoveringSwap] = useState(false)
+  const [savedContact, setSavedContact] = useState(false)
+  const [saveContactOpen, setSaveContactOpen] = useState(false)
+  const [saveContactName, setSaveContactName] = useState('')
   const txid = tx?.boardingTxid || tx?.redeemTxid || tx?.roundTxid || ''
   const receiverConfirmed = useSyncExternalStore(
     subscribeLnurlSends,
@@ -273,6 +281,22 @@ export default function Transaction() {
   }
 
   if (!tx) return <></>
+
+  // Only a reusable destination that is not already a contact earns the action;
+  // an invoice or a Lightning-only send has nothing stable to name.
+  const destinationAddress = tx.type === 'sent' && !tx.boardingTxid ? savableActivityAddress(tx) : undefined
+  const destinationContact = contactForAddress(destinationAddress)
+  const canSaveContact = Boolean(destinationAddress && !destinationContact && !savedContact)
+  const contactBadge = destinationContact ? destinationContact.name?.trim() || t('contacts.badge') : undefined
+
+  const handleSaveContact = () => {
+    if (!destinationAddress) return
+    if (!saveContact(destinationAddress, saveContactName)) return setError(t('contacts.saveFailed'))
+    backupContacts(readContacts()).catch((err) => consoleError(err, 'failed to backup contacts'))
+    setSavedContact(true)
+    setSaveContactOpen(false)
+    setSaveContactName('')
+  }
 
   // Status booleans mirror the state machine; the translated `status` string is
   // display-only so control flow never depends on the active locale.
@@ -432,6 +456,17 @@ export default function Transaction() {
         relatedTxids,
         date,
         destination: tx.type === 'sent' && !boardingTx && !issuanceTx && !burnTx ? tx.destination : undefined,
+        contactBadge,
+        saveContactAction: canSaveContact
+          ? {
+              label: t('contacts.convert'),
+              onClick: () => {
+                setSaveContactName('')
+                setError('')
+                setSaveContactOpen(true)
+              },
+            }
+          : undefined,
         fees,
         // Sends already carry their target as `destination`, saved at send time;
         // the resolver's address/rail is the only source for a receive.
@@ -467,59 +502,81 @@ export default function Transaction() {
   const showRecoverSwap = swapTx && liveSwap?.status === 'recoverable'
   const visibleError = (cancelFailed && !showCancelSwap) || (recoverFailed && !showRecoverSwap) ? '' : error
 
-  const Body = () => (
-    <Content>
-      <Padded>
-        <FlexCol>
-          <ErrorMessage error={Boolean(visibleError)} text={visibleError} />
-          {expiredBoardingTx ? (
-            <Info color='red' icon={<VtxosIcon />} title={t('transaction.expired')}>
-              <Text wrap>{t('transaction.boardingExpired')}</Text>
-            </Info>
-          ) : unconfirmedBoardingTx ? (
-            <Info color='orange' icon={<VtxosIcon />} title={t('transaction.unconfirmed')}>
-              <Text wrap>{t('transaction.unconfirmedText')}</Text>
-            </Info>
-          ) : showRecoverSwap ? (
-            <Info color='orange' icon={<VtxosIcon />} title={t('transaction.recoverable')}>
-              <Text wrap>{t('transaction.recoverableText')}</Text>
-            </Info>
-          ) : tx.preconfirmed && tx.boardingTxid ? (
-            <Info color='orange' icon={<VtxosIcon />} title={t('transaction.pendingBoarding')}>
-              <Text wrap>{t('transaction.pendingBoardingText')}</Text>
-            </Info>
-          ) : null}
-          {settleSuccess ? (
-            <Info color='green' icon={<CheckMarkIcon small />} title={t('transaction.success')}>
-              <TextSecondary>{t('transaction.settledSuccessfully')}</TextSecondary>
-            </Info>
-          ) : null}
-          {taxiView ? (
-            <Info color={TAXI_INFO_COLOR[taxiView.tone]} icon={<VtxosIcon />} title={t(taxiView.label)}>
-              <Text wrap>{t(taxiView.explanation)}</Text>
-              {taxi?.failureDetail ? <Text wrap>{taxi.failureDetail}</Text> : null}
-              {taxi?.failureCode ? (
-                <TextSecondary>{t('transaction.taxiFailureCode', { code: taxi.failureCode })}</TextSecondary>
-              ) : null}
-            </Info>
-          ) : null}
-          {swapTx && tx.assetSwap ? (
-            <SwapTransactionSummary fromIcon={swapFromIcon} toIcon={swapToIcon} tx={tx} />
-          ) : null}
-          {receiverConfirmed === true ? (
-            <Info color='green' icon={<CheckMarkIcon small />} title={t('transaction.receiverConfirmed')}>
-              <TextSecondary>{t('transaction.receiverConfirmedText')}</TextSecondary>
-            </Info>
-          ) : receiverConfirmed === false ? (
-            <Info color='orange' icon={<VtxosIcon />} title={t('transaction.receiverNotConfirmed')}>
-              <TextSecondary>{t('transaction.receiverNotConfirmedText')}</TextSecondary>
-            </Info>
-          ) : null}
-          {amountDisplay ? <TransactionAmountSummary amount={amountDisplay} label={summaryLabel} /> : null}
-          <Details details={details} variant='receipt' />
-        </FlexCol>
-      </Padded>
-    </Content>
+  // Kept as an element, not an inline component: a new `<Body />` type on each
+  // render would remount the whole subtree and make the save-contact sheet
+  // close and reopen on every keystroke.
+  const body = (
+    <>
+      <Content>
+        <Padded>
+          <FlexCol>
+            <ErrorMessage error={Boolean(visibleError)} text={visibleError} />
+            {expiredBoardingTx ? (
+              <Info color='red' icon={<VtxosIcon />} title={t('transaction.expired')}>
+                <Text wrap>{t('transaction.boardingExpired')}</Text>
+              </Info>
+            ) : unconfirmedBoardingTx ? (
+              <Info color='orange' icon={<VtxosIcon />} title={t('transaction.unconfirmed')}>
+                <Text wrap>{t('transaction.unconfirmedText')}</Text>
+              </Info>
+            ) : showRecoverSwap ? (
+              <Info color='orange' icon={<VtxosIcon />} title={t('transaction.recoverable')}>
+                <Text wrap>{t('transaction.recoverableText')}</Text>
+              </Info>
+            ) : tx.preconfirmed && tx.boardingTxid ? (
+              <Info color='orange' icon={<VtxosIcon />} title={t('transaction.pendingBoarding')}>
+                <Text wrap>{t('transaction.pendingBoardingText')}</Text>
+              </Info>
+            ) : null}
+            {settleSuccess ? (
+              <Info color='green' icon={<CheckMarkIcon small />} title={t('transaction.success')}>
+                <TextSecondary>{t('transaction.settledSuccessfully')}</TextSecondary>
+              </Info>
+            ) : null}
+            {taxiView ? (
+              <Info color={TAXI_INFO_COLOR[taxiView.tone]} icon={<VtxosIcon />} title={t(taxiView.label)}>
+                <Text wrap>{t(taxiView.explanation)}</Text>
+                {taxi?.failureDetail ? <Text wrap>{taxi.failureDetail}</Text> : null}
+                {taxi?.failureCode ? (
+                  <TextSecondary>{t('transaction.taxiFailureCode', { code: taxi.failureCode })}</TextSecondary>
+                ) : null}
+              </Info>
+            ) : null}
+            {swapTx && tx.assetSwap ? (
+              <SwapTransactionSummary fromIcon={swapFromIcon} toIcon={swapToIcon} tx={tx} />
+            ) : null}
+            {receiverConfirmed === true ? (
+              <Info color='green' icon={<CheckMarkIcon small />} title={t('transaction.receiverConfirmed')}>
+                <TextSecondary>{t('transaction.receiverConfirmedText')}</TextSecondary>
+              </Info>
+            ) : receiverConfirmed === false ? (
+              <Info color='orange' icon={<VtxosIcon />} title={t('transaction.receiverNotConfirmed')}>
+                <TextSecondary>{t('transaction.receiverNotConfirmedText')}</TextSecondary>
+              </Info>
+            ) : null}
+            {amountDisplay ? <TransactionAmountSummary amount={amountDisplay} label={summaryLabel} /> : null}
+            <Details details={details} variant='receipt' />
+          </FlexCol>
+        </Padded>
+      </Content>
+      <SheetModal isOpen={saveContactOpen} onClose={() => setSaveContactOpen(false)}>
+        <div className='contact-form'>
+          <p className='settings-section-label'>{t('contacts.save')}</p>
+          <ErrorMessage error={Boolean(error)} text={error} />
+          <InputContainer label={t('contacts.name')}>
+            <input
+              id='save-contact-name'
+              className='input'
+              aria-label={t('contacts.name')}
+              value={saveContactName}
+              onChange={(e) => setSaveContactName(e.target.value)}
+            />
+          </InputContainer>
+          <Button label={t('contacts.save')} onClick={handleSaveContact} />
+          <Button label={t('common.cancel')} secondary onClick={() => setSaveContactOpen(false)} />
+        </div>
+      </SheetModal>
+    </>
   )
 
   const showCompleteBoarding =
@@ -635,7 +692,7 @@ export default function Transaction() {
   return (
     <>
       <Header text={t('wallet.transaction')} back />
-      {settling ? <WaitingForRound settle /> : <Body />}
+      {settling ? <WaitingForRound settle /> : body}
       <Buttons />
     </>
   )

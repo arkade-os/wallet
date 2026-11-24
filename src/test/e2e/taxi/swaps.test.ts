@@ -1,10 +1,29 @@
 import { expect, test, type TestInfo } from '@playwright/test'
-import { ArkAddress, RestIndexerProvider } from '@arkade-os/sdk'
+import { RestIndexerProvider, arkade, asset } from '@arkade-os/sdk'
 import type { OfferSwapRecord } from '@arkade-os/swap'
-import { ASSET_CARRIER_SATS, ASSET_SWAP_V2, ASSET_SWAP_V3, decodeOffer, offerContract } from '@arkade-os/swap/protocol'
+import { ASSET_CARRIER_SATS, ASSET_SWAP_CONTRACT_VERSIONS, bindingProgram } from '@arkade-os/swap/protocol'
 import { hex } from '@scure/base'
 import { navigateHome, navigateToSwaps } from '../utils'
 import { actor, admin, advances, importAsset, ledger, nativeOffers, shift, tr, type Actor } from './helpers'
+
+type RecordedBinding = NonNullable<OfferSwapRecord['binding']>
+
+// The package keeps this conversion internal; restore compiles the same binding through bindingProgram.
+const offerBinding = (recorded: RecordedBinding) => ({
+  version: recorded.version,
+  receiverPkScript: hex.decode(recorded.receiverPkScript),
+  amount: BigInt(recorded.amount),
+  ...(recorded.wantAsset ? { wantAsset: asset.AssetId.fromString(recorded.wantAsset) } : {}),
+  ...(recorded.offerAsset ? { offerAsset: asset.AssetId.fromString(recorded.offerAsset) } : {}),
+  userPublicKey: hex.decode(recorded.userPublicKey),
+  serverPublicKey: hex.decode(recorded.serverPublicKey),
+  emulatorPublicKey: hex.decode(recorded.emulatorPublicKey),
+  ...(recorded.exitDelay
+    ? { exitDelay: { type: recorded.exitDelay.type, value: BigInt(recorded.exitDelay.value) } }
+    : {}),
+  ...(recorded.taker ? { taker: hex.decode(recorded.taker) } : {}),
+  ...(recorded.nonce ? { nonce: hex.decode(recorded.nonce) } : {}),
+})
 
 async function swap(
   trader: Actor,
@@ -27,14 +46,20 @@ async function swap(
   const assetMode = page.getByRole('button', { name: 'Show asset amount first', exact: true })
   if (await assetMode.isVisible()) await assetMode.click()
   for (const digit of amount) await page.getByRole('button', { name: digit, exact: true }).click()
-  const proceed = page.getByRole('button', { name: tr.common.continue, exact: true })
+  const proceed = page.getByRole('button', { name: tr.swap.viewQuotes, exact: true })
   await expect(proceed).toBeEnabled({ timeout: 60_000 })
   await info.attach(`${label} composer`, {
     body: await page.screenshot({ animations: 'disabled' }),
     contentType: 'image/png',
   })
   await proceed.click()
+  const smartRouting = page.getByRole('button', { name: tr.swap.useSmartRouting, exact: true })
+  await expect(smartRouting).toBeEnabled({ timeout: 60_000 })
+  await smartRouting.click()
   const review = page.getByRole('dialog')
+  await expect(review.getByRole('button', { name: tr.swap.confirmSwap, exact: true })).toBeEnabled({
+    timeout: 60_000,
+  })
   await expect(review.getByText(tr.swap.reviewSwap, { exact: true })).toBeVisible()
   const metric = (name: string) =>
     review
@@ -96,15 +121,14 @@ async function swap(
   expect(record.fee.asset).toBe(record.take.asset)
   expect(record.fundingTxid).toMatch(/^[0-9a-f]{64}$/)
   expect(record.spentTxid).toMatch(/^[0-9a-f]{64}$/)
-  const decoded = decodeOffer(hex.decode(record.offerHex))
-  expect(Boolean(decoded.wantAsset)).toBe(forward)
-  expect((forward ? decoded.wantAsset : decoded.offerAsset)?.toString()).toBe(assetId)
-  const { swapPkScript, ...binding } = decoded
-  const serverPubKey = ArkAddress.decode(trader.address).serverPubKey
-  const compiled = offerContract(binding, serverPubKey, ASSET_SWAP_V3)
-  expect(hex.encode(compiled.pkScript)).toBe(hex.encode(swapPkScript))
-  expect(record.swapPkScript).toBe(hex.encode(compiled.pkScript))
-  expect(record.swapPkScript).not.toBe(hex.encode(offerContract(binding, serverPubKey, ASSET_SWAP_V2).pkScript))
+  const binding = record.binding
+  if (!binding) throw new Error('A directed swap records its covenant as a binding')
+  expect(ASSET_SWAP_CONTRACT_VERSIONS).toContain(binding.version)
+  expect(binding.taker).toBeTruthy()
+  expect(Boolean(binding.wantAsset)).toBe(forward)
+  expect(forward ? binding.wantAsset : binding.offerAsset).toBe(assetId)
+  const { program, args, keys } = bindingProgram(offerBinding(binding))
+  expect(hex.encode(new arkade.ArkadeProgramScript(program, args, keys).pkScript)).toBe(record.swapPkScript)
   const given = BigInt(record.give.amount)
   const taken = BigInt(record.take.amount)
   const carrier = forward ? ASSET_CARRIER_SATS : BigInt(record.carrierSats ?? ASSET_CARRIER_SATS)
@@ -126,7 +150,7 @@ async function swap(
     body: JSON.stringify(
       {
         program: forward ? 'wantAsset' : 'wantBtc',
-        contractVersion: ASSET_SWAP_V3,
+        contractVersion: binding.version,
         backend: record.market.backend,
         review: {
           receive: quotedReceive.toString(),

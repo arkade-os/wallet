@@ -40,6 +40,8 @@ import TransactionAmountSummary from '../../../components/TransactionAmountSumma
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
 import { lnurlSends, recordLnurlSend, watchLnurlConfirmation } from '../../../lib/lnurlSends'
 import { useTranslation } from '../../../providers/language'
+import { readContacts, rememberSentDestination } from '../../../lib/contacts'
+import { BackupContext } from '../../../providers/backup'
 
 export default function SendDetails() {
   const displayContext = useAmountDisplayContext()
@@ -51,6 +53,7 @@ export default function SendDetails() {
   const { assetMetadataCache, availableBalance, balance, reloadWallet, svcWallet } = useContext(WalletContext)
   const { aspInfo } = useContext(AspContext)
   const { sendRouter } = useContext(SwapsContext)
+  const { backupContacts } = useContext(BackupContext)
   const { t } = useTranslation()
 
   const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
@@ -206,6 +209,7 @@ export default function SendDetails() {
 
   const handleTxid = (txid: string) => {
     if (!txid) return handleError(t('send.errorSendingTransaction'))
+    rememberDestination()
     saveTransactionActivityMetadata(txid, {
       destination: details?.destination,
       networkFee: details?.fees,
@@ -222,6 +226,13 @@ export default function SendDetails() {
     setSendDone(true)
   }
 
+  /** Every reusable destination becomes a recent; only the opt-in tick makes
+   *  it a contact, so the list stays a choice rather than a side effect. */
+  const rememberDestination = () => {
+    if (!rememberSentDestination(sendInfo)) return
+    backupContacts(readContacts()).catch((err) => consoleError(err, 'failed to backup contacts'))
+  }
+
   /** Unlike {@link handleTxid} a missing txid is not an error: the solver rail
    *  commits by funding. The fee comes off the QUOTE, not the screen — a rail
    *  may charge less than was displayed.
@@ -230,6 +241,7 @@ export default function SendDetails() {
    *  txid, so anything else would never be looked up. What made this miss was
    *  WHEN it ran — on the terminal outcome, minutes after the user had gone. */
   const handleSent = (txid: string | undefined, total: number, fee: number, railId: string, swapId?: string) => {
+    rememberDestination()
     if (txid) {
       saveTransactionActivityMetadata(txid, { destination: details?.destination, networkFee: fee })
     }

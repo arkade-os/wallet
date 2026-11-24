@@ -31,7 +31,8 @@ export function startNativeWebServer(env, options = {}) {
         VITE_SOLVER_REGISTRY_URL: `${url.origin}/solver-registry/regtest.json`,
         VITE_NOSTR_RELAY_URL: endpoint(env, 'TAXI_NATIVE_ADVERTISED_RELAY_URL', ['wss:']),
         VITE_EMULATOR_PUBKEY: requiredValue(env, 'VITE_EMULATOR_PUBKEY'),
-        VITE_DELEGATE_ENABLED: 'false',
+        // The native stack starts only the emulator profile: no Executor answers at the regtest default.
+        VITE_EXECUTOR_ENABLED: 'false',
       },
       ...options,
     },

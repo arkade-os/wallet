@@ -37,7 +37,9 @@ Recovery records are stored in this browser, not in the Nostr backup; use the sa
 | `VITE_APP_VERSION`            | App version string shown in support diagnostics                      | `VITE_APP_VERSION=1.2.3`                                                             |
 | `VITE_CHATWOOT_WEBSITE_TOKEN` | ChatWoot website token for customer support integration              | `VITE_CHATWOOT_WEBSITE_TOKEN=your-token`                                             |
 | `VITE_CHATWOOT_BASE_URL`      | ChatWoot server base URL for customer support integration            | `VITE_CHATWOOT_BASE_URL=https://app.chatwoot.com`                                    |
-| `VITE_DELEGATOR_URL`          | Delegator service URL for the wallet service worker                  | `VITE_DELEGATOR_URL=https://delegator.example.com`                                   |
+| `VITE_EXECUTOR_ENABLED`       | Set to `false` to turn the Executor off (no in-app setting)          | `VITE_EXECUTOR_ENABLED=false`                                                        |
+| `VITE_EXECUTOR_URL`           | Override the network's Executor, which boards and renews offline     | `VITE_EXECUTOR_URL=http://localhost:7280`                                            |
+| `VITE_EXECUTOR_RENEWAL_WINDOW`| Regtest only: the Executor's renewal window in seconds               | `VITE_EXECUTOR_RENEWAL_WINDOW=85800`                                                 |
 | `VITE_MAX_PERCENTAGE`         | Override the max fee percentage (default 10)                         | `VITE_MAX_PERCENTAGE=5`                                                              |
 | `VITE_NOSTR_RELAY_URL`        | Override the default Nostr relay URLs for backup                     | `VITE_NOSTR_RELAY_URL=wss://relay.example.com`                                       |
 | `VITE_SENTRY_DSN`             | Enable Sentry error tracking (only in production, not on localhost)  | `VITE_SENTRY_DSN=your-sentry-dsn`                                                    |
@@ -176,6 +178,7 @@ node regtest/regtest.mjs faucet <bcrt-address> <btc> --confirm
 
 > note: e2e tests require a regtest environment to be running.
 > `pnpm run regtest:start` to start and setup the regtest environment.
+> `pnpm run regtest:setup` verifies that arkd and the Nostr relay are reachable.
 
 > note: e2e tests use playwright for ui testing, you may need to run
 > `pnpm exec playwright install` once to download new browsers.
@@ -270,6 +273,47 @@ web+arkade://send?request=<percent-encoded BIP21>&callback=https%3A%2F%2Farkade.
 ```
 
 The browser asks once before it lets the installed app own that protocol. Safari has no manifest protocol handler, so an iOS app uses the https link, which opens in the browser. That page shows **Open in App**: Chrome and Edge launch `web+arkade://` in the installed app, and Safari explains that it cannot switch there, so the request stays on this page. Ark notes keep using `web+arkade://` and are not treated as connect or send.
+
+## Solver priority
+
+Settings > Solvers has a compact Priority view with one row per give/receive direction. Open a direction to set its order in a sheet; the Cards view manages built-in and pasted cards, with add/edit forms in separate sheets. Manual priority is the default; move buttons adjust its saved order. Most used counts successful swaps from this wallet's persisted history and falls back to saved priority when that history cannot be read. Cost order estimates the requested trade amount from advertised fees and price feeds when quoting; Settings does not quote a reference amount.
+
+Switch off a card to pause it across all directions, or switch off a solver in a direction sheet to pause only that route. Cards and saved priorities stay intact, and card-wide pauses preserve each direction's choices. A card's declared key also pauses its registry mirrors; cards without a key remain scoped to their local source. Pauses exclude new quote preparation, including cost-feed requests, while issued quotes and active swaps retain their selected solver.
+
+Choose Prefer first in a direction sheet to try one enabled solver before the others. Sort the rest by Most used or Lowest estimated cost; a failed preferred solver still falls back to those candidates. No preference restores normal sorting. A missing or paused preferred solver is skipped while its saved choice remains available for later. Manual ordering also keeps the preferred solver first and lets you reorder the remainder.
+
+Repeated quote failures temporarily move a solver behind healthy alternatives, including a saved preferred solver. Two consecutive failures start a one-minute cooldown; further failures double it up to fifteen minutes. A verified quote restores priority, and thirty quiet minutes forget the streak. Reliability is retained across reloads per network and direction. Cooling solvers remain enabled as last-resort fallbacks; the direction sheet explains their reduced priority without changing the saved preference. Cancellations and request limits do not count as solver faults.
+
+Priorities are local to this wallet, scoped by network and ordered direction, and cleared on wallet reset. Solvers with different discovery public keys stay distinct even when names match. Quote preparation can try the next eligible solver; accepting a quote keeps that solver and the confirmed terms throughout funding and recovery.
+
+## Open offers
+
+Swap > View quotes uses saved solver routing when an enabled solver supports the requested swap.
+After saved-solver discovery settles, it automatically searches open offers if no eligible solver
+supports the pair/direction. It also falls back when every eligible solver uses fixed feed pricing
+and their calculated quotes all exclude the amount. A negotiated solver's indicative feed price,
+loading discovery and temporary quote/feed failures do not trigger a public search. The composer explains an automatic
+search before View quotes; a supported route still offers a manual Find open offers action.
+Public searches share the selected pair and amount on the configured Nostr relays; the recipient
+address, invoice and wallet identity are not broadcast. Held Arkade assets remain selectable when
+no known solver advertises their pair. Searches start only in the quote view, and failed searches
+require a manual retry.
+
+Open discovery uses the wallet's Nostr bootstrap relays (`VITE_NOSTR_RELAY_URL` overrides
+them), together with known cards' relays. A solver must listen on a shared relay to reply;
+an empty search does not prove that no solver exists.
+
+Open responses carry signed solver cards, exact atomic price amounts and an expiry. The user
+can choose any eligible offer. Selection requests a verified quote from that solver; worse
+terms require a new choice. Confirmation accepts the retained quote, including when another
+tab owns the swap driver. Settings pauses and trust restrictions continue to apply. Saving a
+newly discovered solver is an optional action after a successful swap.
+
+The composer supports swaps between Arkade assets. Bitcoin onchain payouts use native BTC
+from Arkade. Onchain review
+shows the prepared recipient and network; the receive amount is before the Bitcoin claim fee.
+External EVM settlement and Lightning invoice targets are not exposed by this composer.
+Existing Lightning send and receive flows continue to use their existing screens.
 
 ## Troubleshooting
 

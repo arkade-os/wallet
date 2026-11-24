@@ -22,6 +22,8 @@
  */
 import type { Outcome, Swap } from '@arkade-os/swap'
 import { extractError } from './error'
+import { getActiveLanguage } from './language'
+import { translations } from './i18n'
 
 /** One name per origin, matching the lock it shadows. */
 const CHANNEL_NAME = 'swap-driver-v2'
@@ -53,12 +55,15 @@ const RESULT_MS = 120_000
 /** The actions the swap client owns, and so the ones only the holder can run. */
 export type DriverOp =
   | 'quoteExchange'
-  | 'exchange'
   | 'cancelSwap'
   | 'recoverSwap'
   | 'quotePay'
   | 'acceptPay'
   | 'receiveLightning'
+  | 'openSwapQuotes'
+  | 'cancelOpenSwapQuotes'
+  | 'chooseSwapQuote'
+  | 'acceptSwapQuote'
   | 'quoteAssetPayment'
   | 'acceptAssetPayment'
   | 'checkAssetPayment'
@@ -83,7 +88,8 @@ export interface DriverUpdate {
 /** No tab acked: nobody is driving, or the holder is gone. */
 export class DriverUnavailable extends Error {
   constructor() {
-    super('no tab answered as the swap driver')
+    const lang = getActiveLanguage()
+    super(translations[lang].swap.noTabAnswered)
     this.name = 'DriverUnavailable'
   }
 }
@@ -97,7 +103,8 @@ export class DriverUnavailable extends Error {
  */
 export class DriverTimedOut extends Error {
   constructor() {
-    super('the swap driver did not answer in time')
+    const lang = getActiveLanguage()
+    super(translations[lang].swap.driverTimedOut)
     this.name = 'DriverTimedOut'
   }
 }
@@ -110,7 +117,8 @@ export class DriverTimedOut extends Error {
  */
 export class DriverPromoted extends Error {
   constructor() {
-    super('this tab became the swap driver')
+    const lang = getActiveLanguage()
+    super(translations[lang].swap.driverPromoted)
     this.name = 'DriverPromoted'
   }
 }

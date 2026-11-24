@@ -122,18 +122,22 @@ export const encodeBitcoinLink = ({
   ark = '',
   lightning = '',
   sats = 0,
+  taxi,
 }: {
   address?: string
   ark?: string
   lightning?: string
   sats?: number
+  taxi?: Bip21Taxi
 }): string => {
   const params = [
     ark ? `ark=${queryValue(ark)}` : '',
     lightning ? `lightning=${queryValue(lightning)}` : '',
     sats && (address || ark) ? `amount=${prettyNumber(fromSatoshis(sats), 8, false)}` : '',
   ].filter(Boolean)
-  return `bitcoin:${address}${params.length ? `?${params.join('&')}` : ''}`
+  // A Taxi delivers to the Arkade address, so it rides only beside ark=.
+  const taxiParams = ark ? encodeTaxiParams(taxi) : ''
+  return `bitcoin:${address}${params.length ? `?${params.join('&')}` : ''}${taxiParams}`
 }
 
 export const encodeBip21Asset = (

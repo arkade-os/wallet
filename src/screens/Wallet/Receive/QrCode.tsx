@@ -1,13 +1,11 @@
-import { useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
 import QrCode from '../../../components/QrCode'
-import SegmentedControl from '../../../components/SegmentedControl'
-import { FlowContext } from '../../../providers/flow'
+import { FlowContext, emptyRecvInfo } from '../../../providers/flow'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import { NotificationsContext } from '../../../providers/notifications'
-import Header from '../../../components/Header'
 import Content from '../../../components/Content'
 import { consoleError } from '../../../lib/logs'
 import { canBrowserShareData, shareData } from '../../../lib/share'
@@ -17,24 +15,29 @@ import { LimitsContext } from '../../../providers/limits'
 import { Asset, Coin, ExtendedVirtualCoin, type WalletUpdate } from '@arkade-os/sdk'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { encodeBip21, encodeBip21Asset, type Bip21Taxi } from '../../../lib/bip21'
-import { unitsToAtomic } from '../../../lib/assets'
+import { atomicToUnits, unitsToAtomic } from '../../../lib/assets'
 import ErrorMessage from '../../../components/Error'
-import { getReceivingAddresses } from '../../../lib/asp'
+import { getDisplayAddresses } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
-import InputAmount from '../../../components/InputAmount'
+import InputAmount, { type InputAmountMode } from '../../../components/InputAmount'
 import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
 import SheetModal from '../../../components/SheetModal'
 import Text, { TextSecondary } from '../../../components/Text'
 import { useCopyToClipboard } from '../../../hooks/useCopyToClipboard'
-import { prettyLongText, prettyNumber, toSatoshis } from '../../../lib/format'
-import CopyIcon from '../../../icons/Copy'
-import CheckMarkIcon from '../../../icons/CheckMark'
+import {
+  canConvertCurrency,
+  prettyAmount,
+  prettyFiatAmount,
+  prettyLongText,
+  prettyNumber,
+  satsFromEntry,
+  textFromSats,
+  toSatoshis,
+} from '../../../lib/format'
 import { hapticSubtle } from '../../../lib/haptics'
 import { isMobileBrowser } from '../../../lib/browser'
-import Focusable from '../../../components/Focusable'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
-import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
-import { AssetOption, Unit } from '../../../lib/types'
+import { AssetOption, Currencies, Unit } from '../../../lib/types'
 import { EASE_OUT_QUINT } from '../../../lib/animations'
 import { walletAssetPresentationForId } from '../../../lib/accountAssets'
 import { ConfigContext } from '../../../providers/config'
@@ -44,31 +47,76 @@ import { AssetsContext } from '../../../providers/assets'
 import { useSwapRail } from '../../../lib/receive/swapRail'
 import SwapRailStatus from './SwapRail'
 import { configuredLnurlServer, useLnurlRail, useLnurlRails } from '../../../lib/receive/lnurlRail'
-import { useLnurlTokenRails, type LnurlTokenQuote, type LnurlTokenRail } from '../../../lib/receive/lnurlTokenRails'
+import {
+  isUsdStablecoin,
+  useLnurlTokenRails,
+  type LnurlTokenQuote,
+  type LnurlTokenRail,
+} from '../../../lib/receive/lnurlTokenRails'
+import {
+  receiveMethods,
+  receiveTarget,
+  type ReceiveInputs,
+  type ReceiveMethod,
+} from '../../../lib/receive/receiveTargets'
+import { decodeInvoice } from '../../../lib/bolt11'
 import LnurlRailPanel from './LnurlRail'
 import { ReceiverClaimsContext } from '../../../providers/receiverClaims'
 import TaxiChoice from './TaxiChoice'
+import ReceiveFormats, { FormatsCard, type FormatRow } from './ReceiveFormats'
 import { useTranslation } from '../../../providers/language'
-import Select from '../../../components/Select'
-import { TokenLogoStack, TokenOnChainLogo } from '../../../components/ChainLogo'
+import { TokenOnChainLogo } from '../../../components/ChainLogo'
+import TokenLogo, { tokenLogoTickerForTicker } from '../../../components/TokenLogo'
+import AssetAvatar from '../../../components/AssetAvatar'
+import SmallLogo from '../../../components/SmallLogo'
+import BoltOutlineIcon from '../../../icons/BoltOutline'
+import CheckMarkIcon from '../../../icons/CheckMark'
+import CopyIcon from '../../../icons/Copy'
+import ScanIcon from '../../../icons/Scan'
 import ChevronDownIcon from '../../../icons/ChevronDown'
-import XIcon from '../../../icons/X'
-
-const TOKEN = 'token:'
+import ButtonsOnBottom from '@/components/ButtonsOnBottom'
 
 const railLogo = (rail: LnurlTokenRail, ring: string) => (
   <TokenOnChainLogo ticker={rail.unit.code} chainId={rail.asset?.chainId ?? ''} ring={ring} />
+)
+
+const CopyButton = (p: { label: string; testId: string; done: boolean; onClick: () => void; disabled?: boolean }) => (
+  <button
+    type='button'
+    aria-label={p.label}
+    data-testid={p.testId}
+    onClick={p.onClick}
+    disabled={p.disabled}
+    className='flex size-8 shrink-0 items-center justify-center text-neutral-500 disabled:opacity-40 [&_svg]:size-5'
+  >
+    {p.done ? <CheckMarkIcon /> : <CopyIcon />}
+  </button>
+)
+
+const CloseIcon = () => (
+  <svg
+    width='20'
+    height='20'
+    viewBox='0 0 20 20'
+    fill='none'
+    stroke='currentColor'
+    strokeWidth='1.75'
+    aria-hidden='true'
+  >
+    <path strokeLinecap='round' d='M5 5l10 10M15 5 5 15' />
+  </svg>
 )
 
 export default function ReceiveQRCode() {
   const { aspInfo } = useContext(AspContext)
   const { isRegistered } = useContext(AssetsContext)
   const { config, useFiat } = useContext(ConfigContext)
-  const { fromFiat } = useContext(FiatContext)
+  const { fromFiat, toFiat, toFiatAmount, fiatDecimals } = useContext(FiatContext)
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
-  const { assetMetadataCache, svcWallet } = useContext(WalletContext)
+  const { assetBalances, assetMetadataCache, svcWallet, executorSettled, executorSettledCount } =
+    useContext(WalletContext)
   const renderedSvcWallet = useRef(svcWallet)
   renderedSvcWallet.current = svcWallet
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
@@ -80,19 +128,46 @@ export default function ReceiveQRCode() {
   const [assetAmount, setAssetAmount] = useState(BigInt(0))
   const [taxiSelection, setTaxiSelection] = useState<{ requestId: string; value: Bip21Taxi }>()
   const [amountTextValue, setAmountTextValue] = useState('')
+  // The sheet's amount as typed, so a denomination switch re-expresses it without the rounding of re-parsing.
+  const [sheetSats, setSheetSats] = useState(0)
+  const currencyConversionUseful = canConvertCurrency(config.currency, toFiat, fromFiat)
+  const [entryMode, setEntryMode] = useState<InputAmountMode>(useFiat && currencyConversionUseful ? 'fiat' : 'unit')
+  const fiatEntry = entryMode === 'fiat' && useFiat && currencyConversionUseful
+  const textOf = (sats: number, fiat: boolean) => textFromSats(sats, fiat, config.unit, toFiat, fiatDecimals)
+
+  useEffect(() => {
+    if (recvInfo.assetId || currencyConversionUseful || entryMode !== 'fiat') return
+    setEntryMode('unit')
+    setAmountTextValue(sheetSats ? textOf(sheetSats, false) : '')
+  }, [recvInfo.assetId, config.unit, currencyConversionUseful, entryMode, sheetSats])
 
   const [sharing, setSharing] = useState(false)
   const [addressesLoaded, setAddressesLoaded] = useState(false)
+  // `offchainAddr` is the wallet's own Ark address, which the LNURL receiver binds. `displayAddr` is what Receive shows:
+  // the Executor renewal contract on a registered static wallet, else the same address.
+  const [addresses, setAddresses] = useState<{
+    wallet: typeof svcWallet
+    offchainAddr: string
+    displayAddr: string
+    boardingAddr: string
+    settledCount: number
+  }>()
+  const ownAddresses = addresses?.wallet === svcWallet ? addresses : undefined
+  const addressesCurrent = addressesLoaded && Boolean(ownAddresses)
   const [qrTransform, setQrTransform] = useState('')
 
   // Amount sheet state
   const [showAmountSheet, setShowAmountSheet] = useState(false)
   const [showKeys, setShowKeys] = useState(false)
 
-  // Copy address sheet state
-  const [showCopySheet, setShowCopySheet] = useState(false)
   const [copied, setCopied] = useState('')
-  const [showTokenSheet, setShowTokenSheet] = useState(false)
+  useEffect(() => {
+    if (!copied) return
+    const timer = setTimeout(() => setCopied(''), 1500)
+    return () => clearTimeout(timer)
+  }, [copied])
+  const [formatsOpen, setFormatsOpen] = useState(false)
+  const [assetsOpen, setAssetsOpen] = useState(false)
 
   const prefersReducedMotion = useReducedMotion()
 
@@ -100,52 +175,64 @@ export default function ReceiveQRCode() {
   const { boardingAddr, offchainAddr, satoshis, assetId, addressError } = recvInfo
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
   const isAssetReceive = assetId && assetId !== ''
-  const bitcoinTaxiRequest = !isAssetReceive && (satoshis ?? 0) >= 0 && (satoshis ?? 0) < Number(aspInfo.dust)
-  const taxiRequestId = `${aspInfo.network}:${assetId ?? ''}:${satoshis}:${offchainAddr}`
-  const taxi = taxiSelection?.requestId === taxiRequestId ? taxiSelection.value : undefined
-  const setTaxi = (value?: Bip21Taxi) => setTaxiSelection(value ? { requestId: taxiRequestId, value } : undefined)
   const hasError = Boolean(addressError)
 
   const [noPaymentMethods, setNoPaymentMethods] = useState(false)
   const [arkAddress, setArkAddress] = useState(offchainAddr)
   const [btcAddress, setBtcAddress] = useState(boardingAddr)
-  // The user's chosen payment method. This is the source of truth, not the
-  // encoded value: an invoice is re-minted on every amount change, so a
-  // value-keyed selection would be dropped and never come back. Keying on the
-  // method id lets the choice survive the invoice being briefly absent.
-  const [selectedMethod, setSelectedMethod] = useState('unified')
-  const lastSegment = useRef('unified')
   const [bip21Uri, setBip21Uri] = useState('')
+  const bitcoinTaxiRequest = !isAssetReceive && (satoshis ?? 0) >= 0 && (satoshis ?? 0) < Number(aspInfo.dust)
+  // Keyed to the address the QR and TaxiChoice both read, so a choice never outlives it.
+  const taxiRequestId = `${aspInfo.network}:${assetId ?? ''}:${satoshis}:${arkAddress}`
+  const taxi = taxiSelection?.requestId === taxiRequestId ? taxiSelection.value : undefined
+  const setTaxi = (value?: Bip21Taxi) => setTaxiSelection(value ? { requestId: taxiRequestId, value } : undefined)
 
-  // Fetch addresses on mount
+  // Fetch addresses on mount, and again once the Executor registration settles: until then the SDK may answer with
+  // the wallet's own boarding address, which the Executor does not watch. The read waits (bounded) for it.
   useEffect(() => {
     if (!svcWallet) return
-    if (boardingAddr && offchainAddr) {
-      setAddressesLoaded(true)
-      return
-    }
-    getReceivingAddresses(svcWallet)
-      .then(({ offchainAddr, boardingAddr }) => {
-        if (!offchainAddr) throw 'Unable to get offchain address'
+    const current = ownAddresses?.displayAddr === offchainAddr && ownAddresses?.boardingAddr === boardingAddr
+    // An Executor settle since the last read: read again in place, keeping the QR up.
+    const settleOnly = current && ownAddresses?.settledCount !== executorSettledCount
+    if (current && !settleOnly) return
+    let stale = false
+    if (!settleOnly) setAddressesLoaded(false)
+    getDisplayAddresses(svcWallet, { settled: executorSettled })
+      .then(({ ownAddr, displayOffchainAddr, boardingAddr }) => {
+        if (stale) return
+        if (!displayOffchainAddr) throw 'Unable to get offchain address'
         if (!boardingAddr) throw 'Unable to get boarding address'
-        setRecvInfo({ ...recvInfo, boardingAddr, offchainAddr, satoshis: 0, addressError: undefined })
+        setAddresses({
+          wallet: svcWallet,
+          offchainAddr: ownAddr,
+          displayAddr: displayOffchainAddr,
+          boardingAddr,
+          settledCount: executorSettledCount,
+        })
+        // Functional: a late settle must not wipe an amount or invoice entered while the read was running
+        setRecvInfo((prev) => ({ ...prev, boardingAddr, offchainAddr: displayOffchainAddr, addressError: undefined }))
         setAddressesLoaded(true)
       })
       .catch((err) => {
+        if (stale) return
         const error = extractError(err)
         consoleError(error, 'error getting addresses')
-        setRecvInfo({ ...recvInfo, addressError: error })
+        setRecvInfo((prev) => ({ ...prev, addressError: error }))
         setAddressesLoaded(true)
       })
-  }, [svcWallet])
+    return () => {
+      stale = true
+    }
+  }, [svcWallet, offchainAddr, boardingAddr, executorSettled, executorSettledCount])
 
   // A pending Receive-screen claim must not leave a swap invoice taking the QR's lightning= from the LNURL.
   const lnurlConfigured = Boolean(configuredLnurlServer())
   const lnurlRail = useLnurlRail({
     enabled: lnurlConfigured && !isAssetReceive,
     identity: svcWallet?.identity,
-    arkadeAddress: recvInfo.offchainAddr,
-    boardingAddress: recvInfo.boardingAddr || undefined,
+    // The wallet's own address, never the display renewal address: the bound arkadeAddress must not change
+    arkadeAddress: ownAddresses?.offchainAddr,
+    boardingAddress: ownAddresses?.boardingAddr,
     primary: config.lnurlPrimary,
   })
   const swapRailOn =
@@ -153,78 +240,76 @@ export default function ReceiveQRCode() {
     lnurlRail.status === 'failed' ||
     (lnurlRail.status === 'onboarding' && !lnurlRail.choices.includes('self'))
   const swapRail = useSwapRail(swapRailOn)
-  const lnurl = lnurlRail.lnurl ?? ''
-  const lightningAddress = lnurlRail.receiver?.lightningAddress ?? ''
+  const receiver = ownAddresses ? lnurlRail.receiver : undefined
+  const lnurl = addressesCurrent ? (lnurlRail.lnurl ?? '') : ''
+  const lightningAddress = addressesCurrent ? (receiver?.lightningAddress ?? '') : ''
   // The payment listener writes the paid amount into `satoshis`; re-quoting it would mint an invoice nobody pays.
   const requestedSats = recvInfo.received ? 0 : satoshis
-  const lnurlRails = useLnurlRails(lnurlRail.receiver, requestedSats, false, {
-    arkade: recvInfo.offchainAddr,
-    onchain: recvInfo.boardingAddr,
+  const lnurlRails = useLnurlRails(receiver, requestedSats, false, {
+    arkade: ownAddresses?.offchainAddr ?? '',
+    onchain: ownAddresses?.boardingAddr ?? '',
   })
-  const tokenRails = useLnurlTokenRails(
-    lnurlRail.receiver,
-    requestedSats,
-    config.receiveViaTokens,
-    selectedMethod.startsWith(TOKEN) ? selectedMethod.slice(TOKEN.length) : undefined,
-  )
   // A swap invoice left in the flow by an earlier visit isn't this rail's while the LNURL serves Lightning.
-  const invoice = (swapRailOn ? recvInfo.invoice : undefined) || lnurlRails.targets.lightning || ''
+  const invoice = addressesCurrent
+    ? (swapRailOn ? recvInfo.invoice : undefined) || lnurlRails.targets.lightning || ''
+    : ''
   const generatingInvoice = swapRail.generatingInvoice || lnurlRails.generating
+
+  // Not remembered: the sheet says to pick another format only when the payer's wallet asks for it.
+  const [method, setMethod] = useState<ReceiveMethod>('lnaddress')
+  const [tokenId, setTokenId] = useState<string>()
+  // A rail picked before any amount was typed; it is quoted once the amount lands.
+  const [pendingToken, setPendingToken] = useState<string>()
+  const amountForTokens = Boolean(pendingToken)
+  const tokenRails = useLnurlTokenRails(
+    receiver,
+    requestedSats,
+    addressesCurrent && config.receiveViaTokens,
+    method === 'token' ? tokenId : undefined,
+  )
+  const activeToken = tokenRails.rails.find((r) => r.id === tokenId)
+  const requestTaxi = taxi ? { url: taxi.url, fareId: taxi.fareId, payer: taxi.payer } : undefined
+  const inputs: ReceiveInputs = {
+    ark: addressesCurrent ? arkAddress : '',
+    btc: addressesCurrent ? btcAddress : '',
+    invoice,
+    lnurl,
+    lightningAddress,
+    sats: satoshis,
+    quote: tokenRails.quote,
+    tokensOffered:
+      addressesCurrent &&
+      lnurlConfigured &&
+      config.receiveViaTokens &&
+      (satoshis ? tokenRails.rails : tokenRails.options).length > 0,
+    taxi: bitcoinTaxiRequest ? requestTaxi : undefined,
+  }
+  const methods = receiveMethods(inputs)
+  // A method with nothing to put in the QR (its invoice failed, its token left the amount's bounds) shows Any wallet;
+  // a token's quote error keeps the token, which says why.
+  const holdsQr =
+    method === 'token' ? Boolean(activeToken) : generatingInvoice || Boolean(receiveTarget(method, inputs))
+  const shown: ReceiveMethod =
+    methods.includes(method) && holdsQr ? method : methods[0] === 'lnaddress' ? 'lnaddress' : 'full'
+  // Only the BIP21 link carries ark= and so a Taxi request: an asset's QR always, bitcoin's as Any wallet.
+  const taxiShown = Boolean(isAssetReceive) || shown === 'full'
+  // The bare Arkade address would drop assetid= and have the payer send BTC, so the asset QR is always its link.
+  const target = isAssetReceive
+    ? bip21Uri
+      ? { qr: bip21Uri, copy: bip21Uri, kind: 'bip21' as const }
+      : undefined
+    : receiveTarget(shown, inputs)
+  const qrCodeValue = addressesCurrent ? (target?.qr ?? '') : ''
+  const generating = shown === 'token' ? tokenRails.quoting : generatingInvoice
   const createBip21 = (): { ark: string; btc: string; bip21: string } => {
-    const ark = vtxoTxsAllowed() ? recvInfo.offchainAddr : ''
-    const btc = utxoTxsAllowed() ? recvInfo.boardingAddr : ''
-    const requestTaxi =
-      activeMethod === 'unified' && taxi ? { url: taxi.url, fareId: taxi.fareId, payer: taxi.payer } : undefined
+    const ark = vtxoTxsAllowed() ? ownAddresses?.displayAddr || '' : ''
+    const btc = utxoTxsAllowed() ? ownAddresses?.boardingAddr || '' : ''
     const bip21 = isAssetReceive
       ? encodeBip21Asset(ark, assetId, assetAmount, assetMeta?.metadata?.decimals, ark ? requestTaxi : undefined)
-      : encodeBip21(btc, ark, invoice, satoshis, lnurl, ark && bitcoinTaxiRequest ? requestTaxi : undefined)
+      : encodeBip21(btc, ark, invoice, satoshis, lnurl)
 
     return { ark, btc, bip21 }
   }
-
-  /**
-   * The payment methods we can render right now, in display order.
-   *
-   * Keyed off a stable id rather than the URI itself: the Lightning invoice is
-   * re-minted whenever the amount is renegotiated, so a selection tracked by
-   * value would silently fall back to unified on the next rebuild and never come
-   * back. The ids are what the selector and the copy sheet both key off, so
-   * choosing a method means the same thing wherever it is changed from.
-   *
-   * Lightning is an invoice once an amount is set (the receiver's own LNURL issues
-   * it, or a solver when no lnurl-server is reachable); without one it is the
-   * receiver's address, or its LNURL while nameless — the same rail either way.
-   *
-   * Labels are deliberately short: these sit in a horizontal control, and
-   * "Lightning invoice" / "Arkade address" crowd it on a narrow phone. The copy
-   * sheet keeps the descriptive wording, where the row shows the value anyway.
-   */
-  const paymentMethods = useMemo(() => {
-    const methods: { id: string; label: string; value: string }[] = []
-    if (bip21Uri) methods.push({ id: 'unified', label: t('receive.unified'), value: bip21Uri })
-    const lightning = invoice || lightningAddress || lnurl
-    if (lightning) methods.push({ id: 'lightning', label: t('receive.methodLightning'), value: lightning })
-    if (arkAddress) methods.push({ id: 'ark', label: t('receive.methodArkade'), value: arkAddress })
-    if (btcAddress) methods.push({ id: 'bitcoin', label: t('receive.methodBitcoin'), value: btcAddress })
-    // Offered before they are quoted: picking one is what asks for its quote.
-    for (const rail of tokenRails.rails) {
-      const value = tokenRails.quote?.optionId === rail.id ? tokenRails.quote.value : ''
-      methods.push({ id: TOKEN + rail.id, label: `${rail.unit.code} (${rail.chain})`, value })
-    }
-    return methods
-  }, [bip21Uri, invoice, lightningAddress, lnurl, arkAddress, btcAddress, tokenRails.rails, tokenRails.quote, t])
-
-  // What the QR encodes, and what the selector highlights, are two different
-  // questions. The *choice* is `selectedMethod` and it is remembered even while
-  // the method is momentarily un-offerable (an invoice being re-negotiated), so
-  // it comes back on its own. What we *show* has to be something we actually
-  // hold right now, so it falls back to unified — and the highlight follows the
-  // fallback, because leaving it lit on a method with no value is a lie.
-  const activeMethod = useMemo(() => {
-    if (paymentMethods.some((m) => m.id === selectedMethod)) return selectedMethod
-    if (paymentMethods.some((m) => m.id === 'unified')) return 'unified'
-    return paymentMethods[0]?.id ?? ''
-  }, [paymentMethods, selectedMethod])
 
   // Build BIP21 URI
   useEffect(() => {
@@ -232,77 +317,28 @@ export default function ReceiveQRCode() {
 
     const { ark, btc, bip21 } = createBip21()
 
-    if (activeMethod === 'unified' && (isAssetReceive || bitcoinTaxiRequest) && ark && taxi?.operatorKey) {
-      remember({ network: aspInfo.network, url: taxi.url, operatorKey: taxi.operatorKey })
-    }
-
     setNoPaymentMethods(!ark && !btc && !isAssetReceive)
     setArkAddress(ark)
     setBtcAddress(btc)
     setBip21Uri(bip21)
+    // assetId, not just isAssetReceive: switching one asset for another must re-link the QR to the new one.
   }, [
-    activeMethod,
-    taxi,
     assetAmount,
     addressesLoaded,
     isAssetReceive,
-    recvInfo.offchainAddr,
-    recvInfo.boardingAddr,
+    assetId,
+    assetMeta?.metadata?.decimals,
+    ownAddresses,
     recvInfo.satoshis,
     invoice,
     lnurl,
+    taxi,
   ])
 
-  const qrCodeValue = paymentMethods.find((m) => m.id === activeMethod)?.value ?? ''
-  const activeToken = tokenRails.rails.find((r) => TOKEN + r.id === activeMethod)
-  const tokenQuote = activeToken ? tokenRails.quote : undefined
-  const generating = activeToken ? tokenRails.quoting : generatingInvoice
-  const segments = paymentMethods.filter((m) => !m.id.startsWith(TOKEN))
-  const tokenMethods = paymentMethods.filter((m) => m.id.startsWith(TOKEN))
-  const showSelector = segments.length > 1 || tokenMethods.length > 0
-  const backTo = segments.find((m) => m.id === lastSegment.current) ?? segments[0]
-  const quoteProblem = activeToken && !tokenRails.quoting && (tokenRails.expired || Boolean(tokenRails.error))
-
-  // The copy sheet offers what the shown method carries: the unified URI and the addresses inside it, or one value.
-  const rows = {
-    bip21: { testId: 'bip21', title: t('receive.unified'), value: bip21Uri },
-    ark: { testId: 'ark', title: t('receive.arkadeAddress'), value: arkAddress },
-    btc: { testId: 'btc', title: t('receive.bitcoinAddress'), value: btcAddress },
-    invoice: { testId: 'invoice', title: t('receive.lightningInvoice'), value: invoice },
-    lnaddress: {
-      testId: 'lnaddress',
-      title: lightningAddress ? t('settings.lightningAddress') : 'LNURL',
-      value: lightningAddress || lnurl,
-    },
-  }
-  const copyRows = (
-    activeToken
-      ? tokenQuote
-        ? [
-            {
-              testId: 'token',
-              title: t('receive.tokenDepositAddress', { token: `${activeToken.unit.code} (${activeToken.chain})` }),
-              value: tokenQuote.destination,
-            },
-            {
-              testId: 'token-amount',
-              title: t('receive.tokenAmount', { unit: activeToken.unit.code }),
-              value: tokenQuote.amount,
-            },
-          ]
-        : []
-      : activeMethod === 'ark'
-        ? [rows.ark]
-        : activeMethod === 'bitcoin'
-          ? [rows.btc]
-          : activeMethod === 'lightning'
-            ? [invoice ? rows.invoice : rows.lnaddress]
-            : [rows.bip21, rows.ark, rows.btc, rows.invoice, rows.lnaddress]
-  ).filter((row) => row.value)
-  // A token's QR value is a payment URI, which a wallet's address field rejects.
-  const copyValue = tokenQuote?.destination ?? qrCodeValue
-  const copyReady =
-    addressesLoaded && !hasError && !noPaymentMethods && !generating && copyRows.length > 0 && Boolean(copyValue)
+  useEffect(() => {
+    if (addressesCurrent && taxiShown && (isAssetReceive || bitcoinTaxiRequest) && arkAddress && taxi?.operatorKey)
+      remember({ network: aspInfo.network, url: taxi.url, operatorKey: taxi.operatorKey })
+  }, [addressesCurrent, taxiShown, isAssetReceive, bitcoinTaxiRequest, arkAddress, taxi, aspInfo.network, remember])
 
   // Payment listener
   useEffect(() => {
@@ -346,7 +382,7 @@ export default function ReceiveQRCode() {
       }
 
       if (sats || receivedAssets.length > 0) {
-        setRecvInfo({ ...recvInfo, received: true, satoshis: sats, receivedAssets })
+        setRecvInfo((prev) => ({ ...prev, received: true, satoshis: sats, receivedAssets }))
         if (!isAssetReceive) notifyPaymentReceived(sats)
         navigate(Pages.ReceiveSuccess)
       }
@@ -357,7 +393,8 @@ export default function ReceiveQRCode() {
       listening = false
       unsubscribe()
     }
-  }, [svcWallet])
+    // The asset pill switches what this screen receives without remounting it.
+  }, [svcWallet, isAssetReceive])
 
   // Handlers
   const handleShare = () => {
@@ -372,20 +409,7 @@ export default function ReceiveQRCode() {
     if (generating) return
     if (!prefersReducedMotion) hapticSubtle()
     const copied = await copyToClipboard(value)
-    // Close the sheet even on failure so the picker is not stranded.
-    setShowCopySheet(false)
     if (copied) setCopied(value)
-  }
-
-  const handleCopyButton = async () => {
-    if (!copyReady) return
-    if (!prefersReducedMotion) hapticSubtle()
-    // One relevant value is copied outright; the toast confirms it, so a one-row sheet adds nothing.
-    if (copyRows.length > 1) setShowCopySheet(true)
-    if (copied !== copyValue) {
-      const written = await copyToClipboard(copyValue)
-      if (written) setCopied(copyValue)
-    }
   }
 
   const handleAmountConfirm = (value = amountTextValue, inputMode?: KeyboardInputMode) => {
@@ -398,22 +422,94 @@ export default function ReceiveQRCode() {
     } else {
       const num = Number(value)
       if (Number.isNaN(num) || !Number.isFinite(num)) throw new Error('Invalid amount')
-      const shouldConvertFromFiat = inputMode === 'fiat' || (useFiat && inputMode === undefined)
+      const shouldConvertFromFiat = inputMode === 'fiat'
       const shouldConvertToSats = inputMode === 'btc' || (!useFiat && config.unit === Unit.BTC)
-      const sats = shouldConvertFromFiat ? fromFiat(num) : shouldConvertToSats ? toSatoshis(num) : num
-      if (sats === satoshis) return setRecvInfo({ ...recvInfo, satoshis: sats })
+      const keypadSats = shouldConvertFromFiat ? fromFiat(num) : shouldConvertToSats ? toSatoshis(num) : num
+      const sats = inputMode
+        ? keypadSats
+        : value === amountTextValue
+          ? sheetSats
+          : satsFromEntry(num, fiatEntry, config.unit, fromFiat)
+      if (sats === satoshis) setRecvInfo({ ...recvInfo, satoshis: sats })
       // The negotiated invoice is for the old amount, and the negotiate effect
       // refuses to renegotiate while one exists — so leaving it in place would
       // keep showing an invoice for a number the user just changed. The
       // superseded swap stays monitored until it settles or its window shuts;
       // what must stop is presenting its invoice.
-      setRecvInfo({ ...recvInfo, satoshis: sats, invoice: undefined, pendingLnReceive: undefined })
+      else setRecvInfo({ ...recvInfo, satoshis: sats, invoice: undefined, pendingLnReceive: undefined })
+      // Dropped here, not in an effect, so no render pairs the new amount with the old pick and orders a quote.
+      if (method === 'token' && !tokenRails.offers(sats, tokenId)) {
+        setMethod('lnaddress')
+        setTokenId(undefined)
+      }
+      if (pendingToken) {
+        setPendingToken(undefined)
+        if (sats > 0 && tokenRails.offers(sats, pendingToken)) {
+          setTokenId(pendingToken)
+          setMethod('token')
+        } else if (sats > 0) setFormatsOpen(true)
+      }
     }
+  }
+
+  const handleSheetAmountChange = (value: string) => {
+    setAmountTextValue(value)
+    if (!assetMeta) setSheetSats(satsFromEntry(Number(value), fiatEntry, config.unit, fromFiat))
+  }
+
+  const handleEntryModeChange = (mode: InputAmountMode) => {
+    setEntryMode(mode)
+    if (!sheetSats) return
+    setAmountTextValue(textOf(sheetSats, mode === 'fiat' && useFiat && currencyConversionUseful))
   }
 
   const handleAmountClear = () => {
     handleAmountConfirm('0')
     setAmountTextValue('')
+    setSheetSats(0)
+  }
+
+  const openAmountEntry = () => (isMobileBrowser ? setShowKeys(true) : setShowAmountSheet(true))
+
+  const closeAmountEntry = () => {
+    setShowKeys(false)
+    setShowAmountSheet(false)
+    setPendingToken(undefined)
+  }
+
+  const pickFormat = (id: string) => {
+    setFormatsOpen(false)
+    setMethod(id as ReceiveMethod)
+    setTokenId(undefined)
+  }
+
+  // A stablecoin is quoted for an exact amount, so without one the row asks for it first.
+  const pickToken = (id: string) => {
+    setFormatsOpen(false)
+    if (!satoshis) {
+      setPendingToken(id)
+      openAmountEntry()
+      return
+    }
+    setTokenId(id)
+    setMethod('token')
+  }
+
+  // The screen stays mounted, so an amount, format or token typed for the last asset must not carry over.
+  const switchAsset = (id: string) => {
+    setAssetsOpen(false)
+    if (id === (assetId ?? '')) return
+    setAssetAmount(BigInt(0))
+    setAmountTextValue('')
+    setSheetSats(0)
+    setMethod('lnaddress')
+    setTokenId(undefined)
+    setRecvInfo((prev) => ({
+      ...emptyRecvInfo,
+      boardingAddr: prev.boardingAddr,
+      offchainAddr: prev.offchainAddr,
+      ...(id ? { assetId: id } : {}),
+    }))
   }
 
   const assetPresentation = walletAssetPresentationForId(
@@ -433,29 +529,30 @@ export default function ReceiveQRCode() {
     trusted: Boolean(assetId && isRegistered(assetId)),
   }
 
+  const quoteExpired = shown === 'token' && tokenRails.expired
   const data = { title: t('wallet.receive'), text: qrCodeValue }
   const shareDisabled =
+    !addressesCurrent ||
     !canBrowserShareData(data) ||
     sharing ||
     hasError ||
     noPaymentMethods ||
     generating ||
-    Boolean(activeToken && !tokenQuote)
+    quoteExpired ||
+    (shown === 'token' && !tokenRails.quote)
+  const copyValue = addressesCurrent ? (target?.copy ?? '') : ''
+  const copyDisabled = hasError || !addressesCurrent || !copyValue || generating || quoteExpired || noPaymentMethods
 
   // Whether an amount is currently requested. Keyed off assetMeta to match how
   // handleAmountConfirm/handleAmountClear decide between asset units and sats.
   const hasAmount = assetMeta ? assetAmount > BigInt(0) : satoshis > 0
-
-  /**
-   * Point the QR at one method. Selecting only chooses what is shown — the Copy
-   * button still copies whatever is on screen, so choosing a method never
-   * overwrites the clipboard behind the user's back.
-   */
-  const handleMethodChange = (id: string) => {
-    if (!paymentMethods.some((m) => m.id === id)) return
-    if (!id.startsWith(TOKEN)) lastSegment.current = id
-    setSelectedMethod(id)
-  }
+  const amountHeadline = !hasAmount
+    ? ''
+    : assetMeta
+      ? `${atomicToUnits(assetAmount, assetOption.decimals)} ${assetPresentation.ticker}`
+      : useFiat && currencyConversionUseful
+        ? prettyFiatAmount(toFiat(satoshis), config.currency, { bitcoinUnit: config.unit })
+        : prettyAmount(satoshis)
 
   // Mobile keyboard — bypass sheet on save, go straight to QR
   if (showKeys) {
@@ -463,12 +560,11 @@ export default function ReceiveQRCode() {
       <Keyboard
         hideBalance
         asset={assetOption}
-        back={() => {
-          setShowKeys(false)
-          setShowAmountSheet(false)
-        }}
+        back={closeAmountEntry}
         initialValue={assetAmount || satoshis}
         onClear={hasAmount ? handleAmountClear : undefined}
+        title={amountForTokens ? t('receive.setAmountFirst') : undefined}
+        subtitle={amountForTokens ? t('receive.setAmountFirstSub') : undefined}
         onSave={(value: string, inputMode: KeyboardInputMode) => {
           setShowKeys(false)
           setShowAmountSheet(false)
@@ -481,202 +577,355 @@ export default function ReceiveQRCode() {
   const amountLabel = hasAmount ? t('receive.editAmount') : t('receive.addAmount')
   const unitLabel = assetMeta ? assetPresentation.ticker : 'sats'
 
+  const invoiceMinutes = (() => {
+    if (!satoshis || !invoice) return 0
+    try {
+      return Math.floor((decodeInvoice(invoice).expiresAt * 1000 - Date.now()) / 60_000)
+    } catch {
+      return 0
+    }
+  })()
+  const formatInfo: Record<Exclude<ReceiveMethod, 'token'>, Omit<FormatRow, 'id'>> = {
+    full: {
+      icon: <ScanIcon />,
+      title: t('receive.anyWallet'),
+      subtitle: t('receive.anyWalletSub'),
+    },
+    lnaddress: {
+      icon: <BoltOutlineIcon />,
+      title: t('receive.unifiedAddress'),
+      subtitle: t('receive.lnAddressSub'),
+    },
+    lightning: satoshis
+      ? {
+          icon: <BoltOutlineIcon />,
+          title: t('receive.lightningInvoice'),
+          subtitle:
+            invoiceMinutes > 0
+              ? t('receive.invoiceExpires', { amount: amountHeadline, minutes: invoiceMinutes })
+              : t('receive.invoiceFor', { amount: amountHeadline }),
+        }
+      : { icon: <BoltOutlineIcon />, title: t('receive.methodLightning'), subtitle: t('receive.hintLnAddress') },
+    ark: {
+      icon: (
+        <span className='flex [&>svg]:size-5'>
+          <SmallLogo />
+        </span>
+      ),
+      title: t('receive.arkadeAddress'),
+      subtitle: t('receive.arkadeSub'),
+    },
+    btc: {
+      icon: (
+        <span className='flex size-6 [&>svg]:size-full'>
+          <TokenLogo ticker='BTC' />
+        </span>
+      ),
+      title: t('receive.bitcoinAddress'),
+      subtitle: t('receive.bitcoinSub'),
+    },
+  }
+  const formatRows: FormatRow[] = methods.flatMap((m, i) =>
+    m === 'token' ? [] : [{ id: m, ...formatInfo[m], ...(i ? {} : { badge: t('receive.defaultFormat') }) }],
+  )
+  const usd = toFiatAmount(satoshis, Currencies.USD)
+  const tokenRows: FormatRow[] = !inputs.tokensOffered
+    ? []
+    : (satoshis ? tokenRails.rails : tokenRails.options).map((r) => ({
+        id: r.id,
+        icon: <span className='flex size-7'>{railLogo(r, 'var(--background-color)')}</span>,
+        title: t('receive.methodToken', { unit: r.unit.code, chain: r.chain }),
+        // The wallet's own price, so every row reads the same and the provider's spread shows in the quote.
+        subtitle: !satoshis
+          ? t('receive.setAmountFirst')
+          : isUsdStablecoin(r.unit.code) && usd > 0
+            ? t('receive.tokenAbout', { amount: prettyNumber(usd, 2, true, 2), unit: r.unit.code })
+            : t('receive.tokenVia', { provider: r.provider }),
+      }))
+
+  const copyLabel = target
+    ? {
+        bip21: t('receive.partLink'),
+        lnaddress: t('receive.unifiedAddress'),
+        lnurl: t('receive.partLnurl'),
+        invoice: t('receive.lightningInvoice'),
+        ark: t('receive.arkadeAddress'),
+        btc: t('receive.bitcoinAddress'),
+        token: activeToken
+          ? t('receive.tokenDepositAddress', { token: `${activeToken.unit.code} (${activeToken.chain})` })
+          : '',
+      }[target.kind]
+    : ''
+  const caption = isAssetReceive
+    ? t('receive.arkadeSub')
+    : {
+        full: (satoshis ? invoice : lnurl) ? t('receive.anyWalletHint') : t('receive.bitcoinWalletHint'),
+        lnaddress: t('receive.anyWalletHint'),
+        lightning: satoshis ? t('receive.lnInvoiceHint') : t('receive.hintLnAddress'),
+        ark: t('receive.arkadeSub'),
+        btc: t('receive.bitcoinSub'),
+        token: '',
+      }[shown]
+  // Only a registered asset gets an official logo: a self-reported ticker could claim any.
+  const assetRow = (id: string): FormatRow => {
+    const p = id
+      ? walletAssetPresentationForId(aspInfo.network, id, isRegistered, assetMetadataCache.get(id)?.metadata, '')
+      : { name: t('send.bitcoin'), ticker: 'BTC' }
+    const logo = !id ? 'BTC' : isRegistered(id) ? tokenLogoTickerForTicker(p.ticker) : undefined
+    return {
+      id,
+      title: p.name || p.ticker,
+      subtitle: p.ticker,
+      icon: (
+        <span className='flex size-7 shrink-0 [&>svg]:size-full'>
+          {logo ? <TokenLogo ticker={logo} /> : <AssetAvatar name={p.name} ticker={p.ticker} size={28} />}
+        </span>
+      ),
+    }
+  }
+  // An asset opened from its detail screen is listed even when the wallet holds none of it yet. A held one waits
+  // for its metadata: without it this screen would read an amount typed for it as sats.
+  const held = assetBalances.filter((a) => a.amount > 0 && assetMetadataCache.has(a.assetId)).map((a) => a.assetId)
+  const assetIds = new Set([assetId ?? '', ...held])
+  const assetRows = ['', ...[...assetIds].filter(Boolean)].map(assetRow)
+  const current = assetRows.find((r) => r.id === (assetId ?? '')) ?? assetRows[0]
+  const pill = (
+    <>
+      {current.icon}
+      <span className='truncate'>{current.title}</span>
+      {assetRows.length > 1 ? <ChevronDownIcon /> : null}
+    </>
+  )
+  const pillClass = 'flex min-w-0 items-center gap-2 rounded-full bg-neutral-50 py-1.5 pr-4 pl-1.5 font-semibold'
+  const showingQr = addressesCurrent && !hasError && !noPaymentMethods && Boolean(bip21Uri)
+
   return (
     <>
-      <Header text={t('wallet.receive')} back={() => navigate(Pages.Wallet)} />
+      <div className='grid min-h-16 grid-cols-[1fr_auto_1fr] items-center gap-2 px-4'>
+        <button
+          type='button'
+          onClick={() => navigate(Pages.Wallet)}
+          aria-label={t('common.back')}
+          data-testid='header-back-btn'
+          className='flex size-10 items-center justify-center rounded-full bg-neutral-50'
+        >
+          <CloseIcon />
+        </button>
+        {assetRows.length > 1 ? (
+          <button
+            type='button'
+            onClick={() => setAssetsOpen(true)}
+            aria-haspopup='dialog'
+            data-testid='receive-asset-pill'
+            className={pillClass}
+          >
+            {pill}
+          </button>
+        ) : (
+          <span className={pillClass} data-testid='receive-asset-pill'>
+            {pill}
+          </span>
+        )}
+      </div>
       <Content noFade>
         <Padded>
-          {hasError ? (
-            <ErrorMessage error text={t('receive.failedToGetAddress', { error: addressError ?? '' })} />
-          ) : !addressesLoaded || (!paymentMethods.some((m) => m.value) && !noPaymentMethods) ? (
-            <LoadingLogo text={t('common.loading')} />
-          ) : noPaymentMethods ? (
-            <p>{t('receive.noPaymentMethods')}</p>
-          ) : (
-            <FlexCol gap='0.5rem' centered>
-              <SwapRailStatus rail={swapRail} />
-              {lnurlRails.errors.lightning ? (
-                <TextSecondary>{t('receive.noInvoiceForAmount', { error: lnurlRails.errors.lightning })}</TextSecondary>
-              ) : null}
-              {showSelector ? (
-                <div className='mt-4 mb-3 flex w-full max-w-85 flex-col gap-2'>
-                  <SegmentedControl
-                    options={segments.map((m) => m.id)}
-                    selected={activeMethod}
-                    onChange={handleMethodChange}
-                    getLabel={(id) => paymentMethods.find((m) => m.id === id)?.label ?? id}
-                  />
-                  {tokenMethods.length ? (
-                    <div className='flex w-full items-center gap-2'>
-                      <button
-                        type='button'
-                        aria-haspopup='dialog'
-                        onClick={() => setShowTokenSheet(true)}
-                        className={`flex flex-1 cursor-pointer items-center gap-3 rounded-lg border border-neutral-100 px-3 py-3 text-left text-sm ${activeToken ? 'bg-neutral-100 font-semibold' : 'text-neutral-500'}`}
-                      >
-                        {activeToken ? (
-                          <span className='flex size-5 shrink-0'>{railLogo(activeToken, 'var(--neutral-100)')}</span>
-                        ) : (
-                          <TokenLogoStack tickers={['USDT', 'USDC']} ring='var(--background-color)' />
-                        )}
-                        <span className='flex-1'>
-                          {activeToken
-                            ? paymentMethods.find((m) => m.id === activeMethod)?.label
-                            : t('receive.payWithStablecoins')}
-                        </span>
-                        <ChevronDownIcon />
-                      </button>
-                      {activeToken && backTo ? (
-                        <button
-                          type='button'
-                          aria-label={t('receive.backToMethod', { method: backTo.label })}
-                          onClick={() => handleMethodChange(backTo.id)}
-                          className='flex shrink-0 cursor-pointer items-center justify-center self-stretch rounded-lg border border-neutral-100 px-3 text-neutral-500'
-                        >
-                          <XIcon />
-                        </button>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-              <div
-                // Height-capped so the whole code sits above the bottom buttons on a short phone.
-                className={`receive-invoice-stage aspect-square w-full max-w-[min(21.25rem,calc(100dvh-26rem))] ${showSelector ? '' : 'mt-20'}`}
-                data-generating={generating}
-              >
+          <FlexCol gap='0.75rem' centered>
+            {hasError ? (
+              <ErrorMessage error text={t('receive.failedToGetAddress', { error: addressError ?? '' })} />
+            ) : !addressesCurrent || (!bip21Uri && !noPaymentMethods) ? (
+              <LoadingLogo text={t('common.loading')} />
+            ) : noPaymentMethods ? (
+              <p>{t('receive.noPaymentMethods')}</p>
+            ) : (
+              <>
+                {amountHeadline ? (
+                  <p className='text-heading-xl font-semibold' data-testid='receive-amount'>
+                    {amountHeadline}
+                  </p>
+                ) : null}
+                <SwapRailStatus rail={swapRail} />
+                {/* Only where Lightning is in play: a stablecoin, Arkade or Bitcoin code never carried the invoice. */}
+                {lnurlRails.errors.lightning && (shown === 'full' || shown === 'lightning') ? (
+                  <TextSecondary>
+                    {t('receive.noInvoiceForAmount', { error: lnurlRails.errors.lightning })}
+                  </TextSecondary>
+                ) : null}
                 <div
-                  className='receive-invoice-loading flex flex-col items-center justify-center gap-2 text-center'
-                  aria-hidden={!generating}
+                  className='receive-invoice-stage w-full grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)] overflow-hidden rounded-3xl border border-neutral-100 max-w-85 aspect-square'
+                  data-generating={generating}
                 >
-                  <div className='receive-invoice-pixels mb-5 grid-cols-4 gap-1.25' aria-hidden='true'>
-                    {Array.from({ length: 16 }, (_, index) => (
-                      <span
-                        key={index}
-                        className='size-3 rounded-xs bg-purple-700 dark:bg-purple-300'
-                        style={{ animationDelay: `${index * 75}ms` }}
-                      />
-                    ))}
-                  </div>
-                  <div role='status' aria-live='polite'>
-                    <Text medium>{activeToken ? t('receive.gettingQuote') : t('receive.generatingInvoice')}</Text>
-                  </div>
-                  <Text small color='neutral-500'>
-                    {generating
-                      ? t('receive.requestingAmount', { amount: prettyNumber(satoshis, 0), unit: unitLabel })
-                      : '\u00a0'}
-                  </Text>
-                </div>
-                {quoteProblem ? (
-                  <div className='flex flex-col items-center justify-center gap-2 text-center'>
-                    {tokenRails.expired ? (
-                      <>
-                        <Text bold>{t('receive.quoteExpired')}</Text>
-                        <TextSecondary centered>{t('receive.quoteExpiredSub')}</TextSecondary>
-                      </>
-                    ) : (
-                      <TextSecondary centered>{t('receive.noTokenQuote', { error: tokenRails.error })}</TextSecondary>
-                    )}
-                    <Button label={t('receive.getNewQuote')} onClick={tokenRails.regenerate} />
-                  </div>
-                ) : (
-                  <button
-                    type='button'
-                    className='receive-invoice-qr focusable'
-                    disabled={generating || !qrCodeValue}
-                    aria-hidden={generating}
-                    onClick={() => handleCopy(qrCodeValue)}
-                    onPointerDown={() => setQrTransform(prefersReducedMotion ? '' : 'scale(0.97)')}
-                    onPointerUp={() => setQrTransform('')}
-                    onPointerLeave={() => setQrTransform('')}
-                    onPointerCancel={() => setQrTransform('')}
-                    aria-label={t('receive.copyQrCode')}
-                    style={{
-                      padding: 0,
-                      width: '100%',
-                      display: 'block',
-                      background: 'none',
-                      touchAction: 'manipulation',
-                      WebkitTapHighlightColor: 'transparent',
-                      cursor: generating ? 'default' : 'pointer',
-                    }}
+                  <div
+                    className='receive-invoice-loading flex flex-col items-center justify-center gap-2 p-4 text-center'
+                    aria-hidden={!generating}
                   >
-                    <div
+                    <div className='receive-invoice-pixels mb-3 grid-cols-4 gap-1.25' aria-hidden='true'>
+                      {Array.from({ length: 16 }, (_, index) => (
+                        <span
+                          key={index}
+                          className='size-3 rounded-xs bg-purple-700 dark:bg-purple-300'
+                          style={{ animationDelay: `${index * 75}ms` }}
+                        />
+                      ))}
+                    </div>
+                    <div role='status' aria-live='polite'>
+                      <Text medium wrap>
+                        {shown === 'token' ? t('receive.gettingQuote') : t('receive.generatingInvoice')}
+                      </Text>
+                    </div>
+                    <Text small color='neutral-500' wrap>
+                      {generating
+                        ? t('receive.requestingAmount', { amount: prettyNumber(satoshis, 0), unit: unitLabel })
+                        : '\u00a0'}
+                    </Text>
+                  </div>
+                  {quoteExpired ? (
+                    <div className='receive-invoice-expired flex flex-col items-center justify-center gap-2 p-4 text-center'>
+                      <Text bold>{t('receive.quoteExpired')}</Text>
+                      <TextSecondary centered>{t('receive.quoteExpiredSub')}</TextSecondary>
+                      <Button
+                        label={t('receive.getNewQuote')}
+                        onClick={tokenRails.regenerate}
+                        disabled={tokenRails.quoting}
+                      />
+                    </div>
+                  ) : shown === 'token' && tokenRails.error ? (
+                    <div className='receive-invoice-expired flex flex-col items-center justify-center gap-2 p-4 text-center'>
+                      <TextSecondary centered>{t('receive.noTokenQuote', { error: tokenRails.error })}</TextSecondary>
+                      <Button label={t('receive.getNewQuote')} onClick={tokenRails.regenerate} />
+                    </div>
+                  ) : (
+                    <button
+                      type='button'
+                      className='receive-invoice-qr focusable'
+                      disabled={generating || !qrCodeValue}
+                      aria-hidden={generating}
+                      onClick={() => handleCopy(qrCodeValue)}
+                      onPointerDown={() => setQrTransform(prefersReducedMotion ? '' : 'scale(0.97)')}
+                      onPointerUp={() => setQrTransform('')}
+                      onPointerLeave={() => setQrTransform('')}
+                      onPointerCancel={() => setQrTransform('')}
+                      aria-label={t('receive.copyQrCode')}
+                      data-testid='receive-qr'
                       style={{
-                        transform: qrTransform,
-                        transition: prefersReducedMotion
-                          ? 'none'
-                          : `transform 240ms cubic-bezier(${EASE_OUT_QUINT.join(',')})`,
+                        padding: 0,
+                        width: '100%',
+                        border: 'none',
+                        display: 'block',
+                        cursor: generating ? 'default' : 'pointer',
+                        background: 'none',
+                        WebkitTapHighlightColor: 'transparent',
+                        touchAction: 'manipulation',
                       }}
                     >
-                      <QrCode value={qrCodeValue} logo={activeToken ? railLogo(activeToken, '#ffffff') : undefined} />
-                    </div>
-                  </button>
-                )}
-              </div>
-              <div
-                className='min-h-5'
-                aria-hidden={generating}
-                style={{ visibility: generating ? 'hidden' : 'visible' }}
-              >
-                {activeToken && tokenQuote ? (
-                  <TokenQuoteNote rail={activeToken} quote={tokenQuote} />
-                ) : satoshis > 0 && !generating ? (
-                  <Text small color='neutral-500'>
-                    {t('receive.requestingAmount', { amount: prettyNumber(satoshis, 0), unit: unitLabel })}
-                  </Text>
-                ) : null}
-              </div>
-              <LnurlRailPanel
-                rail={lnurlRail}
-                showAddress={activeMethod === 'unified' || activeMethod === 'lightning'}
-              />
-              {(assetId || bitcoinTaxiRequest) && arkAddress ? (
-                <div hidden={activeMethod !== 'unified'}>
-                  {assetId ? (
-                    <TaxiChoice
-                      key={taxiRequestId}
-                      assetId={assetId}
-                      receiverAddress={arkAddress}
-                      ticker={assetPresentation.ticker}
-                      decimals={assetMeta?.metadata?.decimals}
-                      value={taxi}
-                      onChange={setTaxi}
-                    />
-                  ) : (
-                    <TaxiChoice
-                      key={taxiRequestId}
-                      satoshis={satoshis}
-                      receiverAddress={arkAddress}
-                      value={taxi}
-                      onChange={setTaxi}
-                    />
+                      <div
+                        style={{
+                          transform: qrTransform,
+                          transition: prefersReducedMotion
+                            ? 'none'
+                            : `transform 240ms cubic-bezier(${EASE_OUT_QUINT.join(',')})`,
+                        }}
+                      >
+                        <QrCode
+                          value={qrCodeValue}
+                          logo={shown === 'token' && activeToken ? railLogo(activeToken, '#ffffff') : undefined}
+                        />
+                      </div>
+                    </button>
                   )}
                 </div>
-              ) : null}
-            </FlexCol>
-          )}
+                <div
+                  className='flex min-h-10 w-full max-w-85 flex-col items-center gap-1'
+                  aria-hidden={generating}
+                  style={{ visibility: generating ? 'hidden' : 'visible' }}
+                >
+                  {target && copyValue && !generating ? (
+                    <div className='flex max-w-full items-center gap-1'>
+                      <span
+                        className={
+                          target.kind === 'lnaddress' ? 'truncate text-lg font-semibold' : 'truncate font-mono text-sm'
+                        }
+                      >
+                        {target.kind === 'lnaddress' ? copyValue : prettyLongText(copyValue, 12)}
+                      </span>
+                      <CopyButton
+                        label={t('receive.copyAria', { title: copyLabel })}
+                        testId={`${target.kind}-address-copy`}
+                        done={copied === copyValue}
+                        onClick={() => handleCopy(copyValue)}
+                        disabled={copyDisabled}
+                      />
+                    </div>
+                  ) : null}
+                  {shown === 'token' && activeToken && tokenRails.quote ? (
+                    <TokenQuoteNote rail={activeToken} quote={tokenRails.quote} copied={copied} onCopy={handleCopy} />
+                  ) : caption ? (
+                    <Text small color='neutral-500' wrap centered>
+                      {caption}
+                    </Text>
+                  ) : null}
+                </div>
+              </>
+            )}
+            {showingQr ? <LnurlRailPanel rail={lnurlRail} /> : null}
+            {showingQr && (assetId || bitcoinTaxiRequest) && arkAddress ? (
+              <div hidden={!taxiShown}>
+                {assetId ? (
+                  <TaxiChoice
+                    key={taxiRequestId}
+                    assetId={assetId}
+                    receiverAddress={arkAddress}
+                    ticker={assetPresentation.ticker}
+                    decimals={assetMeta?.metadata?.decimals}
+                    value={taxi}
+                    onChange={setTaxi}
+                  />
+                ) : (
+                  <TaxiChoice
+                    key={taxiRequestId}
+                    satoshis={satoshis}
+                    receiverAddress={arkAddress}
+                    value={taxi}
+                    onChange={setTaxi}
+                  />
+                )}
+              </div>
+            ) : null}
+            {/* In the flow, not a fixed footer: pinned, it covered the buttons on short phones. */}
+            {showingQr && !isAssetReceive ? <FormatsCard onClick={() => setFormatsOpen(true)} /> : null}
+          </FlexCol>
+          <ReceiveFormats
+            open={formatsOpen}
+            onClose={() => setFormatsOpen(false)}
+            formats={formatRows}
+            active={shown}
+            onPick={pickFormat}
+            tokens={tokenRows}
+            onPickToken={pickToken}
+          />
+          <ReceiveFormats
+            open={assetsOpen}
+            onClose={() => setAssetsOpen(false)}
+            title={t('swap.chooseAssetToReceive')}
+            formats={assetRows}
+            active={current.id}
+            onPick={switchAsset}
+          />
         </Padded>
       </Content>
-
       <ButtonsOnBottom>
         <FlexRow gap='0.75rem'>
-          <Button
-            label={amountLabel}
-            onClick={() => (isMobileBrowser ? setShowKeys(true) : setShowAmountSheet(true))}
-            secondary
-          />
-          <Button label={t('receive.copy')} onClick={handleCopyButton} secondary disabled={!copyReady} />
+          <Button label={amountLabel} onClick={openAmountEntry} secondary />
+          <Button label={t('receive.share')} onClick={handleShare} disabled={shareDisabled} />
         </FlexRow>
-        <Button label={t('receive.share')} onClick={handleShare} disabled={shareDisabled} />
       </ButtonsOnBottom>
 
       {/* Amount bottom sheet */}
-      <SheetModal isOpen={showAmountSheet} onClose={() => setShowAmountSheet(false)}>
+      <SheetModal isOpen={showAmountSheet} onClose={closeAmountEntry}>
         <FlexCol gap='1rem' padding='0.5rem 0'>
           <Text big bold>
-            {t('receive.addAmount')}
+            {amountForTokens ? t('receive.setAmountFirst') : t('receive.addAmount')}
           </Text>
+          {amountForTokens ? <TextSecondary>{t('receive.setAmountFirstSub')}</TextSecondary> : null}
           <InputAmount
             label={t('receive.amount')}
             asset={assetOption}
@@ -684,7 +933,10 @@ export default function ReceiveQRCode() {
             focus={!isMobileBrowser}
             readOnly={isMobileBrowser}
             name='receive-amount-sheet'
-            onChange={setAmountTextValue}
+            onChange={handleSheetAmountChange}
+            onModeChange={handleEntryModeChange}
+            mode={entryMode}
+            switchable
             onEnter={handleAmountConfirm}
             onFocus={() => setShowKeys(isMobileBrowser)}
           />
@@ -692,101 +944,17 @@ export default function ReceiveQRCode() {
           {hasAmount ? <Button label={t('receive.clearAmount')} onClick={handleAmountClear} secondary /> : null}
         </FlexCol>
       </SheetModal>
-
-      <SheetModal isOpen={showTokenSheet} onClose={() => setShowTokenSheet(false)}>
-        <FlexCol gap='1rem' padding='0.5rem 0'>
-          <Text big bold>
-            {t('receive.payWithStablecoins')}
-          </Text>
-          <div className='hide-scrollbar max-h-[60vh] w-full overflow-y-auto'>
-            <Select
-              options={tokenMethods.map((m) => m.id)}
-              labels={tokenMethods.map((m) => m.label)}
-              selected={activeToken ? activeMethod : ''}
-              renderStart={(id) => {
-                const rail = tokenRails.rails.find((r) => TOKEN + r.id === id)
-                return rail ? railLogo(rail, 'var(--popover)') : null
-              }}
-              onChange={(id) => {
-                setShowTokenSheet(false)
-                handleMethodChange(id)
-              }}
-            />
-          </div>
-        </FlexCol>
-      </SheetModal>
-
-      {/* Copy address bottom sheet */}
-      <SheetModal isOpen={showCopySheet} onClose={() => setShowCopySheet(false)}>
-        <FlexCol gap='1rem' padding='0.5rem 0'>
-          <Text big bold>
-            {t('receive.copyAddress')}
-          </Text>
-          <FlexCol gap='0.75rem'>
-            {copyRows.map((row) => (
-              <AddressLine
-                key={row.testId}
-                {...row}
-                onCopy={handleCopy}
-                onSelect={(v) => {
-                  const method = paymentMethods.find((m) => m.value === v)
-                  if (method) handleMethodChange(method.id)
-                }}
-                copied={copied}
-              />
-            ))}
-          </FlexCol>
-        </FlexCol>
-      </SheetModal>
     </>
   )
 }
 
-function AddressLine({
-  testId,
-  title,
-  value,
-  onCopy,
-  onSelect,
-  copied,
-}: {
-  testId: string
-  title: string
-  value: string
-  onCopy: (value: string) => void
-  onSelect: (value: string) => void
+function TokenQuoteNote(p: {
+  rail: LnurlTokenRail
+  quote: LnurlTokenQuote
   copied: string
+  onCopy: (value: string) => void
 }) {
-  const { t } = useTranslation()
-  return (
-    <Focusable
-      onEnter={() => {
-        // onSelect copies + switches the QR; avoid copying twice
-        onSelect(value)
-      }}
-    >
-      <FlexRow between onClick={() => onSelect(value)}>
-        <FlexCol gap='0'>
-          <TextSecondary>{title}</TextSecondary>
-          <Text>{prettyLongText(value, 12)}</Text>
-        </FlexCol>
-        <Button
-          copy
-          ariaLabel={t('receive.copyAria', { title })}
-          testId={testId + '-address-copy'}
-          onClick={(event) => {
-            event.stopPropagation()
-            onCopy(value)
-          }}
-        >
-          {copied === value ? <CheckMarkIcon /> : <CopyIcon />}
-        </Button>
-      </FlexRow>
-    </Focusable>
-  )
-}
-
-function TokenQuoteNote({ rail, quote }: { rail: LnurlTokenRail; quote: LnurlTokenQuote }) {
+  const { rail, quote } = p
   const { t } = useTranslation()
   const [now, setNow] = useState(Date.now())
   useEffect(() => {
@@ -797,19 +965,28 @@ function TokenQuoteNote({ rail, quote }: { rail: LnurlTokenRail; quote: LnurlTok
   const time = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
   return (
     <FlexCol gap='0.25rem' centered>
-      <Text small>
-        {t('receive.tokenSendExactly', { amount: quote.amount, unit: rail.unit.code, chain: rail.chain })}
-      </Text>
+      <div className='flex items-center gap-1'>
+        <Text small>
+          {t('receive.tokenSendExactly', { amount: quote.amount, unit: rail.unit.code, chain: rail.chain })}
+        </Text>
+        <CopyButton
+          label={t('receive.copyAria', { title: t('receive.tokenAmount', { unit: rail.unit.code }) })}
+          testId='token-amount-address-copy'
+          done={p.copied === quote.amount}
+          onClick={() => p.onCopy(quote.amount)}
+        />
+      </div>
       <Text small color='neutral-500' wrap centered>
         {t('receive.tokenQuoteValid', { provider: rail.provider, time })}
+        {isMobileBrowser && quote.value !== quote.destination ? (
+          <>
+            {' · '}
+            <a href={quote.value} className='font-semibold text-purple-700 dark:text-purple-300'>
+              {t('receive.openInWallet')}
+            </a>
+          </>
+        ) : null}
       </Text>
-      {isMobileBrowser && quote.value !== quote.destination ? (
-        <Text small color='neutral-500' wrap centered>
-          <a href={quote.value} className='font-semibold text-purple-700 dark:text-purple-300'>
-            {t('receive.openInWallet')}
-          </a>
-        </Text>
-      ) : null}
     </FlexCol>
   )
 }

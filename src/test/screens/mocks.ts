@@ -55,13 +55,23 @@ export const mockAspContextValue = {
   setAspInfo: () => {},
 }
 
+export const mockBackupContextValue = {
+  backupConfig: () => Promise.resolve(),
+  backupContacts: () => Promise.resolve(),
+  backupSolverCards: () => Promise.resolve(),
+  backupAndUpdateConfig: () => Promise.resolve(),
+  fullBackup: () => Promise.resolve(),
+  restore: () => Promise.resolve(),
+  initialiseNostrBackup: () => {},
+}
+
 export const mockConfigContextValue = {
   config: {
     announcementsSeen: [],
     apps: { assets: { enabled: true } },
     aspUrl: 'http://asp.local',
     dismissedBanners: [],
-    delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
+    executor: import.meta.env.VITE_EXECUTOR_ENABLED !== 'false',
     currency: Currencies.EUR,
     importedAssets: [],
     haptics: true,
@@ -146,6 +156,9 @@ export const mockWalletContextValue = {
   iconApprovalManager: new AssetIconApprovalManager(),
   isVerifiedAsset: () => false,
   dataReady: false,
+  executorSettled: () => Promise.resolve({ status: 'no-executor' as const }),
+  executorSettledCount: 0,
+  executorStatus: 'no-executor' as const,
   loadError: null,
   dismissLoadError: () => {},
   setAssetSwaps: () => {},
