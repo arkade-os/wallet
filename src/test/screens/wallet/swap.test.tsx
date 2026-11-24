@@ -512,6 +512,26 @@ describe('Wallet swap flow', () => {
     expect(quoteExchange).toHaveBeenCalledOnce()
   })
 
+  it('sends the user to activity, not a fresh quote, once a lost funding reply lets the quote lapse', async () => {
+    acceptSwapQuote.mockRejectedValueOnce(new Error('Funding reply was lost'))
+    const { navigate } = await reviewSatsToBrl()
+    confirm()
+    await waitFor(() => expect(screen.getByText('Funding reply was lost')).toBeInTheDocument())
+    const issued = await quoteExchange.mock.results[0].value
+    const now = vi.spyOn(Date, 'now').mockReturnValue((issued.expiresAt + 1) * 1000)
+    try {
+      confirm()
+      await act(async () => {})
+      expect(quoteExchange).toHaveBeenCalledOnce()
+      expect(acceptSwapQuote).toHaveBeenCalledOnce()
+      fireEvent.click(await screen.findByRole('button', { name: 'View activity' }, { timeout: 2000 }))
+      expect(navigate).toHaveBeenCalledWith(Pages.Wallet)
+      expect(acceptSwapQuote).toHaveBeenCalledOnce()
+    } finally {
+      now.mockRestore()
+    }
+  })
+
   it('quotes again on reopen when the driver no longer holds the firm quote', async () => {
     acceptSwapQuote.mockRejectedValueOnce(lostQuote())
     await reviewSatsToBrl()
