@@ -1,4 +1,4 @@
-import { type ArkadeInfo } from '@arkade-os/sdk'
+import { type ArkadeInfo, type IWallet } from '@arkade-os/sdk'
 import { createClaimWatch, type ClaimWatch, type RememberedTaxi } from '@arkade-taxi/client/wallet'
 import { consoleError } from './logs'
 import { walletArkadeContext } from './receiverTaxi'
@@ -14,6 +14,13 @@ export {
   type ClaimPlan,
   type ReceiverClaim,
 } from '@arkade-taxi/client/wallet'
+
+/** Every Executor renewal contract this wallet registered, whichever session or params it came from: Receive may
+ * have shown any of them as the Ark address a Taxi request named. */
+export const renewalAddresses = async (wallet: Pick<IWallet, 'getContractManager'>): Promise<string[]> => {
+  const rows = await (await wallet.getContractManager()).getContracts({ type: 'executor' })
+  return rows.filter((row) => row.params.template === 'renewal').map((row) => row.address)
+}
 
 export const walletClaimWatch = (args: {
   aspInfo: Pick<
