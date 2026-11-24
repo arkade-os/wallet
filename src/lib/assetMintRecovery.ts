@@ -1,4 +1,6 @@
 import type { IssuanceParams, IssuanceResult, KnownMetadata, ServiceWorkerWallet } from '@arkade-os/sdk'
+import { translations } from './i18n'
+import { getActiveLanguage } from './language'
 
 const KEY = 'pendingAssetMint'
 const WAIT_MS = 60_000
@@ -6,7 +8,8 @@ const POLL_MS = 2_000
 
 export class ControlAssetTimeoutError extends Error {
   constructor() {
-    super('Timed out waiting for the control asset to become spendable. Retry to resume this mint.')
+    const lang = getActiveLanguage()
+    super(translations[lang].mint.errorMintingControlAsset)
   }
 }
 

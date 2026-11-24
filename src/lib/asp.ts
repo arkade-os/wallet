@@ -26,6 +26,8 @@ import * as Sentry from '@sentry/react'
 import { hex } from '@scure/base'
 import { arkTransactionToTx, sortLocalTxs } from './transactionHistory'
 import { walletFingerprint } from './sentry'
+import { getActiveLanguage } from './language'
+import { translations } from './i18n'
 
 const emptyFees: FeeInfo = {
   intentFee: { offchainInput: '', offchainOutput: '', onchainInput: '', onchainOutput: '' },
@@ -85,7 +87,8 @@ export const byExpiryAsc = (a: { expiresAt?: Date | null }, b: { expiresAt?: Dat
 
 export class InsufficientFundsError extends Error {
   constructor() {
-    super('Insufficient funds')
+    const lang = getActiveLanguage()
+    super(translations[lang].send.insufficientFunds)
     this.name = 'InsufficientFundsError'
   }
 }

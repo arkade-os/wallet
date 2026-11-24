@@ -42,6 +42,8 @@ import { candidateUsage } from './swapRecords'
 import { assetSwapRepository } from './swapRepository'
 import { effectiveSolverRouting } from './solverRouting'
 import { solverHealth } from './solverHealth'
+import { getActiveLanguage } from './language'
+import { translations } from './i18n'
 
 /**
  * A swap action that reached no driver at all.
@@ -57,7 +59,8 @@ import { solverHealth } from './solverHealth'
  */
 export class SwapsHeldElsewhere extends Error {
   constructor() {
-    super('no tab is driving swaps right now')
+    const lang = getActiveLanguage()
+    super(translations[lang].swap.heldElsewhere)
     this.name = 'SwapsHeldElsewhere'
   }
 }
