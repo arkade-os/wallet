@@ -15,11 +15,13 @@ export {
   type ReceiverClaim,
 } from '@arkade-taxi/client/wallet'
 
-/** Every Executor renewal contract this wallet registered, whichever session or params it came from: Receive may
- * have shown any of them as the Ark address a Taxi request named. */
+/** The Executor renewal contracts of the wallet's own key, whichever session, params or wallet mode registered them:
+ * Receive may have shown any of them. A rotated HD key's row signs by descriptor, and Receive never shows it. */
 export const renewalAddresses = async (wallet: Pick<IWallet, 'getContractManager'>): Promise<string[]> => {
   const rows = await (await wallet.getContractManager()).getContracts({ type: 'executor' })
-  return rows.filter((row) => row.params.template === 'renewal').map((row) => row.address)
+  return rows
+    .filter((row) => row.params.template === 'renewal' && row.metadata?.signingDescriptor === undefined)
+    .map((row) => row.address)
 }
 
 export const walletClaimWatch = (args: {

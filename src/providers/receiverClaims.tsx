@@ -78,8 +78,6 @@ export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) =>
     autoClaimsRef.current = autoClaims
   }, [autoClaims])
   const { svcWallet, reloadWallet, initialized, authState, vtxos, executorSettledCount } = useContext(WalletContext)
-  // Only a static wallet ever shows an Executor renewal contract as its Ark address.
-  const showsRenewals = (config.walletMode ?? 'static') === 'static'
   // As App routes it, only 'locked' is locked ('passwordless' counts); svcWallet survives locking, so it can't tell.
   const unlocked = Boolean(initialized) && authState !== 'locked'
   const unlockedRef = useRef(unlocked)
@@ -225,16 +223,15 @@ export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) =>
       .then(watch)
       .catch((err) => consoleError(err, 'could not watch Taxi claims'))
     // Not executorRenewalAddress: it ends with the session, while a request shown earlier still names its contract.
-    if (showsRenewals)
-      renewalAddresses(svcWallet)
-        .then((addresses) => addresses.forEach(watch))
-        .catch((err) => consoleError(err, 'could not watch Taxi claims at Executor renewal contracts'))
+    renewalAddresses(svcWallet)
+      .then((addresses) => addresses.forEach(watch))
+      .catch((err) => consoleError(err, 'could not watch Taxi claims at Executor renewal contracts'))
     return () => {
       stopped = true
       for (const stop of stops) stop()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queue, unlocked, svcWallet, aspInfo.url, aspInfo.network, taxisVersion, executorSettledCount, showsRenewals])
+  }, [queue, unlocked, svcWallet, aspInfo.url, aspInfo.network, taxisVersion, executorSettledCount])
 
   useEffect(() => {
     if (!unlocked || !svcWallet) return

@@ -14,6 +14,7 @@ const TAXI = 'https://taxi.test'
 const OPERATOR = 'ab'.repeat(32)
 const OWN = 'tark1ownaddress'
 const RENEWAL = 'tark1renewalcontract'
+const ROTATED = 'tark1rotatedkeyrenewal'
 
 const feed = vi.hoisted(() => ({ claims: [] as unknown[], subscribed: [] as string[] }))
 
@@ -63,8 +64,8 @@ vi.mock('../../lib/swapRepository', () => ({ unreservedCoins: async () => [] }))
 vi.mock('../../screens/Wallet/Receive/ClaimSheet', () => ({ default: () => null }))
 vi.mock('../../components/SheetModal', () => ({ default: () => null }))
 
-const claimFor = (receiverAddress: string) => ({
-  transferId: 't1',
+const claimFor = (receiverAddress: string, transferId = 't1') => ({
+  transferId,
   receiverAddress,
   state: 'locked',
   claimable: true,
@@ -164,12 +165,14 @@ describe('Taxi claim watch', () => {
     expect(feed.subscribed).toEqual([OWN])
   })
 
-  it('watches only the own address of an HD wallet, which never shows a renewal contract', async () => {
-    feed.claims = [claimFor(RENEWAL)]
-    renderClaims({ svcWallet: walletWith(async () => [row('renewal', RENEWAL)]) }, { walletMode: 'hd' })
+  it('watches the renewal contracts of its own key in any wallet mode, never those of a rotated key', async () => {
+    feed.claims = [claimFor(RENEWAL), claimFor(ROTATED, 't2')]
+    const rotated = { ...row('renewal', ROTATED), metadata: { signingDescriptor: "tr([00000000/86'/1'/0']xpub/0/1)" } }
+    renderClaims({ svcWallet: walletWith(async () => [row('renewal', RENEWAL), rotated]) }, { walletMode: 'hd' })
 
-    await waitFor(() => expect(feed.subscribed).toEqual([OWN]))
+    await waitFor(() => expect(offered()).toHaveTextContent(claimKey(TAXI, 't1')))
     await act(async () => {})
-    expect(offered()).toBeEmptyDOMElement()
+    expect(offered()).not.toHaveTextContent(claimKey(TAXI, 't2'))
+    expect(feed.subscribed.sort()).toEqual([OWN, RENEWAL].sort())
   })
 })
