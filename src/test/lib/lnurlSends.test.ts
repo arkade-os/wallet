@@ -6,6 +6,7 @@ import {
   forgetLnurlSends,
   lnurlSends,
   markLnurlReceiverConfirmed,
+  recordLnurlInvoiceSend,
   recordLnurlSend,
   resumeLnurlConfirmations,
   subscribeLnurlSends,
@@ -89,6 +90,40 @@ describe('recording an LNURL send', () => {
         feeSat: 0,
       }),
     ])
+  })
+})
+
+describe('recording an LNURL invoice paid by a payment swap', () => {
+  const sent = {
+    txid: 'funding-txid',
+    target: TARGET,
+    railId: 'lightning',
+    amountSat: 2_100,
+    feeSat: 5,
+    createdAt: 123,
+    swapId: 'rfq:quote',
+    verify: 'https://a/v',
+    expect: { pr: 'lnbc1invoice' },
+  }
+
+  it('files the send and watches its receiver confirmation', () => {
+    recordLnurlInvoiceSend(sent)
+
+    expect(lnurlSends()).toEqual([sent])
+    expect(addConfirmation).toHaveBeenCalledWith(
+      expect.objectContaining({ key: 'funding-txid', verifyUrl: 'https://a/v', startedAt: 123, expect: sent.expect }),
+    )
+  })
+
+  it('reports a storage failure without failing the paid send', () => {
+    const error = new Error('quota exceeded')
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
+      throw error
+    })
+
+    expect(() => recordLnurlInvoiceSend(sent)).not.toThrow()
+    expect(reportError).toHaveBeenCalledWith(error, 'Failed to record lnurl send')
+    expect(addConfirmation).not.toHaveBeenCalled()
   })
 })
 

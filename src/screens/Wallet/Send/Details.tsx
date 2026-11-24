@@ -44,7 +44,7 @@ import { buildTransactionAmountDisplay } from '../../../lib/transactionAmountDis
 import { useAmountDisplayContext } from '../../../hooks/useTransactionAmountDisplay'
 import TransactionAmountSummary from '../../../components/TransactionAmountSummary'
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
-import { lnurlSends, recordLnurlSend, watchLnurlConfirmation } from '../../../lib/lnurlSends'
+import { lnurlSends, recordLnurlInvoiceSend, recordLnurlSend, watchLnurlConfirmation } from '../../../lib/lnurlSends'
 import { useTranslation } from '../../../providers/language'
 import { rememberSentDestination } from '../../../lib/contacts'
 import { readOpenOfferPolicy, readOpenOffersFirst, saveOnchainSendPreference } from '../../../lib/openOfferPolicy'
@@ -57,7 +57,7 @@ import {
   subscribeSolverRouting,
 } from '../../../lib/solverRouting'
 import { paymentQuoteExpiry, quoteProviderMarket, type PaymentQuoteRequest } from '../../../lib/paymentQuotes'
-import { decodeBip21, isBip21 } from '../../../lib/bip21'
+import { exactBip21Amount } from '../../../lib/bip21'
 import QuoteChoices from '../Swap/QuoteChoices'
 import usePaymentQuoteReview from './usePaymentQuoteReview'
 
@@ -109,12 +109,7 @@ export default function SendDetails() {
   const network = aspInfo.network as NetworkName
   const allowOffchain = vtxoTxsAllowed()
   const onchainDraft = Boolean(address && !arkAddress && !invoice && !lnurlRoute && !isAssetSend && sendInfo.reviewId)
-  const exactOnchainAmount = useMemo(() => {
-    const recipient = sendInfo.recipient
-    if (!address || !recipient || !isBip21(recipient)) return
-    const payment = decodeBip21(recipient)
-    if (payment.address === address && payment.satoshis && payment.satoshis > 0) return payment.satoshis
-  }, [address, sendInfo.recipient])
+  const exactOnchainAmount = useMemo(() => exactBip21Amount(address, sendInfo.recipient), [address, sendInfo.recipient])
   const exactOnchainRequest = exactOnchainAmount !== undefined
   const firmRequest = useMemo<PaymentQuoteRequest | undefined>(() => {
     if (!allowOffchain) return
@@ -417,6 +412,22 @@ export default function SendDetails() {
   const payReviewedQuote = async (quote: Quote, request: PaymentQuoteRequest) => {
     review.validate(quote)
     const swap = await acceptPaymentQuote(quote, request, sendInfo.reviewId)
+    const lnurlInvoice = sendInfo.lnurlInvoice
+    if (request.kind === 'lightning' && lnurlTarget && lnurlInvoice && swap.fundingTxid) {
+      const fee = swap.fee.asset === swap.give.asset ? Number(swap.fee.amount) : 0
+      recordLnurlInvoiceSend({
+        txid: swap.fundingTxid,
+        target: lnurlTarget,
+        railId: LIGHTNING_RAIL,
+        amountSat: Number(swap.give.amount) - fee,
+        feeSat: fee,
+        createdAt: Date.now(),
+        swapId: swap.id,
+        verify: lnurlInvoice.verify,
+        verifyBatch: lnurlInvoice.verifyBatch,
+        expect: { pr: lnurlInvoice.pr },
+      })
+    }
     const reviewedSwap = swap.id === assetSwapIdOf(request.kind === 'asset' ? 'offer' : 'rfq', quote.id)
     if (
       reviewedSwap &&
@@ -792,7 +803,7 @@ export default function SendDetails() {
                 secondary
                 onClick={() => {
                   setError('')
-                  void review.load(review.reviewed?.solverId)
+                  void review.retry()
                 }}
               />
             ) : null}
