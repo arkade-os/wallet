@@ -68,7 +68,7 @@ export default function Init() {
   const prefersReduced = useReducedMotion()
   const { t } = useTranslation()
   const [error, setError] = useState(false)
-  const [showOptions, setShowOptions] = useState(false)
+  const [showPasskeyUI, setShowPasskeyUI] = useState(true)
   const [showCreateOptions, setShowCreateOptions] = useState(false)
   const [passkeyError, setPasskeyError] = useState('')
   const [passkeyStep, setPasskeyStep] = useState<'intro' | 'waiting' | PasskeyWallet | null>(null)
@@ -186,7 +186,6 @@ export default function Init() {
       navigate(Pages.InitConnect)
     } catch (err) {
       if (attempt !== passkeyAttempt.current) return
-      setShowOptions(false)
       passkeyFailure(err)
     }
   }
@@ -306,50 +305,43 @@ export default function Init() {
           </FlexCol>
         </Padded>
       </Content>
-      <ButtonsOnBottom>
-        <motion.div
-          initial={prefersReduced ? false : { opacity: 0, y: 16 }}
-          animate={
-            contentReady && !prefersReduced
-              ? { opacity: 1, y: 0 }
-              : prefersReduced && contentReady
-                ? { opacity: 1 }
-                : { opacity: 0, y: 16 }
-          }
-          transition={{ duration: 0.4, ease: EASE_OUT_QUINT_TUPLE, delay: 0.24 }}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            width: '100%',
-            pointerEvents: contentReady ? 'auto' : 'none',
-          }}
-        >
-          <Button disabled={error || !aspReady} onClick={handleNewWallet} label={`+ ${t('init.createWallet')}`} />
-          {isBiometricsSupported() ? (
-            <Button
-              disabled={error || !aspReady}
-              onClick={() => setPasskeyStep('intro')}
-              label={t('init.createWithPasskey')}
-              secondary
-            />
-          ) : null}
+      {isBiometricsSupported() && showPasskeyUI ? (
+        <ButtonsOnBottom>
           <Button
             disabled={error || !aspReady}
-            onClick={() => setShowOptions(true)}
-            label={t('init.otherLoginOptions')}
-            clear
+            onClick={() => setPasskeyStep('intro')}
+            label={t('init.createWithPasskey')}
           />
-        </motion.div>
-      </ButtonsOnBottom>
-      <SheetModal isOpen={showOptions} onClose={() => setShowOptions(false)}>
-        <FlexCol gap='1rem'>
-          <Text>{t('init.otherLoginOptions')}</Text>
+          <Button disabled={error} onClick={handlePasskeyLogin} label={t('init.logInWithPasskey')} secondary />
+          <div style={{ padding: '1rem 0' }}>
+            <Text centered color='neutral-500'>
+              <a
+                style={{ cursor: 'pointer', textDecoration: 'none', paddingTop: '1rem' }}
+                onClick={() => setShowPasskeyUI(false)}
+              >
+                or use a mnemonic
+              </a>
+            </Text>
+          </div>
+        </ButtonsOnBottom>
+      ) : (
+        <ButtonsOnBottom>
+          <Button disabled={error || !aspReady} onClick={handleNewWallet} label={t('init.createWallet')} />
           <Button disabled={error} onClick={handleOldWallet} label={t('init.restoreWallet')} secondary />
           {isBiometricsSupported() ? (
-            <Button disabled={error} onClick={handlePasskeyLogin} label={t('init.logInWithPasskey')} secondary />
+            <div style={{ padding: '1rem 0' }}>
+              <Text centered color='neutral-500'>
+                <a
+                  style={{ cursor: 'pointer', textDecoration: 'none', paddingTop: '1rem' }}
+                  onClick={() => setShowPasskeyUI(true)}
+                >
+                  or use a passkey
+                </a>
+              </Text>
+            </div>
           ) : null}
-        </FlexCol>
-      </SheetModal>
+        </ButtonsOnBottom>
+      )}
       <SheetModal
         isOpen={passkeyStep === 'intro' || passkeyStep === 'waiting'}
         onClose={() => passkeyStep === 'intro' && setPasskeyStep(null)}
