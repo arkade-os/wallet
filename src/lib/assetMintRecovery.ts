@@ -45,7 +45,8 @@ export function readPendingAssetMint(): PendingAssetMint | null {
     (pending.stage !== 'issuing-control' && (!pending.control?.assetId || !pending.control.arkTxId)) ||
     (pending.stage === 'asset-ready' && (!pending.asset?.assetId || !pending.asset.arkTxId))
   ) {
-    throw new Error('Invalid pending asset mint record. Do not retry until it has been investigated.')
+    const lang = getActiveLanguage()
+    throw new Error(translations[lang].errors.invalidPendingAssetMintRecord)
   }
   return pending
 }
@@ -59,9 +60,15 @@ export function clearPendingAssetMint(): void {
 }
 
 export async function withAssetMintLock<T>(run: () => Promise<T>): Promise<T> {
-  if (!navigator.locks) throw new Error('Asset mint recovery requires browser Web Locks support.')
+  if (!navigator.locks) {
+    const lang = getActiveLanguage()
+    throw new Error(translations[lang].errors.assetMintRecoveryRequiresWebLocks)
+  }
   return navigator.locks.request('asset-mint', { ifAvailable: true }, async (lock) => {
-    if (!lock) throw new Error('An asset mint is already in progress in another tab.')
+    if (!lock) {
+      const lang = getActiveLanguage()
+      throw new Error(translations[lang].errors.assetMintInProgress)
+    }
     return run()
   })
 }

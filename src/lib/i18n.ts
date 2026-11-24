@@ -217,7 +217,12 @@ export const translations = {
       searchPlaceholder: 'Search type, address, script…',
     },
     errors: {
+      amountBelowThreshold: 'Total amount is below dust threshold',
       amountBetween: 'Amount must be between {min} and {max} sats',
+      assetMintInProgress: 'An asset mint is already in progress in another tab',
+      assetMintRecoveryRequiresWebLocks: 'Asset mint recovery requires browser Web Locks support',
+      invalidPendingAssetMintRecord: 'Invalid pending asset mint record. Do not retry until it has been investigated.',
+      noTXOstoSettle: 'No UTXOs or VTXOs eligible to settle',
       outdatedWallet:
         'Your wallet is outdated and needs to be updated to be compatible with the latest Arkade version.',
       recentlySettledHours: 'Your funds were recently settled onchain — please try again in a few hours',
@@ -1177,7 +1182,14 @@ export const translations = {
       searchPlaceholder: 'Buscar tipo, dirección, script…',
     },
     errors: {
+      amountBelowThreshold: 'El monto total está por debajo del umbral de polvo',
       amountBetween: 'El monto debe estar entre {min} y {max} sats',
+      assetMintInProgress: 'Ya hay una acuñación de activos en curso en otra pestaña',
+      assetMintRecoveryRequiresWebLocks:
+        'La recuperación de la acuñación de activos requiere soporte de Web Locks en el navegador',
+      invalidPendingAssetMintRecord:
+        'Registro de acuñación de activos pendiente no válido. No reintentes hasta que se haya investigado.',
+      noTXOstoSettle: 'No hay UTXOs o VTXOs elegibles para liquidar',
       outdatedWallet:
         'Tu wallet está desactualizada y necesita actualizarse para ser compatible con la última versión de Arkade.',
       recentlySettledHours: 'Tus fondos se liquidaron recientemente en la cadena — inténtalo de nuevo en unas horas',
@@ -2146,7 +2158,13 @@ export const translations = {
       searchPlaceholder: 'Buscar tipo, endereço, script…',
     },
     errors: {
+      amountBelowThreshold: 'O montante total está abaixo do limite de pó',
       amountBetween: 'O valor deve estar entre {min} e {max}',
+      assetMintInProgress: 'Já há uma cunhagem de ativos em andamento em outra aba',
+      assetMintRecoveryRequiresWebLocks: 'A recuperação da cunhagem de ativos requer suporte a Web Locks no navegador',
+      invalidPendingAssetMintRecord:
+        'Registo de cunhagem de ativo pendente inválido. Não tente novamente até que tenha sido investigado.',
+      noTXOstoSettle: 'Não há UTXOs ou VTXOs elegíveis para liquidar',
       outdatedWallet:
         'Sua carteira está desatualizada e precisa ser atualizada para ser compatível com a versão mais recente da Arkade.',
       recentlySettledHours: 'Seus fundos foram liquidados on-chain recentemente — tente novamente em algumas horas',
