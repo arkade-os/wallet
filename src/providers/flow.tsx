@@ -43,6 +43,7 @@ export interface PendingLnReceive {
 
 export interface RecvInfo {
   boardingAddr: string
+  /** The Ark address shown on Receive: the Executor renewal contract on a registered static wallet. */
   offchainAddr: string
   onchainAddr?: string
   /** The solver's hold invoice, once an RFQ receive has been negotiated. */

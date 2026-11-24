@@ -1,6 +1,5 @@
 import { hex } from '@scure/base'
-import { Delegate } from './types'
-import { NetworkName } from '@arkade-os/sdk'
+import { NetworkName, type DelegationOptions } from '@arkade-os/sdk'
 import { registryIndexUrl, type Network } from '@arkade-os/solver-discovery'
 
 export const arknoteHRP = 'arknote'
@@ -31,11 +30,12 @@ export const defaultArkServer = () => {
 export const isMainnet = (network: NetworkName | string): boolean =>
   !!network && network !== 'testnet' && network !== 'mutinynet' && network !== 'signet' && network !== 'regtest'
 
-const DELEGATE_URL: Record<NetworkName, string | null> = {
-  bitcoin: 'https://delegate.arkade.money',
-  mutinynet: `https://delegator.mutinynet.arkade.sh`,
+// regtest: arkade-regtest's `executor` profile
+const EXECUTOR_URL: Record<NetworkName, string | null> = {
+  bitcoin: 'https://executor.arkade.sh',
+  mutinynet: 'https://executor.mutinynet.arkade.sh',
   signet: null,
-  regtest: 'http://localhost:7012',
+  regtest: 'http://localhost:7280',
   testnet: null,
 }
 
@@ -139,21 +139,28 @@ export const getEmulatorPubkeyOverrideForNetwork = (network: NetworkName): strin
   return configured && COMPRESSED_PUBKEY_HEX.test(configured) ? configured : undefined
 }
 
-export const getDelegateUrlForNetwork = (network: NetworkName): string | undefined => {
-  return DELEGATE_URL[network] ?? undefined
+// The Executor is always on unless the build switches it off (VITE_EXECUTOR_ENABLED=false, e.g. Playwright).
+// fromRuntimeEnv keeps Docker's __VITE_EXECUTOR_ENABLED__ placeholder from being constant-folded away by the minifier.
+export const isExecutorEnabled = (): boolean => fromRuntimeEnv(import.meta.env.VITE_EXECUTOR_ENABLED) !== 'false'
+
+// With an Executor, deposits to the boarding address are boarded, and the coins renewed, while the wallet is offline.
+export const getExecutorUrlForNetwork = (network: NetworkName): string | undefined =>
+  serviceUrlForNetwork(import.meta.env.VITE_EXECUTOR_URL, EXECUTOR_URL, network)
+
+const EXECUTOR_RENEWAL_WINDOW: Partial<Record<NetworkName, number>> = { regtest: 43_200 }
+
+// Regtest only, to watch a renewal: the Executor renews a coin once its remaining life is within the window,
+// so one just short of the expiry (85800 = 1 day - 10 min) renews each coin minutes after it is created.
+const regtestRenewalWindowOverride = (): number | undefined => {
+  const value = Number(fromRuntimeEnv(import.meta.env.VITE_EXECUTOR_RENEWAL_WINDOW))
+  return Number.isInteger(value) && value > 0 ? value : undefined
 }
 
-export const getDelegateForNetwork = (network: NetworkName): Delegate | undefined => {
-  const url = getDelegateUrlForNetwork(network)
-  if (!url) return undefined
-  return {
-    url,
-    fee: 0,
-    pubkey: '', // Placeholder, as the actual pubkey should be fetched from the delegate server
-    address: '', // Placeholder, as the actual address should be fetched from the delegate server
-    name: 'Arkade Default',
-  }
-}
+export const getExecutorParams = (network: NetworkName): DelegationOptions => ({
+  renewalWindow:
+    (network === 'regtest' ? regtestRenewalWindowOverride() : undefined) ?? EXECUTOR_RENEWAL_WINDOW[network] ?? 30 * 60,
+  maxFee: 1_000,
+})
 
 // covclaimd — the service that could claim a Lightning-receive lockup for an OFFLINE wallet
 

@@ -17,7 +17,7 @@ import LoadingLogo from '../../../components/LoadingLogo'
 import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
 import { atomicToUnits, unitsToAtomic } from '../../../lib/assets'
 import ErrorMessage from '../../../components/Error'
-import { getReceivingAddresses } from '../../../lib/asp'
+import { getDisplayAddresses } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
 import InputAmount, { type InputAmountMode } from '../../../components/InputAmount'
 import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
@@ -113,7 +113,8 @@ export default function ReceiveQRCode() {
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
-  const { assetBalances, assetMetadataCache, svcWallet } = useContext(WalletContext)
+  const { assetBalances, assetMetadataCache, svcWallet, executorSettled, executorSettledCount } =
+    useContext(WalletContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { t } = useTranslation()
 
@@ -136,10 +137,14 @@ export default function ReceiveQRCode() {
 
   const [sharing, setSharing] = useState(false)
   const [addressesLoaded, setAddressesLoaded] = useState(false)
+  // `offchainAddr` is the wallet's own Ark address, which the LNURL receiver binds. `displayAddr` is what Receive shows:
+  // the Executor renewal contract on a registered static wallet, else the same address.
   const [addresses, setAddresses] = useState<{
     wallet: typeof svcWallet
     offchainAddr: string
+    displayAddr: string
     boardingAddr: string
+    settledCount: number
   }>()
   const ownAddresses = addresses?.wallet === svcWallet ? addresses : undefined
   const addressesCurrent = addressesLoaded && Boolean(ownAddresses)
@@ -171,19 +176,30 @@ export default function ReceiveQRCode() {
   const [btcAddress, setBtcAddress] = useState(boardingAddr)
   const [bip21Uri, setBip21Uri] = useState('')
 
-  // Fetch addresses on mount
+  // Fetch addresses on mount, and again once the Executor registration settles: until then the SDK may answer with
+  // the wallet's own boarding address, which the Executor does not watch. The read waits (bounded) for it.
   useEffect(() => {
     if (!svcWallet) return
-    if (ownAddresses?.offchainAddr === offchainAddr && ownAddresses?.boardingAddr === boardingAddr) return
+    const current = ownAddresses?.displayAddr === offchainAddr && ownAddresses?.boardingAddr === boardingAddr
+    // An Executor settle since the last read: read again in place, keeping the QR up.
+    const settleOnly = current && ownAddresses?.settledCount !== executorSettledCount
+    if (current && !settleOnly) return
     let stale = false
-    setAddressesLoaded(false)
-    getReceivingAddresses(svcWallet)
-      .then(({ offchainAddr, boardingAddr }) => {
+    if (!settleOnly) setAddressesLoaded(false)
+    getDisplayAddresses(svcWallet, { settled: executorSettled })
+      .then(({ ownAddr, displayOffchainAddr, boardingAddr }) => {
         if (stale) return
-        if (!offchainAddr) throw 'Unable to get offchain address'
+        if (!displayOffchainAddr) throw 'Unable to get offchain address'
         if (!boardingAddr) throw 'Unable to get boarding address'
-        setAddresses({ wallet: svcWallet, offchainAddr, boardingAddr })
-        setRecvInfo((prev) => ({ ...prev, boardingAddr, offchainAddr, addressError: undefined }))
+        setAddresses({
+          wallet: svcWallet,
+          offchainAddr: ownAddr,
+          displayAddr: displayOffchainAddr,
+          boardingAddr,
+          settledCount: executorSettledCount,
+        })
+        // Functional: a late settle must not wipe an amount or invoice entered while the read was running
+        setRecvInfo((prev) => ({ ...prev, boardingAddr, offchainAddr: displayOffchainAddr, addressError: undefined }))
         setAddressesLoaded(true)
       })
       .catch((err) => {
@@ -196,13 +212,14 @@ export default function ReceiveQRCode() {
     return () => {
       stale = true
     }
-  }, [svcWallet, offchainAddr, boardingAddr])
+  }, [svcWallet, offchainAddr, boardingAddr, executorSettled, executorSettledCount])
 
   // A pending Receive-screen claim must not leave a swap invoice taking the QR's lightning= from the LNURL.
   const lnurlConfigured = Boolean(configuredLnurlServer())
   const lnurlRail = useLnurlRail({
     enabled: lnurlConfigured && !isAssetReceive,
     identity: svcWallet?.identity,
+    // The wallet's own address, never the display renewal address: the bound arkadeAddress must not change
     arkadeAddress: ownAddresses?.offchainAddr,
     boardingAddress: ownAddresses?.boardingAddr,
     primary: config.lnurlPrimary,
@@ -270,7 +287,7 @@ export default function ReceiveQRCode() {
   const qrCodeValue = addressesCurrent ? (target?.qr ?? '') : ''
   const generating = shown === 'token' ? tokenRails.quoting : generatingInvoice
   const createBip21 = (): { ark: string; btc: string; bip21: string } => {
-    const ark = vtxoTxsAllowed() ? ownAddresses?.offchainAddr || '' : ''
+    const ark = vtxoTxsAllowed() ? ownAddresses?.displayAddr || '' : ''
     const btc = utxoTxsAllowed() ? ownAddresses?.boardingAddr || '' : ''
     const bip21 = isAssetReceive
       ? encodeBip21Asset(ark, assetId, assetAmount, assetMeta?.metadata?.decimals)
