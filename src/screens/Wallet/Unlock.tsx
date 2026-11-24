@@ -5,6 +5,7 @@ import NeedsPassword from '../../components/NeedsPassword'
 import Header from '../../components/Header'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { useTranslation } from '../../providers/language'
+import { isElectrumOffline } from '../../lib/electrum'
 
 export default function Unlock() {
   const { navigate } = useContext(NavigationContext)
@@ -26,7 +27,7 @@ export default function Unlock() {
         return setError(t('unlock.invalidPassword'))
       }
       consoleError(err, 'error unlocking wallet')
-      setError(t('unlock.connectionFailed'))
+      setError(isElectrumOffline(err) ? t('errors.electrumOffline') : t('unlock.connectionFailed'))
     }
   }
 
