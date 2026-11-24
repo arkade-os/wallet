@@ -6,6 +6,7 @@ import Text from './Text'
 interface InputContainerProps {
   children: ReactNode
   error?: string
+  errorId?: string
   label?: string
   right?: JSX.Element
   bottomLeft?: string
@@ -15,6 +16,7 @@ interface InputContainerProps {
 export default function InputContainer({
   children,
   error,
+  errorId,
   label,
   right,
   bottomLeft,
@@ -50,7 +52,7 @@ export default function InputContainer({
         {bottomLeft || bottomRight ? <BottomLabel /> : null}
       </FlexCol>
       {Boolean(error) ? (
-        <Text capitalize color='red-500' smaller>
+        <Text id={errorId} capitalize color='red-500' smaller>
           {error}
         </Text>
       ) : null}

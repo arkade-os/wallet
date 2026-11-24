@@ -1,5 +1,5 @@
 import InputContainer from './InputContainer'
-import { useRef, useEffect, ChangeEventHandler } from 'react'
+import { useRef, useEffect, useId, ChangeEventHandler } from 'react'
 import { hapticLight } from '../lib/haptics'
 import Paste from './Paste'
 import { ClearButtonOnInput, ScanButtonOnInput } from './Button'
@@ -31,6 +31,7 @@ export default function InputWithScanner({
   value,
 }: InputWithScannerProps) {
   const input = useRef<HTMLInputElement>(null)
+  const errorId = useId()
 
   useEffect(() => {
     if (focus && input.current) input.current.focus()
@@ -60,12 +61,14 @@ export default function InputWithScanner({
   const hasValue = Boolean(value && value.length > 0)
 
   return (
-    <InputContainer label={label} error={error}>
+    <InputContainer label={label} error={error} errorId={errorId}>
       <label className='label has-buttons'>
         <input
           ref={input}
           name={name}
           aria-label={label}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
           value={value}
           disabled={disabled}
           className='input'

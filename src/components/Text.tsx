@@ -12,6 +12,7 @@ interface TextProps {
   color?: string
   copy?: string
   heading?: boolean
+  id?: string
   large?: boolean
   medium?: boolean
   right?: boolean
@@ -34,6 +35,7 @@ export default function Text({
   color,
   copy,
   heading,
+  id,
   large,
   medium,
   right,
@@ -73,7 +75,7 @@ export default function Text({
   }
 
   return (
-    <p className={className} onClick={handleClick} style={pStyle} title={tooltip} data-testid={testId}>
+    <p id={id} className={className} onClick={handleClick} style={pStyle} title={tooltip} data-testid={testId}>
       {children}
     </p>
   )
