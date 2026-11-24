@@ -183,6 +183,13 @@ function Harness({ tab = 'a' }: { tab?: string }) {
       >{`Router ${tab}`}</button>
       <button
         onClick={() =>
+          sendRouter({ assets: [{ assetId: 'asset-1', amount: 1n }] })
+            .then((router) => setRouter(typeof router.options))
+            .catch((err: Error) => setRejected(err.message))
+        }
+      >{`Assets ${tab}`}</button>
+      <button
+        onClick={() =>
           receiveLightning(1000)
             .then((accepted) => setInvoice(accepted.invoice))
             .catch((err: Error) => setRejected(err.name))
@@ -429,6 +436,21 @@ describe('SwapsProvider single-driver rule', () => {
     expect(accept).not.toHaveBeenCalled()
     expect(offboard).not.toHaveBeenCalled()
     expect(ready).toHaveBeenCalledTimes(1)
+  })
+
+  it('routes an asset send from a tab without the swap client, which it never needed', async () => {
+    renderTwoTabs()
+    await waitFor(() => expect(ready).toHaveBeenCalledTimes(1))
+    const b = within(screen.getByTestId('tab-b'))
+
+    await userEvent.click(b.getByText('Assets b'))
+
+    await waitFor(() => expect(b.getByTestId('router')).toHaveTextContent('function'))
+    expect(b.getByTestId('rejected')).toHaveTextContent('none')
+    expect(claimFeeRate).not.toHaveBeenCalled()
+    const deps = vi.mocked(createSendRouter).mock.calls[0][0]
+    expect(deps.client).toBeUndefined()
+    expect(deps.dust?.()).toBe(333)
   })
 
   it('waits for its queued startup grant before constructing a local send router', async () => {

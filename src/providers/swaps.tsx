@@ -142,7 +142,8 @@ interface SwapsContextProps {
   /** Negotiate a Lightning receive and begin driving it, in that order. */
   receiveLightning: (amountSats: number) => Promise<AcceptedLnReceive>
   /** The send path's router. Throws `SwapsHeldElsewhere` rather than dropping
-   * the solver rails and offboarding through the costlier exit. `swapsOptional`
+   * the solver rails and offboarding through the costlier exit. An `assets` send
+   * has neither, so it needs no client and works in every tab. `swapsOptional`
    * opts out for a caller with no exit rail to fall to (LNURL): a tab not driving
    * the swap client gets a router without the solver rails instead. */
   sendRouter: (deps?: {
@@ -1045,6 +1046,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     assets?: Asset[]
     swapsOptional?: boolean
   } = {}): Promise<PaymentRouter> => {
+    if (deps.assets) return createSendRouter({ wallet: svcWallet!, dust: () => Number(aspInfo.dust), ...deps })
     if (!held.current && granted.current) {
       await Promise.race([granted.current, new Promise((resolve) => setTimeout(resolve, LOCK_GRACE_MS))])
     }
