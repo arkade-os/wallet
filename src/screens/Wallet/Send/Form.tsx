@@ -799,6 +799,16 @@ export default function SendForm() {
     }
   }, [liquidBalance, sendInfo.satoshis, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.lnUrl])
 
+  // The same destination rememberSentDestination will save, so the tick can be checked against it.
+  const destination = sendDestination(sendInfo)
+
+  // Another payee drops the tick, so coming back to the first one asks again.
+  useEffect(() => {
+    if (sendInfo.saveAsContact && sendInfo.saveAsContact.address !== destination) {
+      setSendInfo((prev) => ({ ...prev, saveAsContact: undefined }))
+    }
+  }, [destination])
+
   if (!svcWallet) return <LoadingLogo text={t('common.loading')} />
 
   const handleError = (err: any) => {
@@ -899,9 +909,13 @@ export default function SendForm() {
     setReadyToParse(true)
   }
 
-  // The same destination rememberSentDestination will save, so the tick can be checked against it.
-  const destination = sendDestination(sendInfo)
-  const canSaveRecipient = Boolean(destination && isReusableContact(destination) && !contactForAddress(destination))
+  // Until the field's text is parsed, sendInfo still describes the previous recipient.
+  const canSaveRecipient = Boolean(
+    sendInfo.recipient === recipient &&
+      destination &&
+      isReusableContact(destination) &&
+      !contactForAddress(destination),
+  )
   const savingAsContact = canSaveRecipient && sendInfo.saveAsContact?.address === destination
 
   const toggleSaveAsContact = () => {

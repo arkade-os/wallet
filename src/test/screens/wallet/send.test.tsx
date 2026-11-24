@@ -1277,7 +1277,13 @@ describe('a changed recipient', () => {
     expect(tick()).toBeChecked()
 
     type(BTC)
+    expect(screen.queryByText('Save this payee as a contact')).not.toBeInTheDocument()
     await waitFor(() => expect(current.address).toBe(BTC), settle)
+    await waitFor(() => expect(current.saveAsContact).toBeUndefined())
+    expect(tick()).not.toBeChecked()
+
+    type(ARK)
+    await waitFor(() => expect(current.arkAddress).toBe(ARK), settle)
     expect(tick()).not.toBeChecked()
   })
 
