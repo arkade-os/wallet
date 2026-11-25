@@ -9,7 +9,7 @@ import { expect, it } from 'vitest'
 const scripts = dirname(fileURLToPath(import.meta.url))
 const manifestText = readFileSync(join(scripts, '../../vendor/carrier/manifest.json'), 'utf8')
 
-it('rejects a bundle without Swap before touching vendor files', () => {
+it('rejects a bundle without every pinned Taxi package before touching vendor files', () => {
   const root = mkdtempSync(join(tmpdir(), 'wallet-pack-missing-swap-'))
   try {
     const scriptDir = join(root, 'scripts', 'carrier-artifacts')
@@ -21,7 +21,7 @@ it('rejects a bundle without Swap before touching vendor files', () => {
     for (const script of ['pack.mjs', 'lib.mjs']) copyFileSync(join(scripts, script), join(scriptDir, script))
     writeFileSync(join(vendor, 'manifest.json'), 'existing manifest')
     const manifest = JSON.parse(manifestText)
-    manifest.artifacts = manifest.artifacts.filter(({ package: name }) => name !== '@arkade-os/swap')
+    manifest.artifacts = manifest.artifacts.filter(({ package: name }) => name !== '@arkade-taxi/protocol')
     writeFileSync(join(bundle, 'manifest.json'), JSON.stringify(manifest))
     const result = spawnSync(process.execPath, [join(scriptDir, 'pack.mjs'), '--bundle', bundle], {
       encoding: 'utf8',

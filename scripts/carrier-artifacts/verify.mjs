@@ -158,17 +158,16 @@ if (entry) {
     const signer = packageRootFrom(at('package.json'), '@scure/btc-signer')
     check(readJson(join(signer, 'package.json')).version === '2.4.1', 'wallet signer is not 2.4.1')
     const sdkRoot = packageRootFrom(at('package.json'), '@arkade-os/sdk')
-    const swapRoot = packageRootFrom(at('package.json'), '@arkade-os/swap')
-    check(
-      packageRootFrom(join(swapRoot, 'package.json'), '@arkade-os/sdk') === sdkRoot,
-      'swap resolves a different SDK installation',
-    )
     for (const name of ['@arkade-os/sdk', '@arkade-os/swap', '@arkade-taxi/client', '@arkade-taxi/covenant']) {
       const from = name.startsWith('@arkade-os/') ? at('package.json') : entry
       const imported = join(packageRootFrom(from, name), 'package.json')
       check(
         packageRootFrom(imported, '@scure/btc-signer') === signer,
         `${name} resolves a different signer installation`,
+      )
+      check(
+        name === '@arkade-os/sdk' || packageRootFrom(imported, '@arkade-os/sdk') === sdkRoot,
+        `${name} resolves a different SDK installation`,
       )
     }
   } catch (error) {

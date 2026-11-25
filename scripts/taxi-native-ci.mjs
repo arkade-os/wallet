@@ -11,7 +11,7 @@ import { configureRegtestEsplora } from './regtest-esplora.mjs'
 
 export const refs = Object.freeze({
   solver: 'eddd330b86ff48b3e75091b90264bcb3015cfe77',
-  taxi: '1e831e7ddc0c71c3f78e3bb6dc6d4bdadf11fa52',
+  taxi: '11bfa10eb165f60a493055016d4e226f028378df',
   regtest: '7c91a6bdafd855ba8b8cc19cf35f46257eb1467d',
 })
 const projects = ['Mobile Chrome', 'Google Chrome']

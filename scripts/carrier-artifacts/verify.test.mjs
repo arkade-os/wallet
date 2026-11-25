@@ -25,8 +25,8 @@ const repo = join(scripts, '..', '..')
 const manifest = JSON.parse(readFileSync(join(repo, MANIFEST_PATH), 'utf8'))
 const candidates = new Set(manifest.artifacts.map(({ package: name }) => name))
 let root
-let sdk
-let sdkEntry
+let client
+let clientEntry
 let marker
 
 const removeFixture = (path) => {
@@ -68,9 +68,9 @@ const installDependencies = (original, installed) => {
 const run = () =>
   spawnSync(process.execPath, [join(root, 'scripts/carrier-artifacts/verify.mjs'), '--installed'], { encoding: 'utf8' })
 const markEntry = () => {
-  const original = readFileSync(sdkEntry)
+  const original = readFileSync(clientEntry)
   writeFileSync(
-    sdkEntry,
+    clientEntry,
     Buffer.concat([
       original,
       Buffer.from(
@@ -78,7 +78,7 @@ const markEntry = () => {
       ),
     ]),
   )
-  return () => writeFileSync(sdkEntry, original)
+  return () => writeFileSync(clientEntry, original)
 }
 const rejectedBeforeImport = (result, message) => {
   expect(result.stderr).toContain(message)
@@ -115,13 +115,15 @@ beforeAll(() => {
     const from = artifact.package.startsWith('@arkade-taxi/') ? taxiEntry : join(repo, 'package.json')
     installDependencies(packageRootFrom(from, artifact.package), installed)
   }
-  if (!existsSync(join(root, 'node_modules/@scure/btc-signer')))
-    link(packageRootFrom(join(repo, 'package.json'), '@scure/btc-signer'), join(root, 'node_modules/@scure/btc-signer'))
+  for (const name of ['@scure/btc-signer', '@arkade-os/sdk', '@arkade-os/swap'])
+    if (!existsSync(join(root, 'node_modules', name)))
+      link(packageRootFrom(join(repo, 'package.json'), name), join(root, 'node_modules', name))
   if (existsSync(join(root, 'packages/solver-app/package.json')))
     link(join(root, 'node_modules'), join(root, 'packages/solver-app/node_modules'))
-  sdk = join(root, 'node_modules/@arkade-os/sdk')
-  const declared = JSON.parse(readFileSync(join(sdk, 'package.json'), 'utf8'))
-  sdkEntry = join(sdk, declared.exports['.'].import.default)
+  // Only the extracted Taxi client is the fixture's own copy; the npm packages link into the real install.
+  client = join(root, 'node_modules/@arkade-taxi/client')
+  const declared = JSON.parse(readFileSync(join(client, 'package.json'), 'utf8'))
+  clientEntry = join(client, declared.exports['.'].default)
   marker = join(root, 'imported-marker')
 })
 
@@ -134,15 +136,15 @@ it('accepts an unchanged installation extracted from the frozen archives', () =>
   expect(result.status, result.stderr).toBe(0)
 })
 
-it('requires the Swap archive in the manifest before importing installed packages', () => {
+it('requires every Taxi archive in the manifest before importing installed packages', () => {
   const restoreEntry = markEntry()
   const path = join(root, MANIFEST_PATH)
   const original = readFileSync(path, 'utf8')
   const incomplete = JSON.parse(original)
-  incomplete.artifacts = incomplete.artifacts.filter(({ package: name }) => name !== '@arkade-os/swap')
+  incomplete.artifacts = incomplete.artifacts.filter(({ package: name }) => name !== '@arkade-taxi/protocol')
   writeFileSync(path, JSON.stringify(incomplete))
   try {
-    rejectedBeforeImport(run(), 'expected exactly @arkade-os/sdk, @arkade-os/swap')
+    rejectedBeforeImport(run(), 'expected exactly @arkade-taxi/covenant, @arkade-taxi/protocol, @arkade-taxi/client')
   } finally {
     writeFileSync(path, original)
     restoreEntry()
@@ -160,26 +162,32 @@ it('rejects changed installed code with the same package version and exports bef
   }
 })
 
-it('authenticates a separate SDK resolved through a Taxi dependency', () => {
-  const path = join(root, 'node_modules/@arkade-taxi/client/node_modules/@arkade-os/sdk')
+it('refuses a second SDK installation resolved through a Taxi dependency', () => {
+  const path = join(client, 'node_modules/@arkade-os/sdk')
+  const installed = packageRootFrom(join(repo, 'package.json'), '@arkade-os/sdk')
+  const declared = JSON.parse(readFileSync(join(installed, 'package.json'), 'utf8'))
   rmSync(path)
-  cpSync(sdk, path, { recursive: true, dereference: false })
-  const originalEntry = sdkEntry
-  sdkEntry = join(path, originalEntry.slice(sdk.length + 1))
-  const restore = markEntry()
+  mkdirSync(path)
+  copyFileSync(join(installed, 'package.json'), join(path, 'package.json'))
+  const payload = `writeFileSync(${JSON.stringify(marker)}, 'executed')`
+  for (const [entry, source] of [
+    [declared.exports['.'].import.default, `import { writeFileSync } from 'node:fs'; ${payload}`],
+    [declared.exports['.'].require.default, `const { writeFileSync } = require('node:fs'); ${payload}`],
+  ]) {
+    mkdirSync(dirname(join(path, entry)), { recursive: true })
+    writeFileSync(join(path, entry), source)
+  }
   try {
-    rejectedBeforeImport(run(), 'installed bytes differ')
+    rejectedBeforeImport(run(), '@arkade-taxi/client resolves a different SDK installation')
   } finally {
-    restore()
-    sdkEntry = originalEntry
     removeFixture(path)
-    link(sdk, path)
+    link(installed, path)
     rmSync(marker, { force: true })
   }
 })
 
 it('rejects package files absent from the archive', () => {
-  const path = join(sdk, 'dist/extra.js')
+  const path = join(client, 'dist/extra.js')
   writeFileSync(path, 'export const extra = true')
   try {
     const result = run()
@@ -191,8 +199,8 @@ it('rejects package files absent from the archive', () => {
 })
 
 it('rejects symlinked package directories', () => {
-  const path = join(sdk, 'linked-payload')
-  link(join(sdk, 'dist'), path)
+  const path = join(client, 'linked-payload')
+  link(join(client, 'dist'), path)
   try {
     const result = run()
     expect(result.status).toBe(1)
@@ -203,8 +211,8 @@ it('rejects symlinked package directories', () => {
 })
 
 it('rejects a regular package file named node_modules', () => {
-  const path = join(sdk, 'node_modules')
-  const dependencies = join(root, 'sdk-dependencies')
+  const path = join(client, 'node_modules')
+  const dependencies = join(root, 'client-dependencies')
   renameSync(path, dependencies)
   writeFileSync(path, 'unexpected file')
   try {

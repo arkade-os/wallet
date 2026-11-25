@@ -119,9 +119,9 @@ pnpm install
 ### Taxi packages
 
 `vendor/carrier/manifest.json` records the source revisions and digests of the
-unpublished SDK reservation candidate, compiled swap candidate and three Taxi
-libraries. Workspace overrides and the lockfile bind every consumer
-to the same SDK and signer. Run `pnpm verify:artifacts` before installation and
+three unpublished Taxi libraries; the SDK and swap come from npm at exact versions.
+Workspace overrides and the lockfile bind the Taxi packages to these archives, and
+every consumer must resolve one SDK and one signer. Run `pnpm verify:artifacts` before installation and
 `pnpm verify:artifacts --installed` afterward; verification authenticates installed
 package bytes before importing their code.
 

@@ -10,11 +10,8 @@ import { gunzipSync } from 'node:zlib'
 export const VENDOR_DIR = 'vendor/carrier'
 export const MANIFEST_PATH = `${VENDOR_DIR}/manifest.json`
 
-const TS_SDK = 'https://github.com/arkade-os/ts-sdk.git'
 const ARKADE_TAXI = 'https://github.com/ArkLabsHQ/arkade-taxi.git'
 export const PINNED_SOURCES = {
-  '@arkade-os/sdk': { repository: TS_SDK, directory: 'packages/sdk' },
-  '@arkade-os/swap': { repository: TS_SDK, directory: 'packages/swap' },
   '@arkade-taxi/covenant': { repository: ARKADE_TAXI, directory: 'packages/covenant' },
   '@arkade-taxi/protocol': { repository: ARKADE_TAXI, directory: 'packages/protocol' },
   '@arkade-taxi/client': { repository: ARKADE_TAXI, directory: 'packages/client' },
@@ -22,7 +19,7 @@ export const PINNED_SOURCES = {
 
 export const PINNED_PACKAGES = Object.keys(PINNED_SOURCES)
 
-export const DIRECT_DEPENDENCIES = ['@arkade-os/sdk', '@arkade-os/swap', '@arkade-taxi/client']
+export const DIRECT_DEPENDENCIES = ['@arkade-taxi/client']
 
 export function pinnedSourceMismatch(artifact) {
   const pinned = PINNED_SOURCES[artifact?.package]
