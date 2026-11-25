@@ -11,22 +11,27 @@ overrides:
   picomatch@<4: '>=2.3.2 <4.0.0'
   picomatch@>=4: '>=4.0.4'
 
+patchedDependencies:
+  '@arkade-os/sdk@0.5.6':
+    hash: 2db78ee66f930e3d6e9916c3ffc63afb49e1e19e11a8a4bb48e017578ba5f824
+    path: patches/@arkade-os__sdk@0.5.6.patch
+
 importers:
 
   .:
     dependencies:
       '@arkade-os/lnurl-client':
-        specifier: 0.9.4
-        version: 0.9.4(@arkade-os/sdk@0.5.13)
+        specifier: 0.9.2
+        version: 0.9.2(@arkade-os/sdk@0.5.6(patch_hash=2db78ee66f930e3d6e9916c3ffc63afb49e1e19e11a8a4bb48e017578ba5f824))
       '@arkade-os/sdk':
-        specifier: 0.5.13
-        version: 0.5.13
+        specifier: 0.5.6
+        version: 0.5.6(patch_hash=2db78ee66f930e3d6e9916c3ffc63afb49e1e19e11a8a4bb48e017578ba5f824)
       '@arkade-os/solver-discovery':
-        specifier: 0.4.0
-        version: 0.4.0
+        specifier: 0.3.0
+        version: 0.3.0
       '@arkade-os/swap':
-        specifier: 0.1.15
-        version: 0.1.15(nostr-tools@2.24.1(typescript@5.9.3))
+        specifier: 0.1.6
+        version: 0.1.6(nostr-tools@2.24.1(typescript@5.9.3))
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -232,8 +237,8 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@arkade-os/lnurl-client@0.9.4':
-    resolution: {integrity: sha512-12wNIa7A/Jdkl0SU/UFiT1qihy2UvIncxWaGxYrnIClLW9gjaRP4cfUjo5Q4swtoGh8O16WVOhoF5BuHQ0RSqw==}
+  '@arkade-os/lnurl-client@0.9.2':
+    resolution: {integrity: sha512-rpjU67hJUZHyhh7NsgMjVjUVSE4XQA8nPJ4JMYfKQGcX0KS/Q1os1E0KmWozR5OjI3wppCpRwAWG5v6k7FXgBw==}
     engines: {node: '>=22.12.0'}
     peerDependencies:
       '@arkade-os/sdk': '>=0.5.0-rc.0'
@@ -241,8 +246,8 @@ packages:
       '@arkade-os/sdk':
         optional: true
 
-  '@arkade-os/sdk@0.5.13':
-    resolution: {integrity: sha512-BoSXlYLxg8G2hdl93LoKFToeVPn3A+qLTOWsI/0i6J6H1htF9jcFm19tBvFzsn5wVhl41Qy8Y7P12wnqiPE/fQ==}
+  '@arkade-os/sdk@0.5.6':
+    resolution: {integrity: sha512-UMZ46a52Ny2NW0VnRqL52iXR8wIJekPLkxdogsS+RUjiJdxTJKKyOXFMWP/vJQzWjQdpSDDUPuEGHIL3Ko+smg==}
     engines: {node: '>=22.13.0 <27'}
     peerDependencies:
       '@arkade-os/compiler': ^0.1.0-rc.1
@@ -265,12 +270,12 @@ packages:
       expo-task-manager:
         optional: true
 
-  '@arkade-os/solver-discovery@0.4.0':
-    resolution: {integrity: sha512-oIKsS4lt8yXbUDKzo2uLd4cbZZLEN6/iGQlaOaW72mA7dvtLCznylVEpUTvpdIggQIIRd6DpvFzN/DlJXecBRg==}
+  '@arkade-os/solver-discovery@0.3.0':
+    resolution: {integrity: sha512-FMAhWG3vZrKIlCP1U8E5iAgB6O1wc6O1CMk+HlQ4xUf066p/S8PuRgmHtkHcL1YrGsdWhKfP/SSFwgLIbGTQjg==}
     engines: {node: '>=20.19'}
 
-  '@arkade-os/swap@0.1.15':
-    resolution: {integrity: sha512-va6sH71+GbJgkd+EiMktI0MtpeM+5OwaFVidJJY5T3lVe7RRGcefQw1QMKEkOrkQeI8zw86tskwXC4nP55VJpA==}
+  '@arkade-os/swap@0.1.6':
+    resolution: {integrity: sha512-cCvbS3ExbzehKdkfHsj5IRyDj++UWTdwYhPimlJTd55WPEfGuowsPhyD2K8+a7ZVovjZQevv6rX3ZyqpdEgw5g==}
     engines: {node: '>=22.13.0'}
     peerDependencies:
       nostr-tools: 2.24.1
@@ -3310,15 +3315,15 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/lnurl-client@0.9.4(@arkade-os/sdk@0.5.13)':
+  '@arkade-os/lnurl-client@0.9.2(@arkade-os/sdk@0.5.6(patch_hash=2db78ee66f930e3d6e9916c3ffc63afb49e1e19e11a8a4bb48e017578ba5f824))':
     dependencies:
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
       '@scure/base': 2.0.0
     optionalDependencies:
-      '@arkade-os/sdk': 0.5.13
+      '@arkade-os/sdk': 0.5.6(patch_hash=2db78ee66f930e3d6e9916c3ffc63afb49e1e19e11a8a4bb48e017578ba5f824)
 
-  '@arkade-os/sdk@0.5.13':
+  '@arkade-os/sdk@0.5.6(patch_hash=2db78ee66f930e3d6e9916c3ffc63afb49e1e19e11a8a4bb48e017578ba5f824)':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 8.0.0
@@ -3338,15 +3343,15 @@ snapshots:
       - ecpair
       - utf-8-validate
 
-  '@arkade-os/solver-discovery@0.4.0':
+  '@arkade-os/solver-discovery@0.3.0':
     dependencies:
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
 
-  '@arkade-os/swap@0.1.15(nostr-tools@2.24.1(typescript@5.9.3))':
+  '@arkade-os/swap@0.1.6(nostr-tools@2.24.1(typescript@5.9.3))':
     dependencies:
-      '@arkade-os/sdk': 0.5.13
-      '@arkade-os/solver-discovery': 0.4.0
+      '@arkade-os/sdk': 0.5.6(patch_hash=2db78ee66f930e3d6e9916c3ffc63afb49e1e19e11a8a4bb48e017578ba5f824)
+      '@arkade-os/solver-discovery': 0.3.0
       '@noble/ciphers': 2.1.1
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0

@@ -43,7 +43,6 @@ export interface PendingLnReceive {
 
 export interface RecvInfo {
   boardingAddr: string
-  /** The Ark address shown on Receive: the Executor renewal contract on a registered static wallet. */
   offchainAddr: string
   onchainAddr?: string
   /** The solver's hold invoice, once an RFQ receive has been negotiated. */
@@ -73,8 +72,8 @@ export type SendInfo = {
   swapId?: string
   recipient?: string
   satoshis?: number
-  /** Opt-in tick from the send form, bound to the destination it was ticked for. */
-  saveAsContact?: { address: string; name: string }
+  /** Opt-in tick from the send form: also keep this payee as a named contact. */
+  saveAsContact?: boolean
   scan?: boolean
   total?: number
   text?: string

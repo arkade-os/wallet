@@ -2,7 +2,7 @@ import { useContext, useState } from 'react'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { OpenRfqAuction, Outcome, Quote, Swap, SwapUpdate } from '@arkade-os/swap'
+import type { Outcome, Quote, Swap, SwapUpdate } from '@arkade-os/swap'
 import { AspContext } from '../../providers/asp'
 import { WalletContext } from '../../providers/wallet'
 import { SwapsContext, SwapsProvider } from '../../providers/swaps'
@@ -29,8 +29,6 @@ const ready = vi.hoisted(() => vi.fn())
 const dispose = vi.hoisted(() => vi.fn())
 const accept = vi.hoisted(() => vi.fn())
 const clientQuote = vi.hoisted(() => vi.fn())
-const openRfq = vi.hoisted(() => vi.fn())
-const quoteBid = vi.hoisted(() => vi.fn())
 const offboard = vi.hoisted(() => vi.fn())
 const receive = vi.hoisted(() => vi.fn())
 const recover = vi.hoisted(() => vi.fn())
@@ -48,11 +46,9 @@ vi.mock('../../lib/swapClient', async (importOriginal) => ({
     accept,
     cancel: vi.fn(),
     quote: clientQuote,
-    openRfq,
-    quoteBid,
     receive,
     pay: vi.fn(),
-    quoteExchange: vi.fn(),
+    exchange: vi.fn(),
     resolve: vi.fn(),
     recover,
     swaps: async () => [],
@@ -120,51 +116,14 @@ const minted = () =>
   }) as unknown as Swap
 
 function Harness({ tab = 'a' }: { tab?: string }) {
-  const {
-    acceptPay,
-    receiveLightning,
-    recoverSwap,
-    outcomeOf,
-    errorOf,
-    sendRouter,
-    openSwapQuotes,
-    chooseSwapQuote,
-    acceptSwapQuote,
-  } = useContext(SwapsContext)
+  const { acceptPay, receiveLightning, recoverSwap, outcomeOf, errorOf, sendRouter } = useContext(SwapsContext)
   const [rejected, setRejected] = useState('')
   const [invoice, setInvoice] = useState('')
   const [routed, setRouted] = useState('')
   const [recovered, setRecovered] = useState('')
   const [router, setRouter] = useState('')
-  const [auction, setAuction] = useState<OpenRfqAuction>()
-  const [chosen, setChosen] = useState<Quote>()
-  const [accepted, setAccepted] = useState('')
   return (
     <div data-testid={`tab-${tab}`}>
-      <button
-        onClick={() =>
-          void openSwapQuotes('btc', MUTINYNET_USDT_ASSET_ID, 1000n)
-            .then(setAuction)
-            .catch((err: Error) => setRejected(err.message))
-        }
-      >{`Offers ${tab}`}</button>
-      <button
-        disabled={!auction}
-        onClick={() =>
-          void chooseSwapQuote(auction!.id, 'second')
-            .then(setChosen)
-            .catch((err: Error) => setRejected(err.message))
-        }
-      >{`Choose ${tab}`}</button>
-      <button
-        disabled={!chosen}
-        onClick={() =>
-          void acceptSwapQuote(chosen!)
-            .then((swap) => setAccepted(swap.id))
-            .catch((err: Error) => setRejected(err.message))
-        }
-      >{`Accept offer ${tab}`}</button>
-      <span data-testid='accepted'>{accepted || 'none'}</span>
       <button onClick={() => acceptPay(quote).catch((err: Error) => setRejected(err.name))}>{`Pay ${tab}`}</button>
       <button
         onClick={() =>
@@ -310,8 +269,6 @@ beforeEach(() => {
   dispose.mockReset().mockResolvedValue(undefined)
   accept.mockReset().mockResolvedValue(monitored('funded'))
   clientQuote.mockReset()
-  openRfq.mockReset()
-  quoteBid.mockReset()
   claimFeeRate.mockReset().mockResolvedValue(2)
   offboard.mockReset()
   receive.mockReset().mockResolvedValue(minted())
@@ -339,34 +296,6 @@ const renderTwoTabs = () =>
   )
 
 describe('SwapsProvider single-driver rule', () => {
-  it('closes and accepts a follower choice using only the holder-owned auction and quote', async () => {
-    const auction = {
-      id: 'open-1',
-      bids: [
-        { id: 'first', expiresAt: 4_000_000_000 },
-        { id: 'second', expiresAt: 4_000_000_000 },
-      ],
-    } as unknown as OpenRfqAuction
-    const selected = { id: 'chosen-1', expiresAt: 4_000_000_000 } as Quote
-    openRfq.mockResolvedValue(auction)
-    quoteBid.mockResolvedValue(selected)
-    renderTwoTabs()
-    await waitFor(() => expect(ready).toHaveBeenCalledTimes(1))
-    const follower = within(screen.getByTestId('tab-b'))
-    await userEvent.click(follower.getByText('Offers b'))
-    await waitFor(() => expect(follower.getByText('Choose b')).toBeEnabled())
-    await userEvent.click(follower.getByText('Choose b'))
-    await waitFor(() => expect(follower.getByText('Accept offer b')).toBeEnabled())
-    expect(quoteBid.mock.calls[0][0]).toBe(auction)
-    expect(quoteBid.mock.calls[0][1]).toBe(auction.bids[1])
-    await userEvent.click(follower.getByText('Accept offer b'))
-    await waitFor(() => expect(follower.getByTestId('accepted')).toHaveTextContent(SWAP_ID))
-    expect(accept).toHaveBeenCalledWith(selected, { validUntil: selected.expiresAt })
-    expect(accept.mock.calls[0][0]).toBe(selected)
-    expect(clientQuote).not.toHaveBeenCalled()
-    expect(ready).toHaveBeenCalledTimes(1)
-  })
-
   it('builds an optional router on the driver without waiting for onchain fees, retaining its client', async () => {
     claimFeeRate.mockReturnValue(new Promise(() => {}))
     renderProvider()

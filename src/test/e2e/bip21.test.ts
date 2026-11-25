@@ -1,4 +1,4 @@
-import { test, expect, readClipboard, handleKeyboardInput, createWalletAndGetBIP21, pickReceiveFormat } from './utils'
+import { test, expect, readClipboard, handleKeyboardInput, createWalletAndGetBIP21 } from './utils'
 import { decodeInvoice } from '../../lib/bolt11'
 import { decodeBip21, isBip21 } from '../../lib/bip21'
 import { sleep } from '../../lib/sleep'
@@ -52,7 +52,7 @@ test.skip('should change from lnurl to bolt11 with amount', async ({ page, isMob
   }
 
   // copy invoice
-  await pickReceiveFormat(page, tr.receive.lightningInvoice)
+  await page.getByText(tr.receive.copy).click()
   await page.getByTestId('invoice-address-copy').click()
   const invoice = await readClipboard(page)
   await sleep(1000)

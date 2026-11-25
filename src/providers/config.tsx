@@ -1,6 +1,6 @@
 import { ReactNode, createContext, useEffect, useState } from 'react'
 import { readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
-import { defaultArkServer, devServer, isExecutorEnabled } from '../lib/constants'
+import { defaultArkServer, devServer } from '../lib/constants'
 import { Config, Currencies, Themes, Unit } from '../lib/types'
 import { normalizeBitcoinUnit } from '../lib/format'
 import { setHapticsEnabled } from '../lib/haptics'
@@ -12,7 +12,7 @@ const defaultConfig: Config = {
   apps: { assets: { enabled: false } },
   aspUrl: defaultArkServer(),
   dismissedBanners: [],
-  executor: isExecutorEnabled(),
+  delegate: import.meta.env.VITE_DELEGATE_ENABLED !== 'false',
   currency: getCurrency(navigator.language),
   importedAssets: [],
   language: detectLanguage(navigator.language),
@@ -61,8 +61,6 @@ const updateDefaultConfig = (config: Partial<Config>): Config => {
   const updatedConfig: Config = {
     ...defaultConfig,
     ...config,
-    // No UI sets this: the build flag always wins over a stored value
-    executor: isExecutorEnabled(),
     announcementsSeen: [...announcementsSeen],
     importedAssets: [...importedAssets],
     apps: {

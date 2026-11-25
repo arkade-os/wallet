@@ -10,21 +10,21 @@ import { RFQ_DIRECTED_KIND, nostrRfqTransport } from '@arkade-os/swap/nostr'
 /**
  * The transport itself moved into `@arkade-os/swap`, where its behaviour —
  * quotes, refusals, reply correlation, relay loss, timeouts — is covered by the
- * package's own suite. Duplicating those assertions here would only test
- * somebody else's tested code.
+ * package's own suite. Duplicating those assertions here would only test the
+ * vendored copy of somebody else's tested code.
  *
  * What is still THIS repo's problem is the wiring, and it has a failure mode
- * that nothing upstream can catch: a version bump of `@arkade-os/swap` that
- * pins an older build, drops the `./nostr` subpath from `exports`, or lands
- * without `nostr-tools` resolvable breaks the import at runtime while every
- * SDK test stays green. These are the assertions that fail loudly when the
- * pinned package is wrong.
+ * that nothing upstream can catch: the wallet pins `@arkade-os/swap` as a
+ * vendored tarball, so a re-vendor that packs an older build, drops the
+ * `./nostr` subpath from `exports`, or lands without `nostr-tools` resolvable
+ * breaks the import at runtime while every SDK test stays green. These are the
+ * assertions that fail loudly when the tarball is wrong.
  */
-describe('pinned @arkade-os/swap/nostr', () => {
+describe('vendored @arkade-os/swap/nostr', () => {
   it('publishes on a kind inside the NIP-01 ephemeral range', () => {
     // Not a restatement of the package's own range test: this asserts the
-    // version currently pinned carries a post-ephemeral build. A stale
-    // build would still export a working transport, on kind 4859, and
+    // TARBALL currently vendored carries a post-ephemeral build. A stale
+    // vendor would still export a working transport, on kind 4859, and
     // simply never see the solver.
     expect(RFQ_DIRECTED_KIND).toBeGreaterThanOrEqual(20_000)
     expect(RFQ_DIRECTED_KIND).toBeLessThan(30_000)

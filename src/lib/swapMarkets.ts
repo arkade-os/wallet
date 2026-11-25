@@ -8,12 +8,7 @@
  * client's `DiscoveryConfig` and the package's own `discoverMarkets`, which is
  * what lets one definition feed the client and the lock-free read below.
  */
-import {
-  BTC_ASSET_ID,
-  discoverMarkets as discover,
-  watchMarkets,
-  type DiscoverMarketsOptions,
-} from '@arkade-os/swap/protocol'
+import { discoverMarkets as discover, watchMarkets, type DiscoverMarketsOptions } from '@arkade-os/swap/protocol'
 import {
   DEFAULT_NETWORK,
   displayPrice,
@@ -23,14 +18,11 @@ import {
   type OfferPlan,
 } from '@arkade-os/solver-discovery'
 import type { NetworkName } from '@arkade-os/sdk'
-import type { AssetId } from '@arkade-os/swap'
 import betaSolverCard from './beta-solver.card.json'
-import { verifiedDesignatedCurrency } from './accountAssets'
 import { getSolverRegistryUrl } from './constants'
 import { consoleLog } from './logs'
 import { readSolverCards } from './solverCards'
 import { sharedTransportCards } from './solverCardRemote'
-import { displayAssetOf } from './swapRecords'
 import { assetSwapRepository } from './swapRepository'
 
 /**
@@ -82,37 +74,6 @@ export const discoveryOptions = (network: NetworkName): Omit<DiscoverMarketsOpti
     localCards: known ? [...BUNDLED_CARDS, ...readSolverCards()].filter((c) => c.network === known) : [],
     transportCards: sharedTransportCards(),
     logger: (...args) => consoleLog('solver discovery:', ...args),
-  }
-}
-
-type MarketAsset = DiscoveredMarket['base_asset']
-type AssetText = { name?: string; ticker?: string; icon?: string }
-
-/** The id the wallet keys a market leg by: `btc`, or the bare Arkade asset id.
- * A pinned card names its legs by CAIP-19 id where a registry entry uses the
- * bare one, so keying on the raw string listed one asset twice. */
-export const marketLegId = (asset: MarketAsset): string =>
-  asset.id.includes('/') ? displayAssetOf(asset.id as AssetId) : asset.id
-
-/** A market leg named the way the rest of the wallet names it. The card's text
- * is whatever its solver wrote — a cut of the asset id when it never looked the
- * asset up — so a verified currency, then arkd's metadata, outrank it. */
-export const marketAssetDisplay = (
-  asset: MarketAsset,
-  network: string | undefined,
-  metadataOf: (id: string) => AssetText | undefined,
-  isVerifiedAsset: (id: string) => boolean,
-): { id: string; name: string; ticker: string; icon?: string } => {
-  const id = marketLegId(asset)
-  if (id === BTC_ASSET_ID) return { id, name: asset.name, ticker: asset.ticker }
-  const currency = verifiedDesignatedCurrency(network, id, isVerifiedAsset)
-  const meta = metadataOf(id)
-  const text = (value: unknown) => (typeof value === 'string' && value.trim() ? value.trim() : undefined)
-  return {
-    id,
-    name: currency ?? text(meta?.name) ?? asset.name,
-    ticker: currency ?? text(meta?.ticker) ?? asset.ticker,
-    icon: meta?.icon,
   }
 }
 

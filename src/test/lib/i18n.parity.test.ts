@@ -16,7 +16,10 @@ const keepEnglishTermAllowList = new Set([
   'common.sat',
   'common.sats',
   'common.total',
+  'components.lnurlAddress',
   'contracts.script',
+  'delegate.feeLabel',
+  'delegate.pubkeyLabel',
   'formatting.unit',
   'mint.arkadeMint',
   'mint.max',
@@ -25,8 +28,6 @@ const keepEnglishTermAllowList = new Set([
   'receive.methodLightning',
   'receive.methodArkade',
   'receive.methodBitcoin',
-  'receive.methodStablecoins',
-  'receive.partLnurl',
   'send.bitcoin',
   'settings.arkadeMint',
   'settings.auto',
@@ -35,10 +36,9 @@ const keepEnglishTermAllowList = new Set([
   'settings.feedback',
   'settings.general',
   'settings.solvers',
+  'solvers.fieldBase',
   'solvers.fieldRelays',
   'solvers.originalLabel',
-  'solvers.solverCountPlural',
-  'solvers.solverCountSingular',
   'transaction.boarding',
   'transaction.swap',
   'transaction.totalTicker',
@@ -85,9 +85,6 @@ function collectUsedKeys(): Set<string> {
       used.add(match[1])
       used.add(match[2])
     }
-    // ex: translations[lang].common.total
-    for (const match of content.matchAll(/translations\[lang\]\.([A-Za-z0-9_.]+)/g))
-      used.add(match[1].replace(/\.replace$/, ''))
   }
   // special case, not found by regexps above. check lnSwapLabel in src/lib/swapDisplay.ts
   const stemKeys = ['Send', 'Receive']

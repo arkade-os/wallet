@@ -189,15 +189,11 @@ export async function createWalletAndGetBIP21(page: Page, isMobile?: boolean, sa
     }
   }
 
-  // The QR always holds the unified link; the copy beside it copies the Lightning address when there is one.
-  await page.getByTestId('receive-qr').click()
+  await page.waitForSelector(`text=${tr.receive.copy}`, { state: 'visible' })
+  await page.getByText(tr.receive.copy).click()
+  await page.getByTestId('bip21-address-copy').click()
   const bip21 = await readClipboard(page)
   return bip21
-}
-
-export async function pickReceiveFormat(page: Page, format: string): Promise<void> {
-  await page.getByRole('button', { name: new RegExp(tr.receive.otherFormats) }).click()
-  await page.getByRole('radio', { name: new RegExp(format) }).click()
 }
 
 export async function addInvoiceFromLND(amount: number): Promise<{ invoice: string; hash: string }> {
@@ -283,8 +279,8 @@ async function receive(page: Page, type: 'btc' | 'ark' | 'invoice', isMobile = f
     }
   }
 
-  const format = { btc: tr.receive.bitcoinAddress, ark: tr.receive.arkadeAddress, invoice: tr.receive.lightningInvoice }
-  await pickReceiveFormat(page, format[type])
+  // copy address/invoice
+  await page.getByText('Copy').click()
   await page.getByTestId(`${type}-address-copy`).click()
   return await readClipboard(page)
 }
@@ -413,11 +409,4 @@ export const mockSolverCard = {
       max_quote_amount: '100',
     },
   ],
-}
-
-export const mockContact = {
-  address: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
-  name: 'Alice onchain address',
-  sendCount: 0,
-  lastSentAt: 0,
 }

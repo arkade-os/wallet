@@ -37,8 +37,7 @@ export default function Lnurl() {
   const { svcWallet } = useContext(WalletContext)
   const { t } = useTranslation()
   const server = configuredLnurlServer()
-  const [addresses, setAddresses] = useState<{ wallet: typeof svcWallet; arkade: string; boarding?: string }>()
-  const ownAddresses = addresses?.wallet === svcWallet ? addresses : undefined
+  const [addresses, setAddresses] = useState<{ arkade: string; boarding?: string }>()
   const [limits, setLimits] = useState<ReturnType<typeof lnurlRailLimits>>([])
   const [limitsError, setLimitsError] = useState('')
   const [tokens, setTokens] = useState<LnurlTokenRail[]>([])
@@ -50,26 +49,19 @@ export default function Lnurl() {
   useEffect(() => {
     if (!svcWallet) return
     setAddressesError('')
-    let stale = false
     Promise.all([svcWallet.getAddress(), svcWallet.getBoardingAddress().catch(() => undefined)])
-      .then(([arkade, boarding]) => {
-        if (!stale) setAddresses({ wallet: svcWallet, arkade, boarding })
-      })
+      .then(([arkade, boarding]) => setAddresses({ arkade, boarding }))
       .catch((err) => {
-        if (stale) return
         consoleError(err)
         setAddressesError(extractError(err))
       })
-    return () => {
-      stale = true
-    }
   }, [svcWallet])
 
   const rail = useLnurlRail({
     enabled: Boolean(server),
     identity: svcWallet?.identity,
-    arkadeAddress: ownAddresses?.arkade,
-    boardingAddress: ownAddresses?.boarding,
+    arkadeAddress: addresses?.arkade,
+    boardingAddress: addresses?.boarding,
     primary: config.lnurlPrimary,
   })
 

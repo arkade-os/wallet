@@ -55,6 +55,7 @@ export const SETTINGS_OPTION_KEY: Record<SettingsOptions, string> = {
   [SettingsOptions.BitcoinUnit]: 'settings.bitcoinUnit',
   [SettingsOptions.Contracts]: 'settings.contracts',
   [SettingsOptions.Currency]: 'settings.currency',
+  [SettingsOptions.Delegates]: 'settings.delegates',
   [SettingsOptions.Display]: 'settings.display',
   [SettingsOptions.General]: 'settings.general',
   [SettingsOptions.Haptics]: 'settings.hapticFeedback',

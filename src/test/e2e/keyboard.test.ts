@@ -1,13 +1,5 @@
 import { Currencies } from '../../lib/types'
-import {
-  test,
-  expect,
-  createWallet,
-  navigateHome,
-  navigateToSettings,
-  createWalletWithFiat,
-  readClipboard,
-} from './utils'
+import { test, expect, createWallet, navigateHome, navigateToSettings, createWalletWithFiat } from './utils'
 import type { Page } from '@playwright/test'
 import { translations } from '../../lib/i18n'
 
@@ -160,11 +152,9 @@ test('should insert sats in a fiat wallet', async ({ page, isMobile }) => {
 
   await page.getByTestId('save-amount').click()
 
-  // A fiat wallet heads the screen in fiat, so the sats land in the code's amount=.
+  const message = tr.receive.requestingAmount.replace('{amount}', '5,000').replace('{unit}', 'sats')
   await page.waitForSelector(`text=${tr.receive.editAmount}`, { state: 'visible' })
-  await page.getByTestId('bip21-address-copy').waitFor({ state: 'visible' })
-  await page.getByTestId('receive-qr').click()
-  expect(await readClipboard(page)).toContain('amount=0.00005')
+  await expect(page.locator(`text=${message}`)).toBeVisible()
 })
 
 test('should persist sats in a sats wallet', async ({ page, isMobile }) => {
@@ -186,8 +176,9 @@ test('should persist sats in a sats wallet', async ({ page, isMobile }) => {
 
   await page.getByTestId('save-amount').click()
 
+  const message = tr.receive.requestingAmount.replace('{amount}', '5,000').replace('{unit}', 'sats')
   await page.waitForSelector(`text=${tr.receive.editAmount}`, { state: 'visible' })
-  await expect(page.getByTestId('receive-amount')).toHaveText('5,000 sats')
+  await expect(page.locator(`text=${message}`)).toBeVisible()
   await page.locator(`text=${tr.receive.editAmount}`).click()
   await expect(page.locator('text=5000 sats')).toBeVisible()
 })

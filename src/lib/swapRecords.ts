@@ -22,7 +22,6 @@
 import { collectPages, type ActivityResolver } from '@arkade-os/sdk'
 import { BTC_ASSET_ID } from '@arkade-os/swap/protocol'
 import {
-  completedSolverUsage,
   isRfqSwapTerminal,
   parseAssetId,
   type AssetId,
@@ -36,17 +35,7 @@ import {
 // re-check on a swap-package bump. It is here rather than `client.swaps()`
 // because this read must work in a tab that does not hold the drive lock, and
 // the client only exists in the tab that does.
-import {
-  ACTIVITY_TOKEN,
-  corridorOutcome,
-  marketBackendOf,
-  readableRecord,
-  recordOutcome,
-  splitRecords,
-  swapOf,
-  type Swap,
-} from '@arkade-os/swap/advanced'
-import { solverId, type DiscoveredMarket } from '@arkade-os/solver-discovery'
+import { ACTIVITY_TOKEN, corridorOutcome, readableRecord, splitRecords } from '@arkade-os/swap/advanced'
 import { consoleError } from './logs'
 import { assetSwapRepository, quoteSnapshotOf, type WalletAssetSwap } from './swapRepository'
 import { txidOfArkTransaction } from './transactionHistory'
@@ -164,56 +153,16 @@ const stringField = (bag: Record<string, unknown> | undefined, key: string): str
   return typeof value === 'string' && value ? value : undefined
 }
 
-const loadRecords = async (): Promise<SwapRecord[]> =>
-  (await collectPages<SwapRecord, string>((page) => assetSwapRepository.getSwapRecordsPage(page))).filter(
-    readableRecord,
-  )
-
 const readRecords = async (): Promise<SwapRecord[]> => {
   try {
-    return await loadRecords()
+    return (await collectPages<SwapRecord, string>((page) => assetSwapRepository.getSwapRecordsPage(page))).filter(
+      readableRecord,
+    )
   } catch (err) {
     consoleError(err, 'error reading swap records')
     return []
   }
 }
-
-/** Completed swaps per candidate id. A quote the solver signed over RFQ counts toward its key, so a
- * solver keeps its history whichever source lists its card; any other swap stays with its source. */
-export const candidateUsage = (
-  swaps: readonly Swap[],
-  cards: readonly DiscoveredMarket[],
-  network: string,
-  direction: string,
-): Record<string, number> => {
-  const usage: Record<string, number> = {}
-  const seen = new Set<string>()
-  for (const swap of swaps) {
-    const [provenance] = Object.keys(completedSolverUsage([swap], network, direction))
-    if (!provenance || seen.has(swap.id)) continue
-    seen.add(swap.id)
-    for (const card of cards) {
-      const id = solverId(card, network)
-      const key = marketBackendOf(card) === 'rfq' ? card.discovery_pubkey : undefined
-      if (swap.solver && key ? swap.solver === key : id === provenance) usage[id] = (usage[id] ?? 0) + 1
-    }
-  }
-  return usage
-}
-
-export const solverUsage = async (
-  network: string,
-  direction: string,
-  cards: readonly DiscoveredMarket[],
-): Promise<Record<string, number>> =>
-  candidateUsage(
-    (await loadRecords()).map((record) =>
-      swapOf(record, record.family === 'offer' ? recordOutcome(record) : corridorOutcome(record.kind, record.state)),
-    ),
-    cards,
-    network,
-    direction,
-  )
 
 /** Every offer swap the wallet can render — the v2 client's own, which is all
  * of them. */

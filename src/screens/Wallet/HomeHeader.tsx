@@ -1,6 +1,5 @@
 import { useContext } from 'react'
 import { NavigationContext, Pages } from '../../providers/navigation'
-import { WalletContext } from '../../providers/wallet'
 import { OptionsContext } from '../../providers/options'
 import { SettingsOptions } from '../../lib/types'
 import { useTranslation } from '../../providers/language'
@@ -22,20 +21,16 @@ export default function HomeHeader({
   maskedBalance = maskedFiat(),
 }: HomeHeaderProps) {
   const { navigate } = useContext(NavigationContext)
-  const { booting, dataReady } = useContext(WalletContext)
-  const homeBusy = Boolean(booting) && !dataReady
   const { setOption } = useContext(OptionsContext)
   const { t } = useTranslation()
   const progress = balanceProgress === undefined ? undefined : Math.max(0, Math.min(1, balanceProgress))
 
   const handleScan = () => {
-    if (homeBusy) return
     hapticLight()
     navigate(Pages.WalletScan)
   }
 
   const handleSettings = () => {
-    if (homeBusy) return
     hapticLight()
     setOption(SettingsOptions.Menu)
     navigate(Pages.Settings)
@@ -75,7 +70,6 @@ export default function HomeHeader({
             onClick={handleScan}
             aria-label={t('wallet.scan')}
             data-testid='home-action-scan'
-            disabled={homeBusy}
             className='icon-button'
           >
             <Glyph name='scan' size={22} />
@@ -85,7 +79,6 @@ export default function HomeHeader({
             onClick={handleSettings}
             aria-label={t('wallet.openSettings')}
             data-testid='top-right-settings'
-            disabled={homeBusy}
             className='icon-button home-header__settings'
           >
             <Glyph name='settings' size={22} />

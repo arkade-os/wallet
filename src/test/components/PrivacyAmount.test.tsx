@@ -12,7 +12,6 @@ describe('PrivacyAmount', () => {
     const backupContextValue: ContextType<typeof BackupContext> = {
       backupAndUpdateConfig,
       backupConfig: vi.fn(),
-      backupContacts: vi.fn(),
       backupSolverCards: vi.fn(),
       fullBackup: vi.fn(),
       initialiseNostrBackup: vi.fn(),

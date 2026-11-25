@@ -1,7 +1,6 @@
 import { useContext } from 'react'
 import { ConfigContext } from '../providers/config'
 import { FiatContext } from '../providers/fiat'
-import { WalletContext } from '../providers/wallet'
 import { BITCOIN_SYMBOL, formatBitcoinAmountParts, formatFiatAmountParts } from '../lib/format'
 import { usePortfolioFiat } from './usePortfolioFiat'
 import { FIAT_SYMBOLS } from '../lib/fiat'
@@ -11,42 +10,9 @@ import { useBalanceLead } from '../lib/balanceLead'
 
 export function usePortfolioBalanceDisplay() {
   const { config } = useContext(ConfigContext)
-  const { fiatDecimals, toFiat } = useContext(FiatContext)
-  const { booting, dataReady, satsPreview } = useContext(WalletContext)
+  const { fiatDecimals } = useContext(FiatContext)
   const { totalFiat, totalSats } = usePortfolioFiat()
   const decimals = fiatDecimals()
-  const priceReady = config.currency === Currencies.BTC || toFiat(100_000_000) > 0
-  const maskedBtc = config.unit === Unit.BIP177 ? `${config.unit}••••` : `•••• ${config.unit}`
-
-  if (booting && !dataReady && satsPreview === undefined && totalSats === 0) {
-    return {
-      balance: '',
-      maskedBalance: '••••',
-      unit: '',
-      secondaryBalance: '',
-      secondaryUnit: '',
-      maskedSecondary: maskedBtc,
-      showSecondary: false,
-      canSwitch: false,
-    }
-  }
-
-  if (!priceReady) {
-    const bitcoin = formatBitcoinAmountParts(totalSats, config.unit, {
-      maximumFractionDigits: config.unit === Unit.SATS ? 0 : 8,
-      minimumFractionDigits: config.unit === Unit.SATS ? 0 : 8,
-    })
-    return {
-      balance: bitcoin.amount,
-      maskedBalance: maskedBtc,
-      unit: config.showBalance ? bitcoin.unit : '',
-      secondaryBalance: '',
-      secondaryUnit: '',
-      maskedSecondary: maskedBtc,
-      showSecondary: false,
-      canSwitch: false,
-    }
-  }
 
   const { amount: balance, unit } = formatFiatAmountParts(totalFiat, config.currency, {
     bitcoinUnit: config.unit,

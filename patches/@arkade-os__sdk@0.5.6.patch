@@ -1,0 +1,194 @@
+diff --git a/dist/chunk-47Z4LEIW.js b/dist/chunk-47Z4LEIW.js
+index 2a32d2ef301558ff785cd88ec1a2687119f88be3..1e3569047ee9b0f58c111976cd8ccd0fd8de46ff 100644
+--- a/dist/chunk-47Z4LEIW.js
++++ b/dist/chunk-47Z4LEIW.js
+@@ -486,8 +486,8 @@ async function detectUsedScripts(indexerProvider, scriptHexes) {
+       for (const vtxo of vtxos) {
+         if (remaining.delete(vtxo.script)) used.add(vtxo.script);
+       }
+-      hasMore = page ? vtxos.length === DEFAULT_PAGE_SIZE : false;
+-      pageIndex++;
++      hasMore = page !== void 0 && page !== null && page.current < page.total && page.next > pageIndex && vtxos.length > 0;
++      if (page) pageIndex = page.next;
+     }
+   }
+   return used;
+diff --git a/dist/chunk-C7NY6WSA.js b/dist/chunk-C7NY6WSA.js
+index 757897da44c7df0201e453568e275b87c91ac9a2..4dff3c551f47ec9077a5a19a438839f7177c9776 100644
+--- a/dist/chunk-C7NY6WSA.js
++++ b/dist/chunk-C7NY6WSA.js
+@@ -1603,7 +1603,7 @@ var RestIndexerProvider = class {
+           pageSize: DEFAULT_VTXO_PAGE_SIZE
+         });
+         all.push(...vtxos);
+-        if (!page || page.current >= page.total || vtxos.length < DEFAULT_VTXO_PAGE_SIZE) {
++        if (!page || page.current >= page.total || page.next <= pageIndex || vtxos.length === 0) {
+           break;
+         }
+         pageIndex = page.next;
+diff --git a/dist/chunk-HKEPJBTY.cjs b/dist/chunk-HKEPJBTY.cjs
+index 6164d3ff2f7d63ed87448f3f14974671fb7b56c1..15094856a819a9196ca3dcadafdd4461b3ec54dc 100644
+--- a/dist/chunk-HKEPJBTY.cjs
++++ b/dist/chunk-HKEPJBTY.cjs
+@@ -1605,7 +1605,7 @@ var RestIndexerProvider = class {
+           pageSize: DEFAULT_VTXO_PAGE_SIZE
+         });
+         all.push(...vtxos);
+-        if (!page || page.current >= page.total || vtxos.length < DEFAULT_VTXO_PAGE_SIZE) {
++        if (!page || page.current >= page.total || page.next <= pageIndex || vtxos.length === 0) {
+           break;
+         }
+         pageIndex = page.next;
+diff --git a/dist/chunk-LZAINCGU.cjs b/dist/chunk-LZAINCGU.cjs
+index e3b029b5fb509f9c08cbe9fa43d62dea588a39d4..57312c729930837fcad12effa228c2a080eb756c 100644
+--- a/dist/chunk-LZAINCGU.cjs
++++ b/dist/chunk-LZAINCGU.cjs
+@@ -1756,8 +1756,7 @@ async function getAllNormalizedVtxos(provider, scripts, opts = {}) {
+   const fetchChunk = async (chunk) => {
+     const result = [];
+     let pageIndex = 0;
+-    let hasMore = true;
+-    while (hasMore) {
++    for (; ; ) {
+       const { vtxos, page } = await getNormalizedVtxos(provider, {
+         ...filters,
+         scripts: chunk,
+@@ -1765,9 +1764,9 @@ async function getAllNormalizedVtxos(provider, scripts, opts = {}) {
+         pageSize
+       });
+       result.push(...vtxos);
+-      hasMore = page ? vtxos.length === pageSize : false;
+-      pageIndex++;
+-      if (hasMore) await new Promise((r) => setTimeout(r, 500));
++      if (!page || page.current >= page.total || page.next <= pageIndex || vtxos.length === 0) break;
++      pageIndex = page.next;
++      await new Promise((r) => setTimeout(r, 500));
+     }
+     return result;
+   };
+diff --git a/dist/chunk-NDQ4LB4X.cjs b/dist/chunk-NDQ4LB4X.cjs
+index f661daae36c471fdc9da7b919ee8fb90ad678df2..7d40c86e4f52306f351f6133b2e60e25fb1d8991 100644
+--- a/dist/chunk-NDQ4LB4X.cjs
++++ b/dist/chunk-NDQ4LB4X.cjs
+@@ -488,8 +488,8 @@ async function detectUsedScripts(indexerProvider, scriptHexes) {
+       for (const vtxo of vtxos) {
+         if (remaining.delete(vtxo.script)) used.add(vtxo.script);
+       }
+-      hasMore = page ? vtxos.length === chunkLZAINCGU_cjs.DEFAULT_PAGE_SIZE : false;
+-      pageIndex++;
++      hasMore = page !== void 0 && page !== null && page.current < page.total && page.next > pageIndex && vtxos.length > 0;
++      if (page) pageIndex = page.next;
+     }
+   }
+   return used;
+diff --git a/dist/chunk-QTMK34TP.js b/dist/chunk-QTMK34TP.js
+index 51c8d78dc9a93d9a6f62e803871874f97c6241df..f548c80a017385a73bed8b9ba04d2b3a46d7033e 100644
+--- a/dist/chunk-QTMK34TP.js
++++ b/dist/chunk-QTMK34TP.js
+@@ -1754,8 +1754,7 @@ async function getAllNormalizedVtxos(provider, scripts, opts = {}) {
+   const fetchChunk = async (chunk) => {
+     const result = [];
+     let pageIndex = 0;
+-    let hasMore = true;
+-    while (hasMore) {
++    for (; ; ) {
+       const { vtxos, page } = await getNormalizedVtxos(provider, {
+         ...filters,
+         scripts: chunk,
+@@ -1763,9 +1762,9 @@ async function getAllNormalizedVtxos(provider, scripts, opts = {}) {
+         pageSize
+       });
+       result.push(...vtxos);
+-      hasMore = page ? vtxos.length === pageSize : false;
+-      pageIndex++;
+-      if (hasMore) await new Promise((r) => setTimeout(r, 500));
++      if (!page || page.current >= page.total || page.next <= pageIndex || vtxos.length === 0) break;
++      pageIndex = page.next;
++      await new Promise((r) => setTimeout(r, 500));
+     }
+     return result;
+   };
+diff --git a/dist/chunk-Y3CDDPWI.cjs b/dist/chunk-Y3CDDPWI.cjs
+index 4370998ea257617b3f3c513267d7805d602c296d..e84cbffd45a91b75f6401501b1d86639dafabfd9 100644
+--- a/dist/chunk-Y3CDDPWI.cjs
++++ b/dist/chunk-Y3CDDPWI.cjs
+@@ -7474,17 +7474,20 @@ var IndexerExitDataSource = class {
+   indexer;
+   name = "indexer";
+   async getVtxoChain(vtxo) {
+-    const chain = [];
+-    let pageIndex = 0;
+-    let hasMore = true;
++    const outpoint = { txid: vtxo.txid, vout: vtxo.vout };
++    const { chain: whole, page: first } = await this.indexer.getVtxoChain(outpoint);
++    if (!first || first.current >= first.total) return whole;
++    const chain = [...whole];
++    let pageIndex = first.next;
++    let hasMore = first.next > 0 && whole.length > 0;
+     while (hasMore) {
+       const { chain: page, page: meta } = await this.indexer.getVtxoChain(
+-        { txid: vtxo.txid, vout: vtxo.vout },
++        outpoint,
+         { pageIndex, pageSize: chunkLZAINCGU_cjs.DEFAULT_PAGE_SIZE }
+       );
+       chain.push(...page);
+-      hasMore = meta ? page.length === chunkLZAINCGU_cjs.DEFAULT_PAGE_SIZE : false;
+-      pageIndex++;
++      hasMore = meta !== void 0 && meta !== null && meta.current < meta.total && meta.next > pageIndex && page.length > 0;
++      if (meta) pageIndex = meta.next;
+     }
+     return chain;
+   }
+@@ -7500,8 +7503,8 @@ var IndexerExitDataSource = class {
+       for (const psbt of txs) {
+         out.set(chunkLZAINCGU_cjs.Transaction.fromPSBT(base.base64.decode(psbt)).id, psbt);
+       }
+-      hasMore = page ? txs.length === chunkLZAINCGU_cjs.DEFAULT_PAGE_SIZE : false;
+-      pageIndex++;
++      hasMore = page !== void 0 && page !== null && page.current < page.total && page.next > pageIndex && txs.length > 0;
++      if (page) pageIndex = page.next;
+     }
+     return out;
+   }
+diff --git a/dist/chunk-YKT4NAQG.js b/dist/chunk-YKT4NAQG.js
+index 9cc17c001f4a564118ef0ec2b87b49caf2fd0b09..02f3ff81247f20f0bba0dbb59f753a2c07da1313 100644
+--- a/dist/chunk-YKT4NAQG.js
++++ b/dist/chunk-YKT4NAQG.js
+@@ -7452,17 +7452,20 @@ var IndexerExitDataSource = class {
+   indexer;
+   name = "indexer";
+   async getVtxoChain(vtxo) {
+-    const chain = [];
+-    let pageIndex = 0;
+-    let hasMore = true;
++    const outpoint = { txid: vtxo.txid, vout: vtxo.vout };
++    const { chain: whole, page: first } = await this.indexer.getVtxoChain(outpoint);
++    if (!first || first.current >= first.total) return whole;
++    const chain = [...whole];
++    let pageIndex = first.next;
++    let hasMore = first.next > 0 && whole.length > 0;
+     while (hasMore) {
+       const { chain: page, page: meta } = await this.indexer.getVtxoChain(
+-        { txid: vtxo.txid, vout: vtxo.vout },
++        outpoint,
+         { pageIndex, pageSize: DEFAULT_PAGE_SIZE }
+       );
+       chain.push(...page);
+-      hasMore = meta ? page.length === DEFAULT_PAGE_SIZE : false;
+-      pageIndex++;
++      hasMore = meta !== void 0 && meta !== null && meta.current < meta.total && meta.next > pageIndex && page.length > 0;
++      if (meta) pageIndex = meta.next;
+     }
+     return chain;
+   }
+@@ -7478,8 +7481,8 @@ var IndexerExitDataSource = class {
+       for (const psbt of txs) {
+         out.set(Transaction.fromPSBT(base64.decode(psbt)).id, psbt);
+       }
+-      hasMore = page ? txs.length === DEFAULT_PAGE_SIZE : false;
+-      pageIndex++;
++      hasMore = page !== void 0 && page !== null && page.current < page.total && page.next > pageIndex && txs.length > 0;
++      if (page) pageIndex = page.next;
+     }
+     return out;
+   }

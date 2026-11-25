@@ -4,14 +4,14 @@ import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
 import FlexCol from '../../../components/FlexCol'
 import Input from '../../../components/Input'
-import { TextSecondary } from '../../../components/Text'
+import Text, { TextSecondary } from '../../../components/Text'
 import type { LnurlRail, OnboardingChoice } from '../../../lib/receive/lnurlRail'
 import { useTranslation } from '../../../providers/language'
 
 // Reserved names (claim codes) are named from Settings only, so Receive stays one tap for everyone else.
 const RECEIVE_CHOICES: OnboardingChoice[] = ['self', 'random']
 
-export default function LnurlRailPanel({ rail }: { rail: LnurlRail }) {
+export default function LnurlRailPanel({ rail, showAddress }: { rail: LnurlRail; showAddress: boolean }) {
   const { t } = useTranslation()
   const [naming, setNaming] = useState(false)
 
@@ -19,8 +19,14 @@ export default function LnurlRailPanel({ rail }: { rail: LnurlRail }) {
   if (rail.status === 'failed')
     return <TextSecondary>{t('receive.lnaddressUnavailable', { error: rail.error })}</TextSecondary>
 
+  const address = rail.receiver?.lightningAddress
   // No error to show: bootstrap never fetches capabilities for a named receiver, and naming is offered only while nameless.
-  if (rail.receiver?.lightningAddress) return null
+  if (address)
+    return showAddress ? (
+      <Text centered copy={address}>
+        {address}
+      </Text>
+    ) : null
 
   const choices = rail.choices.includes('self')
     ? rail.choices.filter((c) => RECEIVE_CHOICES.includes(c) && !(c === 'random' && rail.ownsName))

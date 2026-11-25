@@ -1,0 +1,31 @@
+name: wallet-nak
+services:
+  nak:
+    build:
+      context: .
+      dockerfile: nak.Dockerfile
+    container_name: nak
+    ports:
+      - '10547:10547'
+    command: ['nak', 'serve', '--hostname', '0.0.0.0', '--port', '10547']
+
+  # The same relay, reachable as wss://localhost:10548. A solver card's relays
+  # must be wss:// or the card is rejected outright, so the Lightning corridor
+  # cannot exist on regtest without this. Cert from scripts/gen-relay-tls-cert.mjs.
+  relay-tls:
+    image: nginx:alpine
+    container_name: relay-tls
+    depends_on:
+      - nak
+    ports:
+      - '10548:10548'
+    volumes:
+      - ./relay-tls.nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./.relay-tls:/certs:ro
+
+networks:
+  default:
+    # Join the arkade-regtest base stack network (started before this in CI) so
+    # the relay sits alongside the regtest services, as it did on nigiri's network.
+    name: arkade-regtest_default
+    external: true

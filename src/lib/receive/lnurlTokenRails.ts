@@ -34,13 +34,11 @@ interface Asked {
 
 export type LnurlTokenQuote = Pick<TokenQuote, 'optionId' | 'value' | 'destination' | 'amount' | 'expiresAt'>
 
-export const isUsdStablecoin = (unit: string) => ['USDT', 'USDC'].includes(unit)
-
 /** False when a USD stablecoin quote is outside 0.8x to 1.25x of what the requested sats are worth at the
  *  wallet's own price: the provider's spread is a few percent, so further off is a server misquoting.
  *  No price yet, or a unit that is not USD, gets no opinion. */
 export function plausibleQuote(unit: string, tokens: string, requestedUsd: number): boolean {
-  if (!isUsdStablecoin(unit) || !(requestedUsd > 0)) return true
+  if (!['USDT', 'USDC'].includes(unit) || !(requestedUsd > 0)) return true
   const ratio = Number(tokens) / requestedUsd
   return ratio >= 0.8 && ratio <= 1.25
 }
@@ -99,8 +97,6 @@ export function useLnurlTokenRails(
     () => (payRequest && amountSat > 0 ? lnurlTokenRails(payRequest, amountSat) : []),
     [payRequest, amountSat],
   )
-  // Every advertised option whatever the amount, so one can be picked before the amount is typed.
-  const options = useMemo(() => (payRequest ? lnurlTokenRails(payRequest) : []), [payRequest])
   const rail = rails.find((r) => r.id === selected)
 
   useEffect(() => {
@@ -158,7 +154,6 @@ export function useLnurlTokenRails(
   const regenerate = useCallback(() => setRound((n) => n + 1), [])
   return {
     rails,
-    options,
     quote: expired ? undefined : current?.quote,
     quoting: Boolean(rail) && !current,
     error: current?.error ?? '',

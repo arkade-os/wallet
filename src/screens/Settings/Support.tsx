@@ -8,7 +8,8 @@ import Button from '../../components/Button'
 import { WalletContext } from '../../providers/wallet'
 import { ConfigContext } from '../../providers/config'
 import { AspContext } from '../../providers/asp'
-import { DisplayAddresses, getDisplayAddresses } from '../../lib/asp'
+import { getReceivingAddresses } from '../../lib/asp'
+import { Addresses } from '../../lib/types'
 import { getWebExplorerURL } from '../../lib/explorers'
 import { buildVersion, sdkVersion, NetworkName } from '@arkade-os/sdk'
 import ChatwootWidget from '../../components/ChatWoot'
@@ -22,27 +23,21 @@ import { useTranslation } from '../../providers/language'
 export default function Support() {
   const { aspInfo } = useContext(AspContext)
   const { config } = useContext(ConfigContext)
-  const { wallet, svcWallet, executorSettled, executorSettledCount } = useContext(WalletContext)
+  const { wallet, svcWallet } = useContext(WalletContext)
   const { language, t } = useTranslation()
 
   const [error, setError] = useState('')
-  const [addresses, setAddresses] = useState<DisplayAddresses>()
+  const [addresses, setAddresses] = useState<Addresses>()
   const [supportChatLoaded, setSupportChatLoaded] = useState(false)
 
   // Fetch wallet addresses
   useEffect(() => {
-    if (!svcWallet) return
-    // A superseded read could otherwise overwrite the renewal address with the own-address fallback
-    let stale = false
-    getDisplayAddresses(svcWallet, { settled: executorSettled })
-      .then((addrs) => {
-        if (!stale) setAddresses(addrs)
-      })
-      .catch((err) => console.error('Failed to get addresses:', err))
-    return () => {
-      stale = true
+    if (svcWallet) {
+      getReceivingAddresses(svcWallet)
+        .then(setAddresses)
+        .catch((err) => console.error('Failed to get addresses:', err))
     }
-  }, [svcWallet, executorSettled, executorSettledCount])
+  }, [svcWallet])
 
   // Wait for Chatwoot to load, show error after 5 seconds if not loaded
   useEffect(() => {
@@ -101,8 +96,7 @@ export default function Support() {
       network: wallet.network || 'not available',
       location_origin: window.location.origin,
       default_address: defaultAddress,
-      ark_address: addresses.displayOffchainAddr || 'not available',
-      wallet_ark_address: addresses.ownAddr || 'not available',
+      ark_address: addresses.offchainAddr || 'not available',
       indexer_url: aspInfo.url || config.aspUrl || 'not available',
       btc_boarding_address: addresses.boardingAddr || 'not available',
       ark_server_url: aspInfo.url || config.aspUrl || 'not available',

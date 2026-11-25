@@ -38,17 +38,23 @@ import { electrumProvider } from './electrum'
 import { toInvoiceFacts } from './lnSwap'
 import { l1NetworkOf, onchainClaimEndpoint } from './onchainPayout'
 import { discoveryOptions } from './swapMarkets'
-import { candidateUsage } from './swapRecords'
 import { assetSwapRepository } from './swapRepository'
-import { effectiveSolverRouting } from './solverRouting'
-import { solverHealth } from './solverHealth'
-import { getActiveLanguage } from './language'
-import { translations } from './i18n'
 
+/**
+ * A swap action that reached no driver at all.
+ *
+ * It used to mean "another tab holds the lock", which was true and useless:
+ * the action can simply be run BY that tab, which is what `swapDriverChannel`
+ * does now. What is left is the case where nobody answered — the holder closed
+ * between the ask and the ack, or no tab has taken the lock yet — and the
+ * distinction the screens still need is that this is not the corridor being
+ * unavailable. The solver is fine, and the next tab to take the lock serves the
+ * same call, so unlike a missing solver or an out-of-bounds amount this one is
+ * worth retrying where it stands.
+ */
 export class SwapsHeldElsewhere extends Error {
   constructor() {
-    const lang = getActiveLanguage()
-    super(translations[lang].swap.heldElsewhere)
+    super('no tab is driving swaps right now')
     this.name = 'SwapsHeldElsewhere'
   }
 }
@@ -89,29 +95,11 @@ const onchainClaim = (wallet: SwapClientConfig['wallet'], network: NetworkName):
   }
 }
 
-export const makeSwapClient = (wallet: SwapClientConfig['wallet'], network: NetworkName): SwapClient => {
-  // createSwapClient is inert; preference callbacks run lazily after this assignment.
-  const client: SwapClient = createSwapClient({
+export const makeSwapClient = (wallet: SwapClientConfig['wallet'], network: NetworkName): SwapClient =>
+  createSwapClient({
     wallet,
     repository: assetSwapRepository,
     discovery: discoveryOptions(network),
-    policy: {
-      solverRouting: {
-        health: solverHealth,
-        failover: true,
-        preferences: async ({ network, direction, candidates }) => {
-          const preferences = effectiveSolverRouting(network, direction, candidates)
-          if (preferences.mode !== 'usage') return preferences
-          try {
-            const cards = candidates.map(({ card }) => card)
-            return { ...preferences, usage: candidateUsage(await client.swaps(), cards, network, direction) }
-          } catch {
-            // Usage stays advisory even if an eager callback reads client before assignment.
-            return preferences
-          }
-        },
-      },
-    },
     corridors: {
       onchain: {
         chain: { provider: electrumProvider(network) },
@@ -136,6 +124,3 @@ export const makeSwapClient = (wallet: SwapClientConfig['wallet'], network: Netw
     // live swaps exist or on the first accept. The Web Lock in `providers/swaps`
     // is what keeps a second tab from arming a second drive over one repository.
   })
-
-  return client
-}

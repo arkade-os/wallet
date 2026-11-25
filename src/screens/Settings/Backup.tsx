@@ -66,7 +66,7 @@ export default function Backup() {
   const handleCopy = async () => {
     if (!secret) return
     await copyToClipboard(secret)
-    toast(t('common.copiedToClipboard'))
+    toast(t('backup.copyToClipboard'))
   }
 
   const onChangePassword = (e: any) => {
@@ -99,14 +99,11 @@ export default function Backup() {
     const newConfig = { ...config, nostrBackup: !config.nostrBackup }
     updateConfig(newConfig)
     if (newConfig.nostrBackup) {
-      try {
-        await fullBackup(newConfig)
-      } catch (error) {
+      await fullBackup(newConfig).catch((error) => {
         consoleError(error, 'Backup to Nostr failed')
         setError(t('backup.backupFailed'))
-        updateConfig({ ...config, nostrBackup: false }) // roll back
-        return // skip success toast
-      }
+        return
+      })
     } else {
       backupConfig(newConfig, true)
     }

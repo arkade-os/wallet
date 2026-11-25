@@ -30,14 +30,12 @@ vi.mock('@arkade-os/sdk', async (importOriginal) => {
 
 import { ArkNote } from '@arkade-os/sdk'
 import {
-  EXECUTOR_SETTLE_TIMEOUT_MS,
   getAspInfo,
-  getDisplayAddresses,
-  getReceivingAddresses,
   aspErrorText,
   emptyAspInfo,
   byExpiryAsc,
   collaborativeExitWithFees,
+  delegateVtxos,
   getTxHistory,
   getUnrolledVtxos,
   InsufficientFundsError,
@@ -346,6 +344,32 @@ describe('settleVtxos', () => {
   })
 })
 
+describe('delegateVtxos', () => {
+  it('delegates only unspent coins, even from a worker that ignores unspentOnly', async () => {
+    const delegatePubKey = 'f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9'
+    const params = {
+      pubKey: '79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798',
+      serverPubKey: 'c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5',
+      delegatePubKey,
+      csvTimelock: '144',
+    }
+    const live = { txid: 'live', vout: 0, value: 1_000 }
+    const spent = { txid: 'spent', vout: 0, value: 1_000, isSpent: true, spentBy: 'next' }
+    const getContractsWithVtxos = vi.fn().mockResolvedValue([{ contract: { params }, vtxos: [live, spent] }])
+    const delegate = vi.fn().mockResolvedValue({ delegated: [], failed: [] })
+    const wallet = {
+      getContractManager: async () => ({ getContractsWithVtxos }),
+      getDelegateManager: async () => ({ getDelegateInfo: async () => ({ pubkey: delegatePubKey }), delegate }),
+      getAddress: async () => fixtures.lib.address.ark[0].address,
+    }
+
+    await delegateVtxos(wallet as any)
+
+    expect(getContractsWithVtxos).toHaveBeenCalledWith({ type: 'delegate' }, undefined, { unspentOnly: true })
+    expect(delegate.mock.calls[0][0].map((vtxo: { txid: string }) => vtxo.txid)).toEqual(['live'])
+  })
+})
+
 describe('getTxHistory', () => {
   it('reads the flat history without local metadata — the activity list grafts that', async () => {
     saveTransactionActivityMetadata('ark-txid', { destination: 'tark1destination', networkFee: 0 })
@@ -416,74 +440,5 @@ describe('getUnrolledVtxos', () => {
     const getVtxos = vi.fn().mockRejectedValue(new Error('worker unreachable'))
 
     await expect(getUnrolledVtxos({ getVtxos } as any)).rejects.toThrow('worker unreachable')
-  })
-})
-
-describe('receive addresses', () => {
-  const wallet = (boarding = 'bc1-boarding') =>
-    ({ getAddress: vi.fn(async () => 'ark1own'), getBoardingAddress: vi.fn(async () => boarding) }) as any
-  const settled = (renewalAddress?: string) => vi.fn(async () => ({ status: 'success' as const, renewalAddress }))
-
-  it('keeps the wallet own address in getReceivingAddresses', async () => {
-    await expect(getReceivingAddresses(wallet())).resolves.toEqual({
-      boardingAddr: 'bc1-boarding',
-      offchainAddr: 'ark1own',
-    })
-  })
-
-  it('reads the boarding address only after the registration settled', async () => {
-    const w = wallet()
-    let settle!: () => void
-    const gate = new Promise<{ status: 'success' }>((r) => (settle = () => r({ status: 'success' })))
-    const pending = getDisplayAddresses(w, { settled: () => gate })
-
-    await Promise.resolve()
-    expect(w.getBoardingAddress).not.toHaveBeenCalled()
-    settle()
-    await pending
-    expect(w.getBoardingAddress).toHaveBeenCalledTimes(1)
-  })
-
-  it('shows the renewal contract as the Ark address and keeps the own one apart', async () => {
-    await expect(getDisplayAddresses(wallet(), { settled: settled('ark1renewal') })).resolves.toEqual({
-      boardingAddr: 'bc1-boarding',
-      ownAddr: 'ark1own',
-      displayOffchainAddr: 'ark1renewal',
-    })
-  })
-
-  it('shows getAddress() when no renewal address is recorded, or no registration is passed', async () => {
-    const expected = { boardingAddr: 'bc1-boarding', ownAddr: 'ark1own', displayOffchainAddr: 'ark1own' }
-    await expect(getDisplayAddresses(wallet(), { settled: settled() })).resolves.toEqual(expected)
-    await expect(getDisplayAddresses(wallet())).resolves.toEqual(expected)
-  })
-
-  it('does not throw on a rejected registration wait', async () => {
-    const settledFails = vi.fn().mockRejectedValue(new Error('boom'))
-    await expect(getDisplayAddresses(wallet(), { settled: settledFails })).resolves.toMatchObject({
-      displayOffchainAddr: 'ark1own',
-    })
-  })
-
-  it('stops waiting after the timeout', async () => {
-    vi.useFakeTimers()
-    try {
-      const w = wallet()
-      const pending = getDisplayAddresses(w, { settled: () => new Promise(() => {}) })
-      await vi.advanceTimersByTimeAsync(EXECUTOR_SETTLE_TIMEOUT_MS - 1)
-      expect(w.getBoardingAddress).not.toHaveBeenCalled()
-      await vi.advanceTimersByTimeAsync(1)
-      await expect(pending).resolves.toMatchObject({ ownAddr: 'ark1own', displayOffchainAddr: 'ark1own' })
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('still rejects when the wallet cannot answer', async () => {
-    const w = {
-      getAddress: vi.fn(async () => 'ark1own'),
-      getBoardingAddress: vi.fn().mockRejectedValue(new Error('down')),
-    }
-    await expect(getDisplayAddresses(w as any, { settled: settled() })).rejects.toThrow('down')
   })
 })

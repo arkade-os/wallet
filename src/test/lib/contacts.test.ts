@@ -84,24 +84,14 @@ describe('contacts', () => {
 
   it('a stale save tick never overwrites the name of a saved contact', () => {
     saveContact(alice, 'Alice')
-    expect(rememberSentDestination({ lnUrl: alice, saveAsContact: { address: alice, name: 'Bob' } }, 5000)).toBe(false)
+    rememberSentDestination({ lnUrl: alice }, true, 5000)
     expect(readContacts()).toMatchObject([{ address: alice, name: 'Alice', sendCount: 1 }])
   })
 
   it('the save tick adds an unnamed contact only when none exists', () => {
-    rememberSentDestination({ lnUrl: alice, saveAsContact: { address: alice, name: '' } }, 5000)
+    rememberSentDestination({ lnUrl: alice }, true, 5000)
     expect(readContacts()).toMatchObject([{ address: alice, sendCount: 1, lastSentAt: 5000 }])
     expect(readContacts()[0].name).toBeUndefined()
-  })
-
-  it('saves the tick name only for the payee it was ticked for', () => {
-    const tick = { address: alice, name: 'Alice' }
-    expect(rememberSentDestination({ arkAddress: ark, saveAsContact: tick }, 5000)).toBe(false)
-    expect(readContacts()).toEqual([])
-    expect(readRecents()).toMatchObject([{ address: ark }])
-
-    expect(rememberSentDestination({ lnUrl: alice, saveAsContact: tick }, 6000)).toBe(true)
-    expect(readContacts()).toMatchObject([{ address: alice, name: 'Alice', sendCount: 1, lastSentAt: 6000 }])
   })
 
   it('keeps the contact key and history when its destination is edited', () => {

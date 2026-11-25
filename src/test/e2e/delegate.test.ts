@@ -1,0 +1,40 @@
+import { test, expect } from '@playwright/test'
+import { translations } from '../../lib/i18n'
+import { createWallet, navigateToSettings, waitForWalletPage } from './utils'
+
+const tr = translations.en
+
+test('should toggle delegates', async ({ page }) => {
+  test.setTimeout(60000)
+  // create wallet
+  await createWallet(page)
+
+  await navigateToSettings(page)
+  await page.getByText(tr.settings.advanced, { exact: true }).click()
+  await page.getByText(tr.settings.delegates, { exact: true }).click()
+
+  let toggle = page.getByTestId('toggle-delegates')
+  await expect(toggle).toBeVisible()
+
+  // delegate may default to off in CI (no delegator service)
+  const initialChecked = await toggle.getAttribute('data-checked')
+
+  await toggle.click()
+
+  // toggle triggers window.location.reload(), wait for wallet to load
+  await waitForWalletPage(page)
+  await navigateToSettings(page)
+  await page.getByText(tr.settings.advanced, { exact: true }).click()
+  await page.getByText(tr.settings.delegates, { exact: true }).click()
+  toggle = page.getByTestId('toggle-delegates')
+
+  const expectedAfterToggle = initialChecked === 'true' ? 'false' : 'true'
+
+  if (expectedAfterToggle === 'true') {
+    expect(await toggle.getAttribute('data-checked')).toBe('true')
+    await expect(page.getByTestId('delegate-card')).toBeVisible()
+  } else {
+    expect(await toggle.getAttribute('data-checked')).toBe('false')
+    await expect(page.getByTestId('delegate-card')).not.toBeVisible()
+  }
+})

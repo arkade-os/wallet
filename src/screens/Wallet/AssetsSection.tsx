@@ -20,7 +20,7 @@ export default function AssetsSection() {
   const { fiatDecimals } = useContext(FiatContext)
   const { setAssetInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { booting, dataReady, isVerifiedAsset } = useContext(WalletContext)
+  const { isVerifiedAsset } = useContext(WalletContext)
   const { t } = useTranslation()
 
   const { rows } = usePortfolioFiat()
@@ -38,7 +38,6 @@ export default function AssetsSection() {
   }
 
   const handleAssetClick = (row: PortfolioRow) => {
-    if (Boolean(booting) && !dataReady) return
     if (row.assetId === 'btc') {
       navigate(Pages.BitcoinDetail)
     } else if (row.fiatCurrency) {

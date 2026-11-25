@@ -1,12 +1,4 @@
-import {
-  test,
-  expect,
-  createWallet,
-  resetAndRestoreWallet,
-  navigateToSettings,
-  mockSolverCard,
-  mockContact,
-} from './utils'
+import { test, expect, createWallet, resetAndRestoreWallet, navigateToSettings, mockSolverCard } from './utils'
 import { translations } from '../../lib/i18n'
 
 const tr = translations.en
@@ -94,65 +86,15 @@ test('should save solver cards to nostr', async ({ page }) => {
   // verify solver card is added
   const message = tr.solvers.storedSingular.replace('{count}', '1')
   await expect(page.getByText(message)).toBeVisible()
-  const storedCard = page.getByTestId('stored-solver-card')
-  await expect(storedCard).toHaveCount(1)
-  await expect(storedCard.getByText(mockSolverCard.name, { exact: true })).toBeVisible()
+  await expect(page.getByText(mockSolverCard.name)).toBeVisible()
 
-  const publishAck = page.waitForEvent(
-    'console',
-    (log) => log.type() === 'log' && log.text() === 'Message published to Nostr successfully',
-  )
-  await page.getByLabel(tr.common.back).click()
-  await publishAck
   // restore wallet
   await resetAndRestoreWallet(page)
 
-  // verify solver card is restored
+  // verify currency is euro
   await navigateToSettings(page)
   await page.getByText(tr.settings.advanced, { exact: true }).click()
   await page.getByText(tr.settings.solvers, { exact: true }).click()
-  await page.getByRole('tab', { name: tr.solvers.cardsTab, exact: true }).click()
   await expect(page.getByText(message)).toBeVisible()
-  await expect(storedCard).toHaveCount(1)
-  await expect(storedCard.getByText(mockSolverCard.name, { exact: true })).toBeVisible()
-})
-
-test('should save contacts to nostr', async ({ page }) => {
-  test.setTimeout(60000)
-  // create wallet
-  await createWallet(page)
-
-  // enable nostr backups
-  await navigateToSettings(page)
-  await page.getByText(tr.settings.backup, { exact: true }).click()
-  await page.getByTestId('toggle-backup').click()
-
-  // navigate to contacts
-  await page.getByLabel(tr.common.back).click()
-  await page.getByRole('main').getByRole('button', { name: 'Contacts' }).click()
-
-  // add a contact
-  await page.getByRole('button', { name: tr.contacts.addNew }).click()
-  await page.getByTestId('contact-name').fill(mockContact.name)
-  await page.getByTestId('contact-address').fill(mockContact.address)
-  const publishAck = page.waitForEvent(
-    'console',
-    (log) => log.type() === 'log' && log.text() === 'Message published to Nostr successfully',
-  )
-  await page.getByRole('button', { name: tr.common.save }).click()
-  await publishAck
-
-  // verify contact is added
-  await expect(page.getByRole('heading', { name: mockContact.name })).toBeVisible()
-  await expect(page.getByText(mockContact.address)).toBeVisible()
-  await expect(page.getByText(tr.contacts.edit)).toBeVisible()
-
-  // restore wallet
-  await resetAndRestoreWallet(page)
-
-  // verify contact is restored
-  await navigateToSettings(page)
-  await page.getByRole('main').getByRole('button', { name: 'Contacts' }).click()
-  await expect(page.getByText(tr.contacts.countOne)).toBeVisible()
-  await expect(page.getByText(mockContact.name)).toBeVisible()
+  await expect(page.getByText(mockSolverCard.name)).toBeVisible()
 })

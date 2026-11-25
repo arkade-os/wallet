@@ -15,12 +15,10 @@ import {
   mockNavigationContextValue,
   mockTxInfo,
   mockWalletContextValue,
-  mockBackupContextValue,
 } from '../mocks'
 import { AspContext } from '../../../providers/asp'
 import { WalletContext } from '../../../providers/wallet'
 import { NavigationContext } from '../../../providers/navigation'
-import { BackupContext } from '../../../providers/backup'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { Currencies } from '../../../lib/types'
@@ -90,19 +88,17 @@ function CancellationHarness({
     <NavigationContext.Provider value={mockNavigationContextValue}>
       <ConfigContext.Provider value={mockConfigContextValue}>
         <FiatContext.Provider value={mockFiatContextValue}>
-          <BackupContext.Provider value={mockBackupContextValue}>
-            <AspContext.Provider value={mockAspContextValue}>
-              <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: pendingSwapTx }}>
-                <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [pendingSwapTx] } as any}>
-                  <SwapsContext.Provider value={{ swaps: reconciled ? [cancelledSwap] : swaps, cancelSwap } as any}>
-                    <LimitsContext.Provider value={mockLimitsContextValue}>
-                      <Transaction />
-                    </LimitsContext.Provider>
-                  </SwapsContext.Provider>
-                </WalletContext.Provider>
-              </FlowContext.Provider>
-            </AspContext.Provider>
-          </BackupContext.Provider>
+          <AspContext.Provider value={mockAspContextValue}>
+            <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: pendingSwapTx }}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [pendingSwapTx] } as any}>
+                <SwapsContext.Provider value={{ swaps: reconciled ? [cancelledSwap] : swaps, cancelSwap } as any}>
+                  <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <Transaction />
+                  </LimitsContext.Provider>
+                </SwapsContext.Provider>
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </AspContext.Provider>
         </FiatContext.Provider>
       </ConfigContext.Provider>
     </NavigationContext.Provider>
@@ -124,19 +120,17 @@ function RecoveryHarness({ recover }: { recover: (id: string) => Promise<boolean
     <NavigationContext.Provider value={mockNavigationContextValue}>
       <ConfigContext.Provider value={mockConfigContextValue}>
         <FiatContext.Provider value={mockFiatContextValue}>
-          <BackupContext.Provider value={mockBackupContextValue}>
-            <AspContext.Provider value={mockAspContextValue}>
-              <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: pendingSwapTx }}>
-                <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [pendingSwapTx] } as any}>
-                  <SwapsContext.Provider value={{ swaps, cancelSwap: vi.fn(), recoverSwap } as any}>
-                    <LimitsContext.Provider value={mockLimitsContextValue}>
-                      <Transaction />
-                    </LimitsContext.Provider>
-                  </SwapsContext.Provider>
-                </WalletContext.Provider>
-              </FlowContext.Provider>
-            </AspContext.Provider>
-          </BackupContext.Provider>
+          <AspContext.Provider value={mockAspContextValue}>
+            <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: pendingSwapTx }}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [pendingSwapTx] } as any}>
+                <SwapsContext.Provider value={{ swaps, cancelSwap: vi.fn(), recoverSwap } as any}>
+                  <LimitsContext.Provider value={mockLimitsContextValue}>
+                    <Transaction />
+                  </LimitsContext.Provider>
+                </SwapsContext.Provider>
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </AspContext.Provider>
         </FiatContext.Provider>
       </ConfigContext.Provider>
     </NavigationContext.Provider>
@@ -304,9 +298,8 @@ describe('Transaction screen', () => {
     expect(screen.getByTestId('Total')).toHaveTextContent('10,000')
   })
 
-  it('saves a sent destination locally and reports a backup failure', async () => {
+  it('asks for an optional name before saving a sent destination as a contact', () => {
     const address = 'alice@pay.example'
-    const backupContacts = vi.fn().mockRejectedValue(new Error('Relay unavailable'))
     const sentTx = {
       ...mockTxInfo,
       boardingTxid: '',
@@ -316,19 +309,17 @@ describe('Transaction screen', () => {
     }
 
     render(
-      <BackupContext.Provider value={{ ...mockBackupContextValue, backupContacts }}>
-        <NavigationContext.Provider value={mockNavigationContextValue}>
-          <AspContext.Provider value={mockAspContextValue}>
-            <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: sentTx }}>
-              <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [sentTx] } as any}>
-                <LimitsContext.Provider value={mockLimitsContextValue}>
-                  <Transaction />
-                </LimitsContext.Provider>
-              </WalletContext.Provider>
-            </FlowContext.Provider>
-          </AspContext.Provider>
-        </NavigationContext.Provider>
-      </BackupContext.Provider>,
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider value={mockAspContextValue}>
+          <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: sentTx }}>
+            <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [sentTx] } as any}>
+              <LimitsContext.Provider value={mockLimitsContextValue}>
+                <Transaction />
+              </LimitsContext.Provider>
+            </WalletContext.Provider>
+          </FlowContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>,
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Save as contact' }))
@@ -338,9 +329,6 @@ describe('Transaction screen', () => {
     expect(readContacts()).toMatchObject([{ address, name: 'Alice' }])
     expect(screen.queryByRole('button', { name: 'Save as contact' })).not.toBeInTheDocument()
     expect(screen.getByText('Alice')).toBeInTheDocument()
-    expect(screen.queryByTestId('sheet-modal')).not.toBeInTheDocument()
-    expect(backupContacts).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ address })]))
-    await waitFor(() => expect(console.error).toHaveBeenCalledWith('failed to backup contacts: Relay unavailable'))
   })
 
   it('badges a destination that is already a saved contact', () => {
