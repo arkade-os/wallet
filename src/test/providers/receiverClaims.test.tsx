@@ -8,6 +8,7 @@ import { ConfigContext } from '../../providers/config'
 import { WalletContext } from '../../providers/wallet'
 import { ReceiverClaimsContext, ReceiverClaimsProvider } from '../../providers/receiverClaims'
 import { claimKey, type walletClaimWatch } from '../../lib/receiverClaims'
+import { translations } from '../../lib/i18n'
 import { rememberReceiverTaxi } from '../../lib/storage'
 import { mockAspContextValue, mockConfigContextValue, mockWalletContextValue } from '../screens/mocks'
 
@@ -210,7 +211,9 @@ describe('Taxi claim watch', () => {
     await waitFor(() => expect(claimButton()).toBeEnabled())
 
     fireEvent.click(claimButton())
-    await waitFor(() => expect(screen.getByTestId('claim-error')).toHaveTextContent('nothing was spent'))
+    await waitFor(() =>
+      expect(screen.getByTestId('claim-error')).toHaveTextContent(translations.en.transaction.taxiClaimBusy),
+    )
     await waitFor(() => expect(claimButton()).toBeEnabled())
     expect(offered()).toHaveTextContent(claimKey(TAXI, 't1'))
 

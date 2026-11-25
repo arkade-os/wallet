@@ -19,6 +19,7 @@ import ClaimSheet from '../screens/Wallet/Receive/ClaimSheet'
 import { ConfigContext } from './config'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
+import { useTranslation } from './language'
 import { extractError } from '../lib/error'
 import { consoleError } from '../lib/logs'
 import {
@@ -71,6 +72,7 @@ const without = (set: ReadonlySet<string>, id: string): ReadonlySet<string> => {
 /** Watches the claim feed of every Taxi this wallet has named, keeps history's Taxi records current, and asks before
  * charging a receiver. Free claims are processed sequentially. */
 export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) => {
+  const { t } = useTranslation()
   const { aspInfo } = useContext(AspContext)
   const { config, configLoaded } = useContext(ConfigContext)
   const autoClaims = configLoaded && config.autoClaimFreeTaxi !== false && Boolean(navigator.locks)
@@ -302,7 +304,7 @@ export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) =>
   const error = !failure
     ? ''
     : failure instanceof CovenantSpendBusyError
-      ? 'A coin this claim spends is in a settlement batch right now, so nothing was spent. Try again shortly.'
+      ? t('transaction.taxiClaimBusy')
       : extractError(failure instanceof ClaimSpent ? failure.reason : failure)
   const claiming = Boolean(busy)
   const showClaim =

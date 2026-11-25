@@ -941,6 +941,8 @@ export const translations = {
       taxiCheckAgain: 'Check again',
       taxiChecking: 'Checking…',
       taxiClaim: 'Claim',
+      taxiClaimBusy:
+        'A coin this claim spends is in a settlement batch right now, so nothing was spent. Try again shortly.',
       taxiUnreachable: "Couldn't reach the Taxi. Showing the last known state.",
       taxiFailureCode: 'Error code: {code}',
       taxiExplainUnconfirmed:
@@ -1971,6 +1973,8 @@ export const translations = {
       taxiCheckAgain: 'Comprobar de nuevo',
       taxiChecking: 'Comprobando…',
       taxiClaim: 'Reclamar',
+      taxiClaimBusy:
+        'Una moneda que usa este reclamo está en un lote de liquidación ahora mismo, así que no se gastó nada. Inténtalo de nuevo en un momento.',
       taxiUnreachable: 'No se pudo contactar con el Taxi. Se muestra el último estado conocido.',
       taxiFailureCode: 'Código de error: {code}',
       taxiExplainUnconfirmed:
@@ -2993,6 +2997,8 @@ export const translations = {
       taxiCheckAgain: 'Verificar novamente',
       taxiChecking: 'Verificando…',
       taxiClaim: 'Resgatar',
+      taxiClaimBusy:
+        'Uma moeda usada neste resgate está em um lote de liquidação agora, então nada foi gasto. Tente novamente em instantes.',
       taxiUnreachable: 'Não foi possível contatar o Taxi. Exibindo o último estado conhecido.',
       taxiFailureCode: 'Código de erro: {code}',
       taxiExplainUnconfirmed:
