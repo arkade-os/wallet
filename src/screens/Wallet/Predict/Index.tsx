@@ -87,7 +87,8 @@ export default function Predict() {
     return gross > BEACON_READ_FEE ? gross - BEACON_READ_FEE : null
   }, [multiplier, stakeSats])
 
-  const canReview = Boolean(lineCents && selectedExpiry && multiplier != null && !stakeError)
+  const lineReady = config.demoMode || lineOfficial
+  const canReview = Boolean(lineCents && lineReady && selectedExpiry && multiplier != null && !stakeError)
 
   const gapCents = market && lineCents ? market.priceCents - lineCents : null
   const opensAt = selectedExpiry ? windowOpen(selectedExpiry) : 0

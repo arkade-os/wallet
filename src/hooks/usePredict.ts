@@ -199,8 +199,13 @@ export function usePredict(): UsePredictResult {
   }, [windows, selectedExpiry])
 
   const { lineCents, official: lineOfficial } = useMemo(
-    () => resolveWindowLineCents(market?.samples ?? [], selectedExpiry, market?.priceCents ?? null),
-    [market?.samples, market?.priceCents, selectedExpiry],
+    () =>
+      resolveWindowLineCents(
+        market?.source === 'dia' ? market.samples : [],
+        selectedExpiry,
+        market?.priceCents ?? null,
+      ),
+    [market?.source, market?.samples, market?.priceCents, selectedExpiry],
   )
 
   const chartPoints = useMemo<LivelinePoint[]>(

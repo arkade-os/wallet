@@ -34,9 +34,6 @@ export interface PredictRfqQuote {
   valid_until: number
   solver_pubkey: string
   profile: {
-    kind: PredictKind
-    strike: number
-    expiry: number
     deadline: number
     exit: number
     writer_pubkey: string
@@ -127,7 +124,7 @@ function isSafeInt(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
 }
 
-function parseReply(raw: unknown): WireReply | null {
+export function parseRfqReply(raw: unknown): WireReply | null {
   if (!raw || typeof raw !== 'object') return null
   const body = raw as Record<string, unknown>
   if (body.v !== 1 || !isHex64(body.rfq_id)) return null
@@ -143,10 +140,7 @@ function parseReply(raw: unknown): WireReply | null {
 
   const p = body.profile as Record<string, unknown> | undefined
   if (!p || typeof p !== 'object') return null
-  if (p.kind !== 2 && p.kind !== 3) return null
   if (
-    !isSafeInt(p.strike) ||
-    !isSafeInt(p.expiry) ||
     !isSafeInt(p.deadline) ||
     !isSafeInt(p.exit) ||
     !isSafeInt(p.void_after) ||
@@ -176,9 +170,6 @@ function parseReply(raw: unknown): WireReply | null {
     valid_until: body.valid_until,
     solver_pubkey: body.solver_pubkey.toLowerCase(),
     profile: {
-      kind: p.kind,
-      strike: p.strike,
-      expiry: p.expiry,
       deadline: p.deadline,
       exit: p.exit,
       writer_pubkey: p.writer_pubkey.toLowerCase(),
@@ -202,8 +193,10 @@ export function parseNostrPredictPosition(raw: unknown): NostrPredictPosition | 
   if (b.kind !== 2 && b.kind !== 3) return null
   const programId = typeof b.program_id === 'string' ? b.program_id : PREDICT_VAULT_PROGRAM_ID
   if (!isHex64(b.rfq_id) || !isAmount(b.collateral) || !isAmount(b.stake)) return null
+  const strike = isSafeInt(b.strike) ? b.strike : isAmount(b.strike) ? Number(b.strike) : null
   if (
-    !isSafeInt(b.strike) ||
+    strike == null ||
+    !isSafeInt(strike) ||
     !isSafeInt(b.expiry) ||
     !isSafeInt(b.exit) ||
     !isSafeInt(b.void_after) ||
@@ -234,7 +227,7 @@ export function parseNostrPredictPosition(raw: unknown): NostrPredictPosition | 
     kind: b.kind,
     collateral: b.collateral,
     stake: b.stake,
-    strike: b.strike,
+    strike,
     expiry: b.expiry,
     exit: b.exit,
     writer_pubkey: b.writer_pubkey.toLowerCase(),
@@ -269,7 +262,7 @@ function openReply(secretKey: Uint8Array, event: { pubkey: string; content: stri
   try {
     const conversationKey = getConversationKey(secretKey, event.pubkey)
     const text = decrypt(event.content, conversationKey)
-    return parseReply(JSON.parse(text))
+    return parseRfqReply(JSON.parse(text))
   } catch {
     return null
   }
