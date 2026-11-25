@@ -321,7 +321,16 @@ export default function Init() {
           <Button disabled={error} onClick={handlePasskeyLogin} label={t('init.logInWithPasskey')} secondary />
           <div style={{ padding: '1rem 0' }}>
             <Text centered color='neutral-500'>
-              <a style={linkStyle} onClick={() => setShowPasskeyUI(false)}>
+              <a
+                tabIndex={0}
+                role='button'
+                style={linkStyle}
+                onClick={() => {
+                  setPasskeyError('')
+                  setShowPasskeyUI(false)
+                }}
+                onKeyDown={(e) => e.key === 'Enter' && setShowPasskeyUI(false)}
+              >
                 {t('init.orUseAMnemonic')}
               </a>
             </Text>
@@ -334,7 +343,16 @@ export default function Init() {
           {isBiometricsSupported() ? (
             <div style={{ padding: '1rem 0' }}>
               <Text centered color='neutral-500'>
-                <a style={linkStyle} onClick={() => setShowPasskeyUI(true)}>
+                <a
+                  tabIndex={0}
+                  role='button'
+                  style={linkStyle}
+                  onClick={() => {
+                    setPasskeyError('')
+                    setShowPasskeyUI(true)
+                  }}
+                  onKeyDown={(e) => e.key === 'Enter' && setShowPasskeyUI(true)}
+                >
                   {t('init.orUseAPasskey')}
                 </a>
               </Text>
