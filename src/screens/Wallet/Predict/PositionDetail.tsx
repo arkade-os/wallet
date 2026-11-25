@@ -120,7 +120,7 @@ export default function PositionDetail({
                 {hero}
               </p>
               {live ? (
-                <p className='predict-note mt-1'>
+                <p className='predict-note predict-note--tight'>
                   {t('predict.leftUntil', { time: formatClockTime(position.expiry) })}
                 </p>
               ) : null}
@@ -184,9 +184,11 @@ export default function PositionDetail({
           </div>
 
           <ErrorMessage error={Boolean(error)} text={error} />
-          {notice ? <p className='predict-note mt-3'>{notice}</p> : null}
-          {live || settling ? <p className='predict-note mt-4 text-center'>{t('predict.settlesOnItsOwn')}</p> : null}
-          {canVoid ? <p className='predict-note mt-4'>{t('predict.voidNote')}</p> : null}
+          {notice ? <p className='predict-note predict-note--after'>{notice}</p> : null}
+          {live || settling ? (
+            <p className='predict-note predict-note--after text-center'>{t('predict.settlesOnItsOwn')}</p>
+          ) : null}
+          {canVoid ? <p className='predict-note predict-note--after'>{t('predict.voidNote')}</p> : null}
         </Padded>
       </Content>
 

@@ -5035,6 +5035,10 @@ html.palette-dark .onboard__choice-well {
   font-size: 0.875rem;
 }
 
+.predict-ticket__title {
+  margin-bottom: 0.75rem;
+}
+
 .predict-calls {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5251,6 +5255,18 @@ button.predict-field:active {
   font-size: 0.875rem;
   line-height: 1.25rem;
   font-variant-numeric: tabular-nums;
+}
+
+.predict-note--tight {
+  margin-top: 0.25rem;
+}
+
+.predict-note--after {
+  margin-top: 1rem;
+}
+
+.predict-earlier {
+  margin-top: 1.5rem;
 }
 
 .predict-ack {

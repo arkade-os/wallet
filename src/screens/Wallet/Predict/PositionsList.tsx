@@ -141,7 +141,7 @@ export default function PositionsList({ positions, priceCents, nowSec, onBack, o
 
               {earlier.length > 0 ? (
                 <>
-                  <h2 className='home-section-label mt-6'>{t('predict.earlier')}</h2>
+                  <h2 className='home-section-label predict-earlier'>{t('predict.earlier')}</h2>
                   {earlier.map((pos) => {
                     const done = outcome(pos, t)
                     return (

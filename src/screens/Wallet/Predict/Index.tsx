@@ -226,7 +226,7 @@ export default function Predict() {
               </section>
 
               <section className='predict-ticket' aria-labelledby='predict-ticket-title'>
-                <h2 id='predict-ticket-title' className='home-section-label mb-2'>
+                <h2 id='predict-ticket-title' className='home-section-label predict-ticket__title'>
                   {t('predict.makePrediction')}
                 </h2>
                 <div className='predict-calls' role='radiogroup' aria-labelledby='predict-ticket-title'>
@@ -247,9 +247,11 @@ export default function Predict() {
                       >
                         <Glyph name={side === 2 ? 'trendUp' : 'trendDown'} size={18} strokeWidth={2} />
                         {side === 2 ? t('predict.higher') : t('predict.lower')}
-                        <span className='predict-call__mult'>
-                          {formatMultiplier(side === 2 ? higherMultiplier : lowerMultiplier)}
-                        </span>
+                        {(side === 2 ? higherMultiplier : lowerMultiplier) != null ? (
+                          <span className='predict-call__mult'>
+                            {formatMultiplier(side === 2 ? higherMultiplier : lowerMultiplier)}
+                          </span>
+                        ) : null}
                       </button>
                     )
                   })}
