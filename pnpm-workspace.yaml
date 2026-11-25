@@ -10,9 +10,9 @@ onlyBuiltDependencies:
 overrides:
   '@arkade-os/sdk': 'file:vendor/carrier/arkade-os-sdk-0.5.14-taxi.1-7584c23c.tgz'
   '@arkade-os/swap': 'file:vendor/carrier/arkade-os-swap-0.1.16-taxi.1-7584c23c.tgz'
-  '@arkade-taxi/covenant': 'file:vendor/carrier/arkade-taxi-covenant-1.1.0-ed341c02.tgz'
-  '@arkade-taxi/protocol': 'file:vendor/carrier/arkade-taxi-protocol-1.1.0-ed341c02.tgz'
-  '@arkade-taxi/client': 'file:vendor/carrier/arkade-taxi-client-1.1.0-ed341c02.tgz'
+  '@arkade-taxi/covenant': 'file:vendor/carrier/arkade-taxi-covenant-1.1.1-8db40b99.tgz'
+  '@arkade-taxi/protocol': 'file:vendor/carrier/arkade-taxi-protocol-1.1.1-8db40b99.tgz'
+  '@arkade-taxi/client': 'file:vendor/carrier/arkade-taxi-client-1.1.1-8db40b99.tgz'
   '@babel/core': '>=7.29.6 <8.0.0'
   js-yaml@<4: '>=3.15.0 <4.0.0'
   js-yaml@>=4: '>=4.2.0 <5.0.0'

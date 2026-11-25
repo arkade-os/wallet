@@ -1,6 +1,6 @@
 {
-  "note": "Taxi v1.1 cohort: SDK 0.5.14-taxi.1 and swap 0.1.16-taxi.1 from ts-sdk 7584c23c; Taxi client, covenant and protocol 1.1.0 from arkade-taxi ed341c0, which pin that SDK exactly. Archive bytes are immutable.",
-  "assembledAtUtc": "2026-11-25T00:53:11.634Z",
+  "note": "Taxi v1.1.1 cohort: SDK 0.5.14-taxi.1 and swap 0.1.16-taxi.1 from ts-sdk 7584c23c; Taxi client, covenant and protocol 1.1.1 from arkade-taxi 8db40b99, which pin that SDK exactly. Archive bytes are immutable.",
+  "assembledAtUtc": "2026-11-25T05:53:33.277Z",
   "sourceTreeMeaning": "tree and directoryTree identify the package directory; repositoryTree identifies the complete source commit tree.",
   "artifacts": [
     {
@@ -58,81 +58,81 @@
     },
     {
       "package": "@arkade-taxi/client",
-      "version": "1.1.0",
-      "file": "arkade-taxi-client-1.1.0-ed341c02.tgz",
-      "sha256": "4c842e631f08ee615f479084ad9a52d24b238cb370f8806de55ea2772b1b8a48",
-      "integrity": "sha512-aBirUDBS+ky1pleyB/125c8VeoTopuyJ16QIdnSq4njCoNeyjxyDITBK2JVhXX/05d2KOnSuxQ2GkpO4vrY83Q==",
-      "bytes": 84640,
+      "version": "1.1.1",
+      "file": "arkade-taxi-client-1.1.1-8db40b99.tgz",
+      "sha256": "ee836afa9f8a36f6bba02f2b75813dbca0cedb9d00dfb6449a57b2a531deb9f3",
+      "integrity": "sha512-1XSwjVIqBnT7Nox468zL23W8HTC6k2RVuPG0pw/YP4abi6FUijgzHKh2HmHqIk12kgDr5yFgj4rmP2rsIYAXyA==",
+      "bytes": 86158,
       "license": "MIT",
       "source": {
         "repository": "https://github.com/ArkLabsHQ/arkade-taxi.git",
-        "commit": "ed341c02aeee046f82035489c253bdcbf19d390b",
+        "commit": "8db40b996c0fedbdc687718dab2137a26c7312fb",
         "directory": "packages/client",
-        "tree": "899f34c31170a9c43a6ba9372d8fa65ecec9cfc7",
-        "directoryTree": "899f34c31170a9c43a6ba9372d8fa65ecec9cfc7",
-        "repositoryTree": "21af82b1d77a81494dff29953bfccbf720927cde"
+        "tree": "371a604aaa135f4ec0da1d119c5690cdb3391fd1",
+        "directoryTree": "371a604aaa135f4ec0da1d119c5690cdb3391fd1",
+        "repositoryTree": "f6f5a1f16688820d34b42e6bc539331c371b4113"
       },
       "toolchain": {
         "node": "v24.22.1",
         "pnpm": "10.34.5",
         "typescript": "5.9.3",
         "platform": "win32-x64",
-        "command": "pnpm -C packages/client pack (release build: C:/Git/outputs/arkade-taxi/prod-20261124/release-110/pack/arkade-taxi-client-1.1.0-ed341c02.tgz)"
+        "command": "pnpm -C packages/client pack (release build: C:/Git/outputs/arkade-taxi/prod-20261124/release-111/pack/arkade-taxi-client-1.1.1-8db40b99.tgz)"
       },
       "sdkDependency": "0.5.14-taxi.1",
       "registryPublished": false
     },
     {
       "package": "@arkade-taxi/covenant",
-      "version": "1.1.0",
-      "file": "arkade-taxi-covenant-1.1.0-ed341c02.tgz",
-      "sha256": "994e889c22ea152a292ba13a8d3ab18e4fa0901bd71f731aed24f9ead3dce342",
-      "integrity": "sha512-XuRqoxPMjH8m04qCVp9OLZdruRYxKufICZSm+yOoRaqL7QjtkY+c1RLM7TgACaydeHQ8zvoHXEiNzORO37pZcg==",
-      "bytes": 13253,
+      "version": "1.1.1",
+      "file": "arkade-taxi-covenant-1.1.1-8db40b99.tgz",
+      "sha256": "6c2ffb6722752a3eab41ba5ff1f9bf5b5b19cd13b70e338c9cd3261ec1425b60",
+      "integrity": "sha512-WXwhZA6a632wzCmQ8orZ2ogw99aJqKG7IC2FNy3EIjtSod4yq1voClzIFYsAN7lojqjvtgFpINgfvg2fIG7pfA==",
+      "bytes": 13256,
       "license": "MIT",
       "source": {
         "repository": "https://github.com/ArkLabsHQ/arkade-taxi.git",
-        "commit": "ed341c02aeee046f82035489c253bdcbf19d390b",
+        "commit": "8db40b996c0fedbdc687718dab2137a26c7312fb",
         "directory": "packages/covenant",
-        "tree": "8b6bd0e20e1f9ac75ec8945c2ce1a0030514ccf5",
-        "directoryTree": "8b6bd0e20e1f9ac75ec8945c2ce1a0030514ccf5",
-        "repositoryTree": "21af82b1d77a81494dff29953bfccbf720927cde"
+        "tree": "678ce90299738973f60f9e9b3dcb92b70aedc26a",
+        "directoryTree": "678ce90299738973f60f9e9b3dcb92b70aedc26a",
+        "repositoryTree": "f6f5a1f16688820d34b42e6bc539331c371b4113"
       },
       "toolchain": {
         "node": "v24.22.1",
         "pnpm": "10.34.5",
         "typescript": "5.9.3",
         "platform": "win32-x64",
-        "command": "pnpm -C packages/covenant pack (release build: C:/Git/outputs/arkade-taxi/prod-20261124/release-110/pack/arkade-taxi-covenant-1.1.0-ed341c02.tgz)"
+        "command": "pnpm -C packages/covenant pack (release build: C:/Git/outputs/arkade-taxi/prod-20261124/release-111/pack/arkade-taxi-covenant-1.1.1-8db40b99.tgz)"
       },
       "sdkDependency": "0.5.14-taxi.1",
       "registryPublished": false
     },
     {
       "package": "@arkade-taxi/protocol",
-      "version": "1.1.0",
-      "file": "arkade-taxi-protocol-1.1.0-ed341c02.tgz",
-      "sha256": "fd9aa0d2b8798d10f1b845c2a3d800fac69936b3d771dd309787d876219367e7",
-      "integrity": "sha512-3k4Qel9t3mwRuOG+IVzM0FDbLtdprIql4BveXBBLny5c4+Hjd3iXVmqycLyD5k/cun23aaZ56AP4GLRz3MX3gA==",
+      "version": "1.1.1",
+      "file": "arkade-taxi-protocol-1.1.1-8db40b99.tgz",
+      "sha256": "502bfc4b4fc3b30f03ef0b148db8598cb2f0ed8f06ac3810b8ff765d703c00cf",
+      "integrity": "sha512-FnN+i8AcC4XEFVOXL439Re1WdeBWPFZmsDwnT0iK8M6YK5LaSyWsl5IJDd+k9PaUfy88SHXrPE1OG2oWkOosaQ==",
       "bytes": 10653,
       "license": "MIT",
       "source": {
         "repository": "https://github.com/ArkLabsHQ/arkade-taxi.git",
-        "commit": "ed341c02aeee046f82035489c253bdcbf19d390b",
+        "commit": "8db40b996c0fedbdc687718dab2137a26c7312fb",
         "directory": "packages/protocol",
-        "tree": "d6a26011113181719883f97e797d3c5a5956a75c",
-        "directoryTree": "d6a26011113181719883f97e797d3c5a5956a75c",
-        "repositoryTree": "21af82b1d77a81494dff29953bfccbf720927cde"
+        "tree": "f9e46c4f58e34ecb2a4e6324192fcef71f02d36d",
+        "directoryTree": "f9e46c4f58e34ecb2a4e6324192fcef71f02d36d",
+        "repositoryTree": "f6f5a1f16688820d34b42e6bc539331c371b4113"
       },
       "toolchain": {
         "node": "v24.22.1",
         "pnpm": "10.34.5",
         "typescript": "5.9.3",
         "platform": "win32-x64",
-        "command": "pnpm -C packages/protocol pack (release build: C:/Git/outputs/arkade-taxi/prod-20261124/release-110/pack/arkade-taxi-protocol-1.1.0-ed341c02.tgz)"
+        "command": "pnpm -C packages/protocol pack (release build: C:/Git/outputs/arkade-taxi/prod-20261124/release-111/pack/arkade-taxi-protocol-1.1.1-8db40b99.tgz)"
       },
       "registryPublished": false
     }
   ],
-  "status": "SDK/swap from ts-sdk 7584c23c; Taxi 1.1.0 dist matches a clean ed341c0 build byte for byte. Funded consumer qualification is pending."
+  "status": "SDK/swap from ts-sdk 7584c23c; Taxi 1.1.1 dist matches a clean 8db40b99 build byte for byte. Funded consumer qualification is pending."
 }

@@ -123,7 +123,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: ArkLabsHQ/arkade-taxi
-          ref: ed341c02aeee046f82035489c253bdcbf19d390b
+          ref: 8db40b996c0fedbdc687718dab2137a26c7312fb
           path: .local-tests/native-taxi
           persist-credentials: false
       - uses: actions/setup-node@v4
