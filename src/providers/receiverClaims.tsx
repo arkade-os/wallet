@@ -181,6 +181,7 @@ export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) =>
     }
   }, [unlocked, aspInfo.url, aspInfo.network, aspInfo.signerPubkey, remember])
 
+  const watchShownRef = useRef<((address: string) => void) | undefined>(undefined)
   useEffect(() => {
     if (!queue || !unlocked || !svcWallet || !aspInfo.url) return
     const taxis = readReceiverTaxis().filter((taxi) => taxi.network === aspInfo.network)
@@ -228,24 +229,22 @@ export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) =>
       .catch((err) => consoleError(err, 'could not watch Taxi claims'))
     // The contract shown now, whatever its key; the rows cover what earlier sessions showed.
     if (executorRenewalAddress) watch(executorRenewalAddress)
+    watchShownRef.current = watch
     renewalAddresses(svcWallet)
       .then((addresses) => addresses.forEach(watch))
       .catch((err) => consoleError(err, 'could not watch Taxi claims at Executor renewal contracts'))
     return () => {
       stopped = true
+      watchShownRef.current = undefined
       for (const stop of stops) stop()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    queue,
-    unlocked,
-    svcWallet,
-    aspInfo.url,
-    aspInfo.network,
-    taxisVersion,
-    executorSettledCount,
-    executorRenewalAddress,
-  ])
+  }, [queue, unlocked, svcWallet, aspInfo.url, aspInfo.network, taxisVersion, executorSettledCount])
+
+  // Lock clears the shown contract before disposing the wallet: join the running watch rather than restart it.
+  useEffect(() => {
+    if (executorRenewalAddress) watchShownRef.current?.(executorRenewalAddress)
+  }, [executorRenewalAddress])
 
   useEffect(() => {
     if (!unlocked || !svcWallet) return

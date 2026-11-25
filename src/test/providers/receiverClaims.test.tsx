@@ -179,6 +179,21 @@ describe('Taxi claim watch', () => {
     expect(feed.subscribed.sort()).toEqual([OWN, ROTATED].sort())
   })
 
+  it('adds a renewal contract shown later to the watch, and leaves the wallet alone when the session clears it', async () => {
+    feed.claims = [claimFor(RENEWAL)]
+    const getAddress = vi.fn(async () => OWN)
+    const view = renderClaims({ svcWallet: { ...walletWith(async () => []), getAddress } })
+    await waitFor(() => expect(feed.subscribed).toEqual([OWN]))
+
+    view.rerenderWith({ executorRenewalAddress: RENEWAL })
+    await waitFor(() => expect(offered()).toHaveTextContent(claimKey(TAXI, 't1')))
+
+    view.rerenderWith({ executorRenewalAddress: undefined })
+    await act(async () => {})
+    expect(getAddress).toHaveBeenCalledTimes(1)
+    expect(feed.subscribed.sort()).toEqual([OWN, RENEWAL].sort())
+  })
+
   it('keeps watching its own address when the contract repository cannot be read', async () => {
     feed.claims = [claimFor(OWN)]
     const svcWallet = {
