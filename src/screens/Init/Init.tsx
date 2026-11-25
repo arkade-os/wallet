@@ -68,7 +68,7 @@ export default function Init() {
   const prefersReduced = useReducedMotion()
   const { t } = useTranslation()
   const [error, setError] = useState(false)
-  const [showPasskeyUI, setShowPasskeyUI] = useState(true)
+  const [showPasskeyUI, setShowPasskeyUI] = useState(false)
   const [showCreateOptions, setShowCreateOptions] = useState(false)
   const [passkeyError, setPasskeyError] = useState('')
   const [passkeyStep, setPasskeyStep] = useState<'intro' | 'waiting' | PasskeyWallet | null>(null)
@@ -326,7 +326,7 @@ export default function Init() {
         </ButtonsOnBottom>
       ) : (
         <ButtonsOnBottom>
-          <Button disabled={error || !aspReady} onClick={handleNewWallet} label={t('init.createWallet')} />
+          <Button disabled={error || !aspReady} onClick={handleNewWallet} label={`+ ${t('init.createWallet')}`} />
           <Button disabled={error} onClick={handleOldWallet} label={t('init.restoreWallet')} secondary />
           {isBiometricsSupported() ? (
             <div style={{ padding: '1rem 0' }}>
