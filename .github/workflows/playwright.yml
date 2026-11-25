@@ -30,7 +30,7 @@ jobs:
             test_files: >-
               src/test/e2e/backup.test.ts
               src/test/e2e/bip21.test.ts
-              src/test/e2e/delegate.test.ts
+              src/test/e2e/executor.test.ts
               src/test/e2e/form.test.ts
               src/test/e2e/init.test.ts
               src/test/e2e/keyboard.test.ts
@@ -80,7 +80,7 @@ jobs:
           docker logs arkd 2>&1 | tail -50 || true
           echo "=== mempool API process state ==="
           docker inspect --format '{{json .State}} restarts={{.RestartCount}}' mempool_api || true
-          for service in mempool_api mempool_mariadb bitcoin fulcrum; do
+          for service in mempool_api mempool_mariadb bitcoin fulcrum executor; do
             echo "=== $service logs (last 100) ==="
             docker logs "$service" 2>&1 | tail -100 || true
           done
