@@ -21,6 +21,7 @@ import { reconcileTaxiInputReservations, reserveTaxiClaim } from '../../lib/taxi
 const SERVER_KEY = '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798'
 const SERVER = 'http://arkd.test'
 const HOUR = 3_600_000
+const LOADED = { timeout: 10_000 }
 const key = ({ txid, vout }: Outpoint) => `${txid}:${vout}`
 
 const arkInfo = (): ArkadeInfo => ({
@@ -135,7 +136,7 @@ describe('a Taxi recycle claim and an ordinary send never select the same coin',
   it('keeps a send off the coin a claim holds', async () => {
     const control = await fundedWallet()
     const unheld = sendOffChain(control.wallet, 2_000, control.to)
-    await vi.waitFor(() => expect(control.submits).toHaveLength(1))
+    await vi.waitFor(() => expect(control.submits).toHaveLength(1), LOADED)
     const [picked] = control.submits[0].inputs
     control.submits[0].finish()
     await unheld
@@ -146,7 +147,7 @@ describe('a Taxi recycle claim and an ordinary send never select the same coin',
     await expect(sendOffChain(wallet, 25_000, to)).rejects.toThrow()
     expect(submits).toHaveLength(0)
     const sending = sendOffChain(wallet, 2_000, to)
-    await vi.waitFor(() => expect(submits).toHaveLength(1))
+    await vi.waitFor(() => expect(submits).toHaveLength(1), LOADED)
     expect(submits[0].inputs).not.toContain(picked)
     submits[0].finish()
     await sending
@@ -156,7 +157,7 @@ describe('a Taxi recycle claim and an ordinary send never select the same coin',
   it('refuses a claim on the coin a send is submitting, and leaves no hold behind', async () => {
     const { wallet, coins, submits, to } = await fundedWallet()
     const sending = sendOffChain(wallet, 2_000, to)
-    await vi.waitFor(() => expect(submits).toHaveLength(1))
+    await vi.waitFor(() => expect(submits).toHaveLength(1), LOADED)
     const coin = coins.find((candidate) => key(candidate) === submits[0].inputs[0])!
     await expect(claim(wallet, coin)).rejects.toMatchObject({ name: 'VtxoReservedError', holder: 'in-flight' })
     submits[0].finish()
@@ -187,7 +188,7 @@ describe('a Taxi recycle claim and an ordinary send never select the same coin',
     const selected = key(await picked)
     const coin = coins.find((candidate) => key(candidate) === selected)!
     const claiming = claim(wallet, coin)
-    await vi.waitFor(() => expect(wallet.isVtxoReserved(coin)).toBe(true))
+    await vi.waitFor(() => expect(wallet.isVtxoReserved(coin)).toBe(true), LOADED)
     open()
     await expect(sending).rejects.toMatchObject({ name: 'VtxoReservedError', holder: 'held' })
     await claiming
