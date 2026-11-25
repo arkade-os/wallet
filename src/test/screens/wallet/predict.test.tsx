@@ -16,10 +16,6 @@ import {
   mockWalletContextValue,
 } from '../mocks'
 
-vi.mock('liveline', () => ({
-  Liveline: () => <div data-testid='mock-liveline' />,
-}))
-
 vi.mock('../../../lib/predict/marketFeed', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../lib/predict/marketFeed')>()
   return {
@@ -105,17 +101,24 @@ describe('Predict screen & desktop navigation', () => {
     expect(navigate).toHaveBeenCalledWith(Pages.Predict)
   })
 
-  it('renders live market price, Higher/Lower call cards, stake presets, review sheet, and places a demo prediction', async () => {
+  it('opens with the first-visit explainer, then places a demo prediction', async () => {
     renderPredict()
 
+    const start = await screen.findByTestId('predict-intro-start')
+    expect(screen.getByText('Predict Bitcoin’s next move')).toBeInTheDocument()
+    fireEvent.click(start)
+    expect(localStorage.getItem('arkade-predict-intro-v1')).toBe('1')
+
     await waitFor(() => expect(screen.getByTestId('predict-spot-price')).toHaveTextContent('$65,000.00'))
+    expect(screen.getByText('Make a prediction')).toBeInTheDocument()
     expect(screen.getByTestId('predict-call-higher')).toHaveAttribute('aria-checked', 'true')
 
     fireEvent.click(screen.getByTestId('predict-call-lower'))
     expect(screen.getByTestId('predict-call-lower')).toHaveAttribute('aria-checked', 'true')
 
-    fireEvent.click(screen.getByTestId('predict-preset-25000'))
-    expect(screen.getByTestId('predict-stake-input')).toHaveValue('25000')
+    fireEvent.click(screen.getByTestId('predict-stake-field'))
+    fireEvent.click(await screen.findByTestId('predict-preset-25000'))
+    expect(screen.getByTestId('predict-stake-value')).toHaveTextContent('25,000 sats')
 
     const reviewBtn = screen.getByRole('button', { name: 'Review prediction' })
     await waitFor(() => expect(reviewBtn).toBeEnabled())
@@ -123,21 +126,36 @@ describe('Predict screen & desktop navigation', () => {
 
     const confirmBtn = await screen.findByRole('button', { name: 'Place demo prediction' })
     expect(screen.getByTestId('predict-quote-rows')).toHaveTextContent('25,000 sats')
+    expect(confirmBtn).toBeDisabled()
+    fireEvent.click(screen.getByTestId('predict-ack'))
+    expect(confirmBtn).toBeEnabled()
     fireEvent.click(confirmBtn)
 
-    await waitFor(() => expect(screen.getByTestId('predict-positions-list')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByTestId('predict-detail-hero')).toBeInTheDocument())
   })
 
-  it('validates stake minimum and maximum bounds', async () => {
+  it('refuses a stake below the minimum', async () => {
+    localStorage.setItem('arkade-predict-intro-v1', '1')
     renderPredict()
     await waitFor(() => expect(screen.getByTestId('predict-spot-price')).toHaveTextContent('$65,000.00'))
 
-    const input = screen.getByTestId('predict-stake-input')
-    fireEvent.change(input, { target: { value: '5000' } })
+    fireEvent.click(screen.getByTestId('predict-stake-field'))
+    for (const key of ['5', '0', '0', '0']) fireEvent.click(await screen.findByTestId(`keyboard-${key}`))
+    fireEvent.click(screen.getByTestId('save-amount'))
+
     expect(screen.getByRole('alert')).toHaveTextContent('10,000')
     expect(screen.getByRole('button', { name: 'Review prediction' })).toBeDisabled()
+  })
 
-    fireEvent.change(input, { target: { value: '200000' } })
+  it('refuses a stake above the maximum', async () => {
+    localStorage.setItem('arkade-predict-intro-v1', '1')
+    renderPredict()
+    await waitFor(() => expect(screen.getByTestId('predict-spot-price')).toHaveTextContent('$65,000.00'))
+
+    fireEvent.click(screen.getByTestId('predict-stake-field'))
+    for (const key of ['2', '0', '0', '0', '0', '0']) fireEvent.click(await screen.findByTestId(`keyboard-${key}`))
+    fireEvent.click(screen.getByTestId('save-amount'))
+
     expect(screen.getByRole('alert')).toHaveTextContent('100,000')
     expect(screen.getByRole('button', { name: 'Review prediction' })).toBeDisabled()
   })

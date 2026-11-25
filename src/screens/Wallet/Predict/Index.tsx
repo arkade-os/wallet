@@ -1,46 +1,41 @@
-import { Liveline } from 'liveline'
-import { useContext, useMemo, useState } from 'react'
+import { useContext, useEffect, useMemo, useState } from 'react'
 import Button from '../../../components/Button'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Content from '../../../components/Content'
-import FlexCol from '../../../components/FlexCol'
+import Figure from '../../../components/Figure'
 import Header from '../../../components/Header'
+import Keyboard, { type KeyboardInputMode } from '../../../components/Keyboard'
 import Padded from '../../../components/Padded'
-import { PrivacyAmount } from '../../../components/PrivacyAmount'
-import SegmentedControl from '../../../components/SegmentedControl'
+import SheetModal from '../../../components/SheetModal'
 import Glyph from '../../../icons/Glyph'
 import { usePredict } from '../../../hooks/usePredict'
-import { useReducedMotion } from '../../../hooks/useReducedMotion'
-import { prettyNumber } from '../../../lib/format'
+import { prettyNumber, toSatoshis } from '../../../lib/format'
 import { hapticLight, hapticSubtle } from '../../../lib/haptics'
 import { BEACON_READ_FEE, type PredictKind } from '../../../lib/predict/constants'
-import { formatCountdown, predictPayout, usdFromCents } from '../../../lib/predict/pricing'
-import type { PredictPosition } from '../../../lib/predict/storage'
-import { Themes } from '../../../lib/types'
-import { ConfigContext } from '../../../providers/config'
+import { formatCountdown, predictPayout, usdFromCents, windowOpen } from '../../../lib/predict/pricing'
+import { FiatContext } from '../../../providers/fiat'
 import { useTranslation } from '../../../providers/language'
 import { WalletContext } from '../../../providers/wallet'
-import PositionDetailSheet from './PositionDetailSheet'
+import IntroSheet, { introSeen } from './IntroSheet'
+import PositionDetail from './PositionDetail'
 import PositionsList from './PositionsList'
+import PredictChart from './PredictChart'
 import ReviewSheet from './ReviewSheet'
+import { formatClockTime, formatGap, formatMultiplier, formatSats } from './format'
 
 const MAINNET_PRESETS = [10_000, 25_000, 50_000, 100_000]
 const TESTNET_PRESETS = [10_000, 50_000, 100_000, 250_000]
 
-function formatWindowTime(expirySec: number): string {
-  return new Date(expirySec * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-}
+type View = { name: 'market' } | { name: 'positions' } | { name: 'position'; id: string }
 
 export default function Predict() {
-  const { effectiveTheme } = useContext(ConfigContext)
+  const { fromFiat } = useContext(FiatContext)
   const { availableBalance } = useContext(WalletContext)
   const { t } = useTranslation()
-  const prefersReduced = useReducedMotion()
 
   const {
     config,
     market,
-    chartPoints,
     windows,
     selectedExpiry,
     setSelectedExpiry,
@@ -54,287 +49,305 @@ export default function Predict() {
     requestQuote,
     fundQuote,
     cancelPosition,
-    settlePosition,
     refundVoidPosition,
-    reboardPosition,
   } = usePredict()
 
-  const [tab, setTab] = useState<'trade' | 'positions'>('trade')
-  const [kind, setKind] = useState<PredictKind>(2)
-  const [stakeInput, setStakeInput] = useState('10000')
-  const [reviewOpen, setReviewOpen] = useState(false)
-  const [selectedPosition, setSelectedPosition] = useState<PredictPosition | null>(null)
-
   const presets = config.profile.isMainnet ? MAINNET_PRESETS : TESTNET_PRESETS
-  const stakeNum = Number.parseInt(stakeInput.replace(/[^0-9]/g, ''), 10) || 0
-  const stakeSats = BigInt(Math.max(0, stakeNum))
+  const [view, setView] = useState<View>({ name: 'market' })
+  const [kind, setKind] = useState<PredictKind>(2)
+  const [stakeSats, setStakeSats] = useState<bigint>(BigInt(presets[1]!))
+  const [stakeOpen, setStakeOpen] = useState(false)
+  const [closeOpen, setCloseOpen] = useState(false)
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [introOpen, setIntroOpen] = useState(() => !introSeen())
+  const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000))
+
+  useEffect(() => {
+    const id = setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), 1_000)
+    return () => clearInterval(id)
+  }, [])
 
   const stakeMin = config.profile.stakeMin
   const stakeMax = config.profile.stakeMax
-  const insufficientBalance = !config.demoMode && stakeSats > BigInt(availableBalance)
   const belowMin = stakeSats < stakeMin
   const aboveMax = stakeSats > stakeMax
-
-  const activeMultiplier = kind === 2 ? higherMultiplier : lowerMultiplier
-  const estGrossPayout = useMemo(
-    () => (activeMultiplier && stakeSats > 0n ? predictPayout(stakeSats, activeMultiplier) : null),
-    [activeMultiplier, stakeSats],
-  )
-  const estNetPayout = estGrossPayout && estGrossPayout > BEACON_READ_FEE ? estGrossPayout - BEACON_READ_FEE : null
-
-  const canReview = Boolean(
-    lineCents && selectedExpiry && !belowMin && !aboveMax && !insufficientBalance && activeMultiplier != null,
-  )
-
+  const overBalance = !config.demoMode && stakeSats > BigInt(availableBalance)
   const stakeError = belowMin
     ? t('predict.stakeBelowMin', { min: prettyNumber(Number(stakeMin)) })
     : aboveMax
       ? t('predict.stakeAboveMax', { max: prettyNumber(Number(stakeMax)) })
-      : insufficientBalance
+      : overBalance
         ? t('send.insufficientFunds')
         : ''
 
-  const chartColor = kind === 2 ? '#16a34a' : '#dc2626'
+  const multiplier = kind === 2 ? higherMultiplier : lowerMultiplier
+  const estimate = useMemo(() => {
+    if (multiplier == null || stakeSats <= 0n) return null
+    const gross = predictPayout(stakeSats, multiplier)
+    return gross > BEACON_READ_FEE ? gross - BEACON_READ_FEE : null
+  }, [multiplier, stakeSats])
+
+  const canReview = Boolean(lineCents && selectedExpiry && multiplier != null && !stakeError)
+
+  const gapCents = market && lineCents ? market.priceCents - lineCents : null
+  const opensAt = selectedExpiry ? windowOpen(selectedExpiry) : 0
+  const status = !market
+    ? t('predict.loadingMarket')
+    : !lineOfficial
+      ? t('predict.lineSetsAt', { time: formatClockTime(opensAt) })
+      : gapCents == null || gapCents === 0
+        ? t('predict.marketFlat')
+        : gapCents > 0
+          ? t('predict.marketAbove', { gap: formatGap(gapCents) })
+          : t('predict.marketBelow', { gap: formatGap(gapCents) })
+
+  const saveStake = (value: string, mode: KeyboardInputMode) => {
+    const n = Number(value.replaceAll(',', ''))
+    const sats = mode === 'fiat' ? fromFiat(n) : mode === 'btc' ? toSatoshis(n) : Math.floor(n)
+    setStakeSats(BigInt(Math.max(0, Math.round(sats))))
+    setStakeOpen(false)
+  }
+
+  if (view.name === 'positions') {
+    return (
+      <PositionsList
+        positions={positions}
+        priceCents={market?.priceCents ?? null}
+        nowSec={nowSec}
+        onBack={() => setView({ name: 'market' })}
+        onSelect={(pos) => setView({ name: 'position', id: pos.id })}
+      />
+    )
+  }
+
+  if (view.name === 'position') {
+    const position = positions.find((p) => p.id === view.id)
+    if (position) {
+      return (
+        <PositionDetail
+          position={position}
+          market={market}
+          nowSec={nowSec}
+          onBack={() => setView({ name: 'positions' })}
+          onCancel={cancelPosition}
+          onRefundVoid={refundVoidPosition}
+        />
+      )
+    }
+  }
+
+  if (stakeOpen) {
+    return (
+      <div className='fixed inset-0 z-20 bg-[var(--bg)]'>
+        <Keyboard
+          back={() => setStakeOpen(false)}
+          onSave={saveStake}
+          saveLabel={t('common.save')}
+          accessory={
+            <div className='predict-presets' role='group' aria-label={t('predict.quickPicks')}>
+              {presets.map((amount) => (
+                <button
+                  key={amount}
+                  type='button'
+                  className='predict-preset'
+                  aria-pressed={stakeSats === BigInt(amount)}
+                  data-testid={`predict-preset-${amount}`}
+                  onClick={() => {
+                    hapticSubtle()
+                    setStakeSats(BigInt(amount))
+                    setStakeOpen(false)
+                  }}
+                >
+                  {prettyNumber(amount)}
+                </button>
+              ))}
+              <p className='predict-presets__hint'>
+                {t('predict.stakeRange', {
+                  min: prettyNumber(Number(stakeMin)),
+                  max: prettyNumber(Number(stakeMax)),
+                })}
+              </p>
+            </div>
+          }
+        />
+      </div>
+    )
+  }
+
+  const positionsButton = (
+    <span className='predict-positions-icon'>
+      <Glyph name='lines' size={22} strokeWidth={2} />
+      {activeCount > 0 ? <span className='predict-positions-icon__count'>{activeCount}</span> : null}
+    </span>
+  )
 
   return (
-    <div className='predict-screen'>
+    <>
       <Header
         text={t('predict.title')}
         back
-        auxText={config.demoMode ? t('predict.demoBadge') : undefined}
-        auxFunc={config.demoMode ? () => {} : undefined}
+        auxIcon={positionsButton}
+        auxAriaLabel={t('predict.positionsAria', { count: activeCount })}
+        auxFunc={() => {
+          hapticLight()
+          setView({ name: 'positions' })
+        }}
       />
       <Content>
         <Padded>
-          <FlexCol gap='1rem'>
-            <SegmentedControl
-              options={['trade', 'positions']}
-              selected={tab}
-              onChange={(val) => {
-                hapticSubtle()
-                setTab(val as 'trade' | 'positions')
-              }}
-              getLabel={(val) =>
-                val === 'trade'
-                  ? t('predict.tabTrade')
-                  : activeCount > 0
-                    ? `${t('predict.tabPositions')} (${activeCount})`
-                    : t('predict.tabPositions')
-              }
-            />
-
-            {tab === 'trade' ? (
-              <FlexCol gap='1rem'>
-                {/* Live Market + Window Line Card */}
-                <section className='predict-card' aria-label={t('predict.marketCard')}>
-                  <div className='predict-market-head'>
-                    <div>
-                      <p className='predict-eyebrow'>BTC/USD · {market?.source === 'dia' ? 'DIA' : 'Deribit'}</p>
-                      <p className='predict-spot' data-testid='predict-spot-price'>
-                        {market ? usdFromCents(market.priceCents) : '—'}
-                      </p>
-                      {lineCents ? (
-                        <p className='predict-line-tag' data-testid='predict-line-price'>
-                          {lineOfficial ? t('predict.windowLine') : t('predict.indicativeLine')}{' '}
-                          <strong>{usdFromCents(lineCents)}</strong>
-                        </p>
-                      ) : null}
-                    </div>
-                    <div className='predict-clock'>
-                      <p className='predict-eyebrow'>{t('predict.closesIn')}</p>
-                      <p className='predict-countdown' data-testid='predict-countdown'>
-                        {selectedExpiry ? formatCountdown(secondsToClose) : '–:––'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className='predict-chart' data-testid='predict-chart'>
-                    {chartPoints.length >= 2 ? (
-                      <Liveline
-                        data={chartPoints}
-                        value={chartPoints[chartPoints.length - 1]!.value}
-                        color={chartColor}
-                        theme={effectiveTheme === Themes.Dark ? 'dark' : 'light'}
-                        grid={false}
-                        badge={false}
-                        fill
-                        pulse={!prefersReduced}
-                        scrub={false}
-                        window={300}
-                        referenceLine={
-                          lineCents
-                            ? {
-                                value: lineCents / 100,
-                                label: usdFromCents(lineCents),
-                              }
-                            : undefined
-                        }
-                        formatValue={(v) =>
-                          `$${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                        }
-                      />
-                    ) : (
-                      <div className='predict-chart-placeholder'>
-                        <span>{t('predict.loadingChart')}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Window Selector Pills */}
-                  {windows.length > 0 ? (
-                    <div className='predict-windows' role='radiogroup' aria-label={t('predict.closeWindow')}>
-                      {windows.map((exp) => {
-                        const selected = exp === selectedExpiry
-                        return (
-                          <button
-                            key={exp}
-                            type='button'
-                            role='radio'
-                            aria-checked={selected}
-                            className={
-                              selected ? 'predict-pill predict-pill--active focusable' : 'predict-pill focusable'
-                            }
-                            onClick={() => {
-                              hapticSubtle()
-                              setSelectedExpiry(exp)
-                            }}
-                          >
-                            {formatWindowTime(exp)}
-                          </button>
-                        )
-                      })}
-                    </div>
+          <div className='predict-wrap'>
+            <div className='predict-layout'>
+              <section className='predict-market' aria-label={t('predict.marketLabel')}>
+                <div className='flex items-end justify-between gap-4'>
+                  <p className='predict-price' data-testid='predict-spot-price'>
+                    {market ? <Figure value={usdFromCents(market.priceCents)} /> : '—'}
+                  </p>
+                  <p className='predict-countdown'>
+                    <span data-testid='predict-countdown'>
+                      {selectedExpiry ? formatCountdown(secondsToClose) : '–:––'}
+                    </span>
+                    <span className='predict-countdown__label'>{t('predict.toClose')}</span>
+                  </p>
+                </div>
+                <p className='predict-status' aria-live='polite'>
+                  {gapCents != null && gapCents !== 0 && lineOfficial ? (
+                    <Glyph name={gapCents > 0 ? 'arrowUp' : 'arrowDown'} size={14} strokeWidth={2.25} />
                   ) : null}
-                </section>
+                  {status}
+                </p>
+                <PredictChart
+                  samples={market?.samples ?? []}
+                  lineCents={lineCents}
+                  expiry={selectedExpiry}
+                  kind={kind}
+                  nowSec={nowSec}
+                />
+              </section>
 
-                {/* Higher / Lower Call Cards */}
-                <div className='predict-calls' role='radiogroup' aria-label={t('predict.yourCall')}>
+              <section className='predict-ticket' aria-labelledby='predict-ticket-title'>
+                <h2 id='predict-ticket-title' className='home-section-label mb-2'>
+                  {t('predict.makePrediction')}
+                </h2>
+                <div className='predict-calls' role='radiogroup' aria-labelledby='predict-ticket-title'>
+                  {([2, 3] as const).map((side) => {
+                    const on = kind === side
+                    return (
+                      <button
+                        key={side}
+                        type='button'
+                        role='radio'
+                        aria-checked={on}
+                        className='predict-call'
+                        data-testid={side === 2 ? 'predict-call-higher' : 'predict-call-lower'}
+                        onClick={() => {
+                          hapticLight()
+                          setKind(side)
+                        }}
+                      >
+                        <Glyph name={side === 2 ? 'trendUp' : 'trendDown'} size={18} strokeWidth={2} />
+                        {side === 2 ? t('predict.higher') : t('predict.lower')}
+                        <span className='predict-call__mult'>
+                          {formatMultiplier(side === 2 ? higherMultiplier : lowerMultiplier)}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div className='predict-fields'>
+                  <div className='predict-field'>
+                    <span className='predict-field__label'>{t('predict.priceToBeat')}</span>
+                    <span className='predict-field__value' data-testid='predict-line-price'>
+                      {lineCents && lineOfficial
+                        ? usdFromCents(lineCents)
+                        : t('predict.lineSetsAtShort', { time: formatClockTime(opensAt) })}
+                    </span>
+                  </div>
                   <button
                     type='button'
-                    role='radio'
-                    aria-checked={kind === 2}
-                    className={
-                      kind === 2
-                        ? 'predict-call predict-call--up predict-call--selected focusable'
-                        : 'predict-call predict-call--up focusable'
-                    }
-                    data-testid='predict-call-higher'
+                    className='predict-field'
                     onClick={() => {
                       hapticLight()
-                      setKind(2)
+                      setCloseOpen(true)
                     }}
+                    data-testid='predict-close-field'
                   >
-                    <span className='predict-call__top'>
-                      <Glyph name='trendUp' size={18} strokeWidth={2.1} />
-                      <span>{t('predict.higher')}</span>
-                    </span>
-                    <span className='predict-call__mult'>
-                      {higherMultiplier != null ? `${higherMultiplier.toFixed(2)}×` : '—'}
+                    <span className='predict-field__label'>{t('predict.closes')}</span>
+                    <span className='predict-field__value'>
+                      {selectedExpiry ? formatClockTime(selectedExpiry) : '—'}
+                      <Glyph name='chevronRight' size={18} strokeWidth={2} />
                     </span>
                   </button>
                   <button
                     type='button'
-                    role='radio'
-                    aria-checked={kind === 3}
-                    className={
-                      kind === 3
-                        ? 'predict-call predict-call--down predict-call--selected focusable'
-                        : 'predict-call predict-call--down focusable'
-                    }
-                    data-testid='predict-call-lower'
+                    className='predict-field'
                     onClick={() => {
                       hapticLight()
-                      setKind(3)
+                      setStakeOpen(true)
                     }}
+                    data-testid='predict-stake-field'
                   >
-                    <span className='predict-call__top'>
-                      <Glyph name='trendDown' size={18} strokeWidth={2.1} />
-                      <span>{t('predict.lower')}</span>
-                    </span>
-                    <span className='predict-call__mult'>
-                      {lowerMultiplier != null ? `${lowerMultiplier.toFixed(2)}×` : '—'}
+                    <span className='predict-field__label'>{t('predict.stake')}</span>
+                    <span className='predict-field__value'>
+                      <span data-testid='predict-stake-value'>{formatSats(stakeSats)}</span>
+                      <Glyph name='chevronRight' size={18} strokeWidth={2} />
                     </span>
                   </button>
                 </div>
-
-                {/* Stake Picker */}
-                <section className='predict-card predict-stake-card'>
-                  <div className='predict-stake-head'>
-                    <label htmlFor='predict-stake-input' className='predict-eyebrow'>
-                      {t('predict.stake')}
-                    </label>
-                    <span className='predict-balance'>
-                      {t('send.available', { amount: '' }).trim()}{' '}
-                      <PrivacyAmount masked='•••••'>{prettyNumber(availableBalance)} sats</PrivacyAmount>
-                    </span>
-                  </div>
-
-                  <div className='predict-stake-input-row'>
-                    <input
-                      id='predict-stake-input'
-                      type='text'
-                      inputMode='numeric'
-                      pattern='[0-9]*'
-                      className='predict-stake-input'
-                      data-testid='predict-stake-input'
-                      value={stakeInput}
-                      onChange={(e) => setStakeInput(e.target.value.replace(/[^0-9]/g, ''))}
-                      placeholder={String(stakeMin)}
-                    />
-                    <span className='predict-stake-unit'>sats</span>
-                  </div>
-
-                  <div className='predict-presets'>
-                    {presets.map((amt) => {
-                      const active = stakeNum === amt
-                      return (
-                        <button
-                          key={amt}
-                          type='button'
-                          className={active ? 'predict-pill predict-pill--active focusable' : 'predict-pill focusable'}
-                          data-testid={`predict-preset-${amt}`}
-                          onClick={() => {
-                            hapticSubtle()
-                            setStakeInput(String(amt))
-                          }}
-                        >
-                          {amt >= 1_000 ? `${amt / 1_000}k` : String(amt)}
-                        </button>
-                      )
-                    })}
-                  </div>
-
-                  {stakeError ? (
-                    <p className='predict-stake-error' role='alert'>
-                      {stakeError}
-                    </p>
-                  ) : estNetPayout != null ? (
-                    <p className='predict-est-payout' data-testid='predict-est-payout'>
-                      {t('predict.estPayout', { amount: `${prettyNumber(Number(estNetPayout))} sats` })}
-                    </p>
-                  ) : null}
-                </section>
-              </FlexCol>
-            ) : (
-              <PositionsList positions={positions} onSelect={(pos) => setSelectedPosition(pos)} />
-            )}
-          </FlexCol>
+              </section>
+            </div>
+          </div>
         </Padded>
       </Content>
 
-      {tab === 'trade' ? (
-        <ButtonsOnBottom>
-          <Button
-            onClick={() => {
-              hapticLight()
-              setReviewOpen(true)
-            }}
-            label={t('predict.reviewPrediction')}
-            disabled={!canReview}
-            data-testid='predict-review-btn'
-          />
-        </ButtonsOnBottom>
-      ) : null}
+      <ButtonsOnBottom>
+        {stakeError ? (
+          <p className='predict-estimate predict-estimate--error' role='alert'>
+            {stakeError}
+          </p>
+        ) : estimate != null ? (
+          <p className='predict-estimate' data-testid='predict-est-payout'>
+            {t('predict.estimate', { amount: formatSats(estimate), multiplier: formatMultiplier(multiplier) })}
+          </p>
+        ) : null}
+        <Button
+          onClick={() => {
+            hapticLight()
+            setReviewOpen(true)
+          }}
+          label={t('predict.reviewPrediction')}
+          disabled={!canReview}
+          testId='predict-review-btn'
+        />
+      </ButtonsOnBottom>
+
+      <SheetModal isOpen={closeOpen} onClose={() => setCloseOpen(false)} labelledBy='predict-close-title'>
+        <h2 id='predict-close-title' className='predict-sheet-title'>
+          {t('predict.closeTitle')}
+        </h2>
+        <div role='radiogroup' aria-labelledby='predict-close-title' className='mt-2'>
+          {windows.map((expiry) => (
+            <button
+              key={expiry}
+              type='button'
+              role='radio'
+              aria-checked={expiry === selectedExpiry}
+              className='predict-field'
+              onClick={() => {
+                hapticSubtle()
+                setSelectedExpiry(expiry)
+                setCloseOpen(false)
+              }}
+            >
+              <span className='predict-field__value'>{formatClockTime(expiry)}</span>
+              <span className='predict-field__label'>
+                {t('predict.closesInShort', { time: formatCountdown(expiry - nowSec) })}
+                {expiry === selectedExpiry ? <Glyph name='check' size={18} strokeWidth={2.25} /> : null}
+              </span>
+            </button>
+          ))}
+        </div>
+      </SheetModal>
 
       <ReviewSheet
         isOpen={reviewOpen}
@@ -344,24 +357,16 @@ export default function Predict() {
         expiry={selectedExpiry}
         stakeSats={stakeSats}
         demoMode={config.demoMode}
+        nowSec={nowSec}
         requestQuote={requestQuote}
         fundQuote={fundQuote}
         onPlaced={(pos) => {
           setReviewOpen(false)
-          setTab('positions')
-          setSelectedPosition(pos)
+          setView({ name: 'position', id: pos.id })
         }}
       />
 
-      <PositionDetailSheet
-        position={selectedPosition}
-        onClose={() => setSelectedPosition(null)}
-        onCancel={cancelPosition}
-        onSettle={settlePosition}
-        onRefundVoid={refundVoidPosition}
-        onReboard={reboardPosition}
-        onUpdated={(next) => setSelectedPosition(next)}
-      />
-    </div>
+      <IntroSheet isOpen={introOpen} onClose={() => setIntroOpen(false)} />
+    </>
   )
 }

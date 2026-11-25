@@ -1,97 +1,183 @@
+import Content from '../../../components/Content'
+import Header from '../../../components/Header'
+import Padded from '../../../components/Padded'
 import Glyph from '../../../icons/Glyph'
+import { hapticLight } from '../../../lib/haptics'
 import { prettyNumber } from '../../../lib/format'
-import { BEACON_READ_FEE } from '../../../lib/predict/constants'
-import { usdFromCents } from '../../../lib/predict/pricing'
-import type { PredictPosition } from '../../../lib/predict/storage'
+import { formatCountdown, usdFromCents } from '../../../lib/predict/pricing'
+import { isActivePosition, type PredictPosition } from '../../../lib/predict/storage'
 import { useTranslation } from '../../../providers/language'
+import { formatClockTime, formatGap, formatSats, netPayout } from './format'
 
 interface PositionsListProps {
   positions: PredictPosition[]
+  priceCents: number | null
+  nowSec: number
+  onBack: () => void
   onSelect: (position: PredictPosition) => void
 }
 
-function statusMeta(
-  pos: PredictPosition,
-  t: (key: string) => string,
-): { label: string; tone: 'neutral' | 'active' | 'win' | 'loss' | 'warn' } {
+type Translate = (key: string, vars?: Record<string, string | number>) => string
+
+export function callTitle(pos: PredictPosition, t: Translate): string {
+  return t(pos.kind === 2 ? 'predict.rowAbove' : 'predict.rowBelow', {
+    line: usdFromCents(BigInt(pos.strikeCents)),
+    time: formatClockTime(pos.expiry),
+  })
+}
+
+/** Where the price sits against this position's line, and who that favours. */
+export function standing(pos: PredictPosition, priceCents: number | null, t: Translate): string {
+  if (priceCents == null) return ''
+  const gap = priceCents - Number(pos.strikeCents)
+  const winning = pos.kind === 2 ? gap > 0 : gap < 0
+  const vars = { gap: formatGap(gap) }
+  if (gap >= 0) return winning ? t('predict.aboveWinning', vars) : t('predict.aboveLosing', vars)
+  return winning ? t('predict.belowWinning', vars) : t('predict.belowLosing', vars)
+}
+
+function outcome(pos: PredictPosition, t: Translate) {
   if (pos.phase === 'settled') {
-    const userGot = BigInt(pos.userPayoutSats ?? '0')
-    if (userGot > 0n) return { label: t('predict.statusWon'), tone: 'win' }
-    if (pos.userPayoutSats != null) return { label: t('predict.statusLost'), tone: 'loss' }
-    return { label: t('predict.statusSettled'), tone: 'neutral' }
+    const got = BigInt(pos.userPayoutSats ?? '0')
+    return got > 0n
+      ? { tag: t('predict.statusWon'), tone: 'won', amount: `+${formatSats(got)}` }
+      : { tag: t('predict.statusLost'), tone: 'lost', amount: `−${formatSats(pos.stakeSats)}` }
   }
-  if (pos.phase === 'filled') return { label: t('predict.statusActive'), tone: 'active' }
-  if (pos.phase === 'funded') return { label: t('predict.statusWaitingDesk'), tone: 'warn' }
-  if (pos.phase === 'refunded') return { label: t('predict.statusRefunded'), tone: 'neutral' }
-  if (pos.phase === 'expired' && pos.refundable) return { label: t('predict.statusRefundable'), tone: 'warn' }
-  if (pos.phase === 'expired') return { label: t('predict.statusExpired'), tone: 'neutral' }
-  return { label: t('predict.statusOpen'), tone: 'neutral' }
+  if (pos.phase === 'refunded') {
+    return {
+      tag: t('predict.statusRefunded'),
+      tone: 'plain',
+      amount: t('predict.stakeBack', { amount: formatSats(pos.stakeSats) }),
+    }
+  }
+  if (pos.refundable) {
+    return { tag: t('predict.statusRefundable'), tone: 'won', amount: formatSats(pos.stakeSats) }
+  }
+  return { tag: t('predict.statusExpired'), tone: 'plain', amount: formatSats(pos.stakeSats) }
 }
 
-function formatClose(expirySec: number): string {
-  return new Date(expirySec * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-}
-
-export default function PositionsList({ positions, onSelect }: PositionsListProps) {
+export default function PositionsList({ positions, priceCents, nowSec, onBack, onSelect }: PositionsListProps) {
   const { t } = useTranslation()
+  const live = positions.filter(isActivePosition)
+  const earlier = positions.filter((p) => !isActivePosition(p))
+  const staked = live.reduce((sum, p) => sum + BigInt(p.stakeSats), 0n)
 
-  if (positions.length === 0) {
-    return (
-      <div className='predict-empty' data-testid='predict-positions-empty'>
-        <p className='predict-empty__title'>{t('predict.noPositionsTitle')}</p>
-        <p className='predict-empty__copy'>{t('predict.noPositionsCopy')}</p>
-      </div>
-    )
+  const open = (pos: PredictPosition) => {
+    hapticLight()
+    onSelect(pos)
   }
 
   return (
-    <div className='predict-positions' data-testid='predict-positions-list'>
-      {positions.map((pos) => {
-        const status = statusMeta(pos, t)
-        const dirLabel = pos.kind === 2 ? t('predict.higher') : t('predict.lower')
-        const payout = BigInt(pos.payoutSats)
-        const netPayout = payout > BEACON_READ_FEE ? payout - BEACON_READ_FEE : 0n
-        const wonAmount = pos.phase === 'settled' && pos.userPayoutSats != null ? BigInt(pos.userPayoutSats) : null
+    <>
+      <Header text={t('predict.positions')} back={onBack} />
+      <Content>
+        <Padded>
+          {positions.length === 0 ? (
+            <div className='predict-empty' data-testid='predict-positions-empty'>
+              <p className='predict-empty__title'>{t('predict.noPositionsTitle')}</p>
+              <p className='predict-note'>{t('predict.noPositionsCopy')}</p>
+            </div>
+          ) : (
+            <div data-testid='predict-positions-list'>
+              {live.length > 0 ? (
+                <>
+                  <h2 className='predict-summary'>
+                    {live.length === 1 ? t('predict.inPlayOne') : t('predict.inPlay', { count: live.length })}
+                  </h2>
+                  <p className='predict-note'>
+                    {priceCents != null
+                      ? t('predict.inPlaySub', {
+                          amount: formatSats(staked),
+                          price: `$${prettyNumber(Math.round(priceCents / 100), 0)}`,
+                        })
+                      : formatSats(staked)}
+                  </p>
+                  <div className='mt-1'>
+                    {live.map((pos) => {
+                      const filled = pos.phase === 'filled'
+                      const left = pos.expiry - nowSec
+                      const elapsed = Math.min(1, Math.max(0, 1 - left / 300))
+                      return (
+                        <button
+                          key={pos.id}
+                          type='button'
+                          className='predict-card'
+                          onClick={() => open(pos)}
+                          data-testid={`predict-pos-${pos.id}`}
+                        >
+                          <span className='flex items-start gap-3'>
+                            <span className='predict-well predict-well--tint'>
+                              <Glyph name={pos.kind === 2 ? 'trendUp' : 'trendDown'} size={20} strokeWidth={2} />
+                            </span>
+                            <span className='flex min-w-0 flex-1 flex-col gap-0.5 text-left'>
+                              <span className='flex items-center justify-between gap-2'>
+                                <span className='predict-card__title'>{callTitle(pos, t)}</span>
+                                <span className='predict-tag'>
+                                  {left > 0
+                                    ? t('predict.leftTag', { time: formatCountdown(left) })
+                                    : t('predict.settlingTag')}
+                                </span>
+                              </span>
+                              <span className='predict-card__sub'>
+                                {filled ? standing(pos, priceCents, t) : t('predict.waitingDesk')}
+                              </span>
+                            </span>
+                          </span>
+                          <span className='predict-progress' aria-hidden='true'>
+                            <span style={{ width: `${(elapsed * 100).toFixed(1)}%` }} />
+                          </span>
+                          <span className='predict-card__foot'>
+                            <span>{t('predict.stakeIn', { amount: prettyNumber(Number(pos.stakeSats)) })}</span>
+                            <span>
+                              {t('predict.ifRight', { amount: prettyNumber(Number(netPayout(pos.payoutSats))) })}
+                            </span>
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </>
+              ) : null}
 
-        return (
-          <button
-            key={pos.id}
-            type='button'
-            className='predict-pos-row focusable'
-            onClick={() => onSelect(pos)}
-            data-testid={`predict-pos-${pos.id}`}
-          >
-            <div className='predict-pos-row__left'>
-              <span
-                className={
-                  pos.kind === 2 ? 'predict-pos-icon predict-pos-icon--up' : 'predict-pos-icon predict-pos-icon--down'
-                }
-              >
-                <Glyph name={pos.kind === 2 ? 'trendUp' : 'trendDown'} size={16} strokeWidth={2.1} />
-              </span>
-              <div className='predict-pos-row__meta'>
-                <div className='predict-pos-row__title'>
-                  <span>
-                    {dirLabel} {usdFromCents(BigInt(pos.strikeCents))}
-                  </span>
-                  {pos.mode === 'demo' ? <span className='predict-mode-pill'>{t('predict.demoBadge')}</span> : null}
-                </div>
-                <span className='predict-pos-row__sub'>
-                  {t('predict.closesAt', { time: formatClose(pos.expiry) })} · {pos.multiplier.toFixed(2)}×
-                </span>
-              </div>
+              {earlier.length > 0 ? (
+                <>
+                  <h2 className='home-section-label mt-6'>{t('predict.earlier')}</h2>
+                  {earlier.map((pos) => {
+                    const done = outcome(pos, t)
+                    return (
+                      <button
+                        key={pos.id}
+                        type='button'
+                        className='activity-row activity-row--static predict-row'
+                        onClick={() => open(pos)}
+                        data-testid={`predict-pos-${pos.id}`}
+                      >
+                        <span className='activity-row__left'>
+                          <span className='predict-well'>
+                            <Glyph name={pos.kind === 2 ? 'trendUp' : 'trendDown'} size={20} strokeWidth={2} />
+                          </span>
+                          <span className='activity-row__copy text-left'>
+                            <span className='activity-row__kind'>{callTitle(pos, t)}</span>
+                            <span className='activity-row__meta'>
+                              {pos.settleCents
+                                ? t('predict.closedAt', { price: usdFromCents(BigInt(pos.settleCents)) })
+                                : t('predict.notFilled')}
+                            </span>
+                          </span>
+                        </span>
+                        <span className='activity-row__right'>
+                          <span className={`predict-tag predict-tag--${done.tone}`}>{done.tag}</span>
+                          <span className='activity-row__meta'>{done.amount}</span>
+                        </span>
+                      </button>
+                    )
+                  })}
+                </>
+              ) : null}
             </div>
-            <div className='predict-pos-row__right'>
-              <span className={`predict-status predict-status--${status.tone}`}>{status.label}</span>
-              <span className='predict-pos-row__amount'>
-                {wonAmount != null
-                  ? `${prettyNumber(Number(wonAmount))} sats`
-                  : `${prettyNumber(Number(pos.stakeSats))} → ${prettyNumber(Number(netPayout))} sats`}
-              </span>
-            </div>
-          </button>
-        )
-      })}
-    </div>
+          )}
+        </Padded>
+      </Content>
+    </>
   )
 }

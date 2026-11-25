@@ -8,20 +8,19 @@ import HomeIcon from '../../icons/Home'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
 import FlexCol from '../../components/FlexCol'
-import { NavigationContext, Pages } from '../../providers/navigation'
+import { NavigationContext } from '../../providers/navigation'
 import { NudgeContext } from '../../providers/nudge'
 import { AnnouncementContext } from '../../providers/announcements'
 import { WalletStaggerContainer, WalletStaggerChild } from '../../components/WalletLoadIn'
 import { pwaCanInstall, usePwaInstalled, canPromptInstall, promptPwaInstall } from '../../lib/pwa'
 import { isIOS, isAndroid } from '../../lib/browser'
 import { getBootAnimActive, subscribeBootAnim } from '../../lib/bootCover'
-import { hapticLight } from '../../lib/haptics'
 import { getPredictConfig } from '../../lib/predict/constants'
-import Glyph from '../../icons/Glyph'
 import HomeHeader from './HomeHeader'
 import PortfolioHero from './PortfolioHero'
 import HomeQuickActions from './HomeQuickActions'
 import AssetsSection from './AssetsSection'
+import PredictSection from './PredictSection'
 import RecentActivitySection from './RecentActivitySection'
 import ContactsSection from './ContactsSection'
 import { readContacts } from '../../lib/contacts'
@@ -35,7 +34,7 @@ export default function Wallet() {
   const { announcement } = useContext(AnnouncementContext)
   const { config } = useContext(ConfigContext)
   const { backupAndUpdateConfig } = useContext(BackupContext)
-  const { isInitialLoad, navigate } = useContext(NavigationContext)
+  const { isInitialLoad } = useContext(NavigationContext)
   const { nudge, nudgeCheckComplete } = useContext(NudgeContext)
   const { t } = useTranslation()
   const predictEnabled = getPredictConfig(aspInfo.network, aspInfo.url || undefined).enabled
@@ -133,28 +132,6 @@ export default function Wallet() {
           <WalletStaggerChild animate={shouldStagger} className='home-stack__actions'>
             <HomeQuickActions />
           </WalletStaggerChild>
-          {predictEnabled ? (
-            <WalletStaggerChild animate={shouldStagger}>
-              <button
-                type='button'
-                className='predict-home-entry focusable'
-                data-testid='home-action-predict'
-                onClick={() => {
-                  hapticLight()
-                  navigate(Pages.Predict)
-                }}
-              >
-                <span className='predict-home-entry__icon'>
-                  <Glyph name='predict' size={18} strokeWidth={2} />
-                </span>
-                <span className='predict-home-entry__copy'>
-                  <span className='predict-home-entry__title'>{t('predict.title')}</span>
-                  <span className='predict-home-entry__sub'>{t('predict.homeSubtitle')}</span>
-                </span>
-                <Glyph name='chevronRight' size={18} strokeWidth={2} className='predict-home-entry__chevron' />
-              </button>
-            </WalletStaggerChild>
-          ) : null}
           {hasHomeNotices ? (
             <WalletStaggerChild animate={shouldStagger}>
               <FlexCol gap='0.75rem'>
@@ -197,6 +174,11 @@ export default function Wallet() {
           <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
             <AssetsSection />
           </WalletStaggerChild>
+          {predictEnabled ? (
+            <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
+              <PredictSection />
+            </WalletStaggerChild>
+          ) : null}
           <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>
             <RecentActivitySection />
           </WalletStaggerChild>

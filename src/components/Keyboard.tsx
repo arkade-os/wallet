@@ -30,6 +30,8 @@ interface KeyboardProps {
   recipient?: string
   saveLabel?: string
   onMax?: () => void
+  /** Optional controls shown under the amount, such as quick picks. */
+  accessory?: ReactNode
 }
 
 export default function Keyboard({
@@ -43,6 +45,7 @@ export default function Keyboard({
   recipient,
   saveLabel,
   onMax,
+  accessory,
 }: KeyboardProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat, fiatDecimals } = useContext(FiatContext)
@@ -276,6 +279,7 @@ export default function Keyboard({
           </p>
         ) : null}
       </section>
+      {accessory}
       {hideBalance ? null : (
         <div className='amount-screen__available'>
           <p>

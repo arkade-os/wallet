@@ -1,17 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
-import FlexCol from '../../../components/FlexCol'
 import SheetModal from '../../../components/SheetModal'
-import Text from '../../../components/Text'
 import Glyph from '../../../icons/Glyph'
+import { prettyFiatAmount, prettyNumber } from '../../../lib/format'
+import { hapticLight, hapticSuccess } from '../../../lib/haptics'
 import { BEACON_READ_FEE, type PredictKind } from '../../../lib/predict/constants'
 import type { PredictQuote } from '../../../lib/predict/engine'
 import { formatCountdown, usdFromCents } from '../../../lib/predict/pricing'
-import { prettyNumber } from '../../../lib/format'
-import { hapticLight, hapticSuccess } from '../../../lib/haptics'
-import { useTranslation } from '../../../providers/language'
 import type { PredictPosition } from '../../../lib/predict/storage'
+import { Currencies } from '../../../lib/types'
+import { ConfigContext } from '../../../providers/config'
+import { FiatContext } from '../../../providers/fiat'
+import { useTranslation } from '../../../providers/language'
+import { formatClockTime, formatMultiplier, formatSats, netPayout } from './format'
 
 interface ReviewSheetProps {
   isOpen: boolean
@@ -21,13 +23,10 @@ interface ReviewSheetProps {
   expiry: number
   stakeSats: bigint
   demoMode: boolean
+  nowSec: number
   requestQuote: (kind: PredictKind, stakeSats: bigint) => Promise<{ quotes: PredictQuote[]; note: string }>
   fundQuote: (quote: PredictQuote) => Promise<PredictPosition>
   onPlaced: (position: PredictPosition) => void
-}
-
-function formatCloseTime(expirySec: number): string {
-  return new Date(expirySec * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
 export default function ReviewSheet({
@@ -38,16 +37,19 @@ export default function ReviewSheet({
   expiry,
   stakeSats,
   demoMode,
+  nowSec,
   requestQuote,
   fundQuote,
   onPlaced,
 }: ReviewSheetProps) {
   const { t } = useTranslation()
+  const { config } = useContext(ConfigContext)
+  const { toFiat } = useContext(FiatContext)
   const [loading, setLoading] = useState(false)
   const [funding, setFunding] = useState(false)
   const [quote, setQuote] = useState<PredictQuote | null>(null)
   const [error, setError] = useState('')
-  const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000))
+  const [understood, setUnderstood] = useState(false)
 
   const fetchQuote = async () => {
     setLoading(true)
@@ -55,15 +57,13 @@ export default function ReviewSheet({
     setQuote(null)
     try {
       const res = await requestQuote(kind, stakeSats)
-      if (res.quotes.length > 0) {
-        setQuote(res.quotes[0]!)
-      } else {
+      if (res.quotes.length > 0) setQuote(res.quotes[0]!)
+      else
         setError(
           res.note === 'no_answer'
             ? t('predict.deskNoAnswer')
             : t('predict.deskRefused', { reason: res.note || t('common.unknown') }),
         )
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : t('predict.quoteFailed'))
     } finally {
@@ -76,24 +76,22 @@ export default function ReviewSheet({
       setQuote(null)
       setError('')
       setFunding(false)
+      setUnderstood(false)
       return
     }
     void fetchQuote()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, kind, expiry, stakeSats])
 
-  useEffect(() => {
-    if (!isOpen) return
-    const id = setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), 1_000)
-    return () => clearInterval(id)
-  }, [isOpen])
-
   const ttlLeft = quote ? Math.max(0, quote.validUntil - nowSec) : 0
   const quoteExpired = Boolean(quote && ttlLeft <= 0)
-  const netWinSats = quote ? (quote.payoutSats > BEACON_READ_FEE ? quote.payoutSats - BEACON_READ_FEE : 0n) : 0n
+  const winSats = quote ? netPayout(quote.payoutSats) : 0n
+  const showFiat = config.currency !== Currencies.BTC && toFiat(100_000_000) > 0
+  const line = lineCents ? usdFromCents(lineCents) : '—'
+  const closeTime = formatClockTime(expiry)
 
   const handleConfirm = async () => {
-    if (!quote || quoteExpired || funding) return
+    if (!quote || quoteExpired || funding || !understood) return
     hapticLight()
     setFunding(true)
     setError('')
@@ -107,83 +105,84 @@ export default function ReviewSheet({
     }
   }
 
-  const directionLabel = kind === 2 ? t('predict.higher') : t('predict.lower')
-
   return (
     <SheetModal isOpen={isOpen} onClose={onClose} labelledBy='predict-review-title'>
-      <FlexCol gap='1rem'>
-        <div className='predict-sheet-head'>
-          <div className='predict-sheet-title-row'>
-            <span
-              className={
-                kind === 2 ? 'predict-dir-badge predict-dir-badge--up' : 'predict-dir-badge predict-dir-badge--down'
-              }
-            >
-              <Glyph name={kind === 2 ? 'trendUp' : 'trendDown'} size={15} strokeWidth={2.2} />
-              {directionLabel}
-            </span>
-            {demoMode ? <span className='predict-mode-pill'>{t('predict.demoBadge')}</span> : null}
-          </div>
-          <h2 id='predict-review-title' className='predict-sheet-title'>
-            {t('predict.reviewTitle')}
+      <div className='review'>
+        <div className='review__who'>
+          <span className='predict-well predict-well--lg'>
+            <Glyph name={kind === 2 ? 'trendUp' : 'trendDown'} size={26} strokeWidth={2} />
+          </span>
+          <h2 id='predict-review-title' className='review__destination'>
+            {t(kind === 2 ? 'predict.callHigher' : 'predict.callLower', { line, time: closeTime })}
           </h2>
-          {lineCents ? (
-            <p className='predict-sheet-sub'>
-              {t('predict.reviewSummaryLine', {
-                direction: directionLabel.toLowerCase(),
-                line: usdFromCents(lineCents),
-                close: formatCloseTime(expiry),
-              })}
-            </p>
-          ) : null}
+          {demoMode ? <span className='predict-tag'>{t('predict.demoBadge')}</span> : null}
         </div>
+
+        <section className='transaction-amount-summary' aria-label={t('predict.youGetIfRight')}>
+          <span className='transaction-amount-summary__label'>{t('predict.youGetIfRight')}</span>
+          <span className='transaction-amount-summary__value' data-testid='predict-quote-payout'>
+            {quote ? formatSats(winSats) : loading ? '…' : '—'}
+          </span>
+          {quote ? (
+            <span className='transaction-amount-summary__label'>
+              {showFiat
+                ? t('predict.aboutFiat', {
+                    amount: prettyFiatAmount(toFiat(Number(winSats)), config.currency, { bitcoinUnit: config.unit }),
+                    time: formatCountdown(expiry - nowSec),
+                  })
+                : t('predict.closesInShort', { time: formatCountdown(expiry - nowSec) })}
+            </span>
+          ) : null}
+        </section>
 
         <ErrorMessage error={Boolean(error)} text={error} />
 
-        {loading ? (
-          <div className='predict-quote-loading' data-testid='predict-quote-loading'>
-            <Text color='neutral-500' small>
-              {t('predict.fetchingQuote')}
-            </Text>
-          </div>
-        ) : quote ? (
+        {quote ? (
           <div className='predict-rows' data-testid='predict-quote-rows'>
-            <div className='predict-row'>
-              <span className='predict-row__label'>{t('predict.desk')}</span>
-              <span className='predict-row__value'>{quote.deskName}</span>
+            <div className='predict-field'>
+              <span className='predict-field__label'>{t('predict.stake')}</span>
+              <span className='predict-field__value'>{formatSats(quote.stakeSats)}</span>
             </div>
-            <div className='predict-row'>
-              <span className='predict-row__label'>{t('predict.stake')}</span>
-              <span className='predict-row__value'>{prettyNumber(Number(quote.stakeSats))} sats</span>
+            <div className='predict-field'>
+              <span className='predict-field__label'>{t('predict.pays')}</span>
+              <span className='predict-field__value'>{formatMultiplier(quote.multiplier)}</span>
             </div>
-            <div className='predict-row'>
-              <span className='predict-row__label'>{t('predict.multiplier')}</span>
-              <span className='predict-row__value'>{quote.multiplier.toFixed(2)}×</span>
+            <div className='predict-field'>
+              <span className='predict-field__label'>{t('predict.fee')}</span>
+              <span className='predict-field__value'>{formatSats(BEACON_READ_FEE)}</span>
             </div>
-            <div className='predict-row'>
-              <span className='predict-row__label'>{t('predict.readFee')}</span>
-              <span className='predict-row__value'>−{prettyNumber(Number(BEACON_READ_FEE))} sats</span>
-            </div>
-            <div className='predict-row predict-row--strong'>
-              <span className='predict-row__label'>{t('predict.payoutIfRight')}</span>
-              <span className='predict-row__value predict-row__value--win'>
-                {prettyNumber(Number(netWinSats))} sats
+            <div className='predict-field'>
+              <span className='predict-field__label'>{t('predict.quoteHolds')}</span>
+              <span className='predict-field__value' data-testid='predict-quote-ttl'>
+                {quoteExpired ? t('predict.quoteExpired') : formatCountdown(ttlLeft)}
               </span>
             </div>
-            <div className='predict-row'>
-              <span className='predict-row__label'>{t('predict.payoutIfWrong')}</span>
-              <span className='predict-row__value'>0 sats</span>
-            </div>
           </div>
-        ) : null}
-
-        {quote ? (
-          <p className='predict-ttl' data-testid='predict-quote-ttl'>
-            {quoteExpired ? t('predict.quoteExpired') : t('predict.quoteValidFor', { time: formatCountdown(ttlLeft) })}
+        ) : loading ? (
+          <p className='predict-note' data-testid='predict-quote-loading'>
+            {t('predict.fetchingQuote')}
           </p>
         ) : null}
 
-        <FlexCol gap='0.5rem'>
+        {quote && !quoteExpired ? (
+          <label className='predict-ack'>
+            <input
+              type='checkbox'
+              checked={understood}
+              onChange={(e) => setUnderstood(e.target.checked)}
+              data-testid='predict-ack'
+            />
+            <span>
+              {t(kind === 2 ? 'predict.ackHigher' : 'predict.ackLower', {
+                line,
+                time: closeTime,
+                stake: `${prettyNumber(Number(quote.stakeSats))} sats`,
+              })}
+            </span>
+          </label>
+        ) : null}
+
+        <div className='review__actions'>
           {quote && !quoteExpired ? (
             <Button
               onClick={handleConfirm}
@@ -194,20 +193,20 @@ export default function ReviewSheet({
                     ? t('predict.placeDemoPrediction')
                     : t('predict.placePrediction')
               }
-              disabled={funding}
-              data-testid='predict-confirm-btn'
+              disabled={funding || !understood}
+              testId='predict-confirm-btn'
             />
           ) : (
             <Button
               onClick={() => void fetchQuote()}
               label={loading ? t('predict.fetchingQuote') : t('predict.refreshQuote')}
               disabled={loading}
-              data-testid='predict-refresh-quote-btn'
+              testId='predict-refresh-quote-btn'
             />
           )}
-          <Button onClick={onClose} label={t('common.cancel')} secondary disabled={funding} />
-        </FlexCol>
-      </FlexCol>
+          <Button onClick={onClose} label={t('common.cancel')} clear disabled={funding} />
+        </div>
+      </div>
     </SheetModal>
   )
 }
