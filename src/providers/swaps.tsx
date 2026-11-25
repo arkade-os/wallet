@@ -1175,6 +1175,18 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const checkAssetPaymentHere = async (): Promise<Swap> =>
     withTaxiPaymentLock(svcWallet!, aspInfo.network, async (sender) => fundedAssetPayment(await driving(), sender))
 
+  // Swap writes a quote's record before it funds, so a refusal that left none sent nothing. A failed read proves nothing.
+  const refusedBeforeRecord = async (error: unknown, quote: Quote): Promise<boolean> => {
+    if (error instanceof InsufficientFunds && error.asset === quote.give.asset && error.required === quote.give.amount)
+      return true
+    try {
+      return (await assetSwapRepository.getSwapRecord(quote.id)) === undefined
+    } catch (readError) {
+      consoleError(readError, `could not read swap record ${quote.id} after its acceptance failed`)
+      return false
+    }
+  }
+
   const acceptAssetPaymentHere = async (ref: Quote | string): Promise<Swap> =>
     withTaxiPaymentLock(svcWallet!, aspInfo.network, async (sender) => {
       const client = await driving()
@@ -1200,12 +1212,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       try {
         swap = await client.accept(quote)
       } catch (error) {
-        if (
-          error instanceof InsufficientFunds &&
-          error.asset === quote.give.asset &&
-          error.required === quote.give.amount
-        )
-          clearAssetPayment(sender, aspInfo.network, quote.id)
+        if (await refusedBeforeRecord(error, quote)) clearAssetPayment(sender, aspInfo.network, quote.id)
         throw error
       }
       if (!swap.fundingTxid || swap.id !== assetSwapIdOf('offer', quote.id))

@@ -1,14 +1,21 @@
 import { useContext, useState } from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { InsufficientFunds, type OpenRfqAuction, type OpenRfqOffer, type Quote, type Swap } from '@arkade-os/swap'
+import {
+  InsufficientFunds,
+  QuoteExpired,
+  type OpenRfqAuction,
+  type OpenRfqOffer,
+  type Quote,
+  type Swap,
+} from '@arkade-os/swap'
 import { AspContext } from '../../providers/asp'
 import { WalletContext } from '../../providers/wallet'
 import { SwapsContext, SwapsProvider } from '../../providers/swaps'
 import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
 import * as lnSwap from '../../lib/lnSwap'
 import * as constants from '../../lib/constants'
-import { storeAssetPayment } from '../../lib/pendingAssetPayment'
+import { readAssetPayment, storeAssetPayment } from '../../lib/pendingAssetPayment'
 import { saveSolverCards } from '../../lib/solverCards'
 import { saveSolverRouting } from '../../lib/solverRouting'
 import { solverDirectionKey, solverId, type DiscoveredMarket } from '@arkade-os/solver-discovery'
@@ -309,6 +316,8 @@ const unsentRecord = (over: Record<string, unknown> = {}) => ({
   fundingNotSubmitted: { reason: 'send_deadline', validUntil: 100 },
   ...over,
 })
+// What a lost reply leaves: swap writes the record before it funds, and nothing here proves the funding unsent.
+const ambiguousRecord = () => unsentRecord({ status: 'pending', fundingNotSubmitted: undefined })
 
 function PaymentCheck() {
   const { checkAssetPayment } = useContext(SwapsContext)
@@ -938,6 +947,7 @@ describe('SwapsProvider', () => {
   it('blocks a new quote after ambiguous acceptance, including a remounted payer with spare funds', async () => {
     mocks.quote.mockResolvedValue({ id: 'ambiguous-asset-quote', give: { amount: 1000n } })
     mocks.accept.mockRejectedValue(new Error('reply lost after submission'))
+    mocks.getSwapRecord.mockResolvedValue(ambiguousRecord())
     const view = await renderReady({}, <Payer />)
     fireEvent.click(screen.getByText('pay asset'))
     await screen.findByText('reply lost after submission')
@@ -970,6 +980,7 @@ describe('SwapsProvider', () => {
   it('checks only the original stored swap after ambiguity, without accepting or quoting again', async () => {
     mocks.quote.mockResolvedValue({ id: 'original', give: { amount: 1000n } })
     mocks.accept.mockRejectedValue(new Error('reply lost'))
+    mocks.getSwapRecord.mockResolvedValue(ambiguousRecord())
     const view = await renderReady({}, <Payer />)
     fireEvent.click(screen.getByText('pay asset'))
     await screen.findByText('reply lost')
@@ -991,6 +1002,7 @@ describe('SwapsProvider', () => {
   it('releases only the original proven-unsent payment after remount, allowing a new payment', async () => {
     mocks.quote.mockResolvedValue({ id: 'original', give: { amount: 1000n } })
     mocks.accept.mockRejectedValueOnce(new Error('reply lost'))
+    mocks.getSwapRecord.mockResolvedValue(ambiguousRecord())
     const payer = await renderReady({}, <Payer />)
     fireEvent.click(screen.getByText('pay asset'))
     await screen.findByText('reply lost')
@@ -1073,9 +1085,48 @@ describe('SwapsProvider', () => {
     expect(mocks.accept).toHaveBeenCalledOnce()
   })
 
+  it('clears the journal when acceptance is refused before any swap record exists', async () => {
+    mocks.quote.mockResolvedValue({ id: 'expired', give: { amount: 1000n } })
+    mocks.accept.mockRejectedValueOnce(new QuoteExpired('expired', 100, 200))
+    await renderReady({}, <Payer />)
+    fireEvent.click(screen.getByText('pay asset'))
+    await waitFor(() => expect(mocks.getSwapRecord).toHaveBeenCalledWith('expired'))
+    await waitFor(() => expect(screen.getByRole('button')).not.toHaveTextContent('pay asset'))
+    expect(localStorage.length).toBe(0)
+    mocks.quote.mockResolvedValue({ id: 'next', give: { amount: 1000n } })
+    mocks.accept.mockResolvedValue({ ...swap, id: 'offer:next' })
+    fireEvent.click(screen.getByRole('button'))
+    await waitFor(() => expect(mocks.accept).toHaveBeenCalledTimes(2))
+    expect(localStorage.length).toBe(0)
+  })
+
+  it('keeps the journal when acceptance fails after its swap record exists', async () => {
+    mocks.quote.mockResolvedValue({ id: 'original', give: { amount: 1000n } })
+    mocks.accept.mockRejectedValue(new Error('reply lost'))
+    mocks.getSwapRecord.mockResolvedValue(ambiguousRecord())
+    await renderReady({}, <Payer />)
+    fireEvent.click(screen.getByText('pay asset'))
+    await screen.findByText('reply lost')
+    expect(mocks.getSwapRecord).toHaveBeenCalledWith('original')
+    expect(localStorage.length).toBe(1)
+  })
+
+  it('keeps the journal when the swap record cannot be read after a refusal', async () => {
+    mocks.quote.mockResolvedValue({ id: 'expired', give: { amount: 1000n } })
+    mocks.accept.mockRejectedValue(new QuoteExpired('expired', 100, 200))
+    mocks.getSwapRecord.mockRejectedValue(new Error('storage unavailable'))
+    await renderReady({}, <Payer />)
+    fireEvent.click(screen.getByText('pay asset'))
+    await waitFor(() => expect(mocks.getSwapRecord).toHaveBeenCalledWith('expired'))
+    await waitFor(() => expect(screen.getByRole('button')).not.toHaveTextContent('pay asset'))
+    expect(screen.getByRole('button')).not.toHaveTextContent('storage unavailable')
+    expect(readAssetPayment('test-sender-regtest', 'regtest')?.quoteId).toBe('expired')
+  })
+
   it('retains a named impostor refusal and blocks corruption before a new quote', async () => {
     mocks.quote.mockResolvedValue({ id: 'impostor', give: { amount: 1000n } })
     mocks.accept.mockRejectedValue(Object.assign(new Error('unknown acceptance'), { name: 'InsufficientFunds' }))
+    mocks.getSwapRecord.mockResolvedValue(ambiguousRecord())
     const view = await renderReady({}, <Payer />)
     fireEvent.click(screen.getByText('pay asset'))
     await screen.findByText('unknown acceptance')
