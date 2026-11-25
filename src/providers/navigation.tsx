@@ -1,4 +1,4 @@
-import { ReactNode, createContext, useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, ReactNode, Suspense, createContext, useCallback, useEffect, useRef, useState } from 'react'
 import Init from '../screens/Init/Init'
 import InitConnect from '../screens/Init/Connect'
 import InitRestore from '../screens/Init/Restore'
@@ -20,8 +20,9 @@ import Wallet from '../screens/Wallet/Index'
 import BitcoinDetail from '../screens/Wallet/BitcoinDetail'
 import AccountDetail from '../screens/Wallet/AccountDetail'
 import WalletSwap from '../screens/Wallet/Swap/Index'
-import Predict from '../screens/Wallet/Predict/Index'
 import Settings from '../screens/Settings/Index'
+
+const Predict = lazy(() => import('../screens/Wallet/Predict/Index'))
 
 import InitSuccess from '../screens/Init/Success'
 import AppAssets from '../screens/Apps/Assets/Index'
@@ -156,7 +157,11 @@ export const pageComponent = (page: Pages): JSX.Element => {
     case Pages.NotesSuccess:
       return <NotesSuccess />
     case Pages.Predict:
-      return <Predict />
+      return (
+        <Suspense fallback={<LoadingLogo />}>
+          <Predict />
+        </Suspense>
+      )
     case Pages.ReceiveQRCode:
       return <ReceiveQRCode />
     case Pages.ReceiveSuccess:
