@@ -39,6 +39,7 @@ const DESKTOP_WALLET_PAGES = new Set([
   Pages.NotesRedeem,
   Pages.NotesForm,
   Pages.NotesSuccess,
+  Pages.Predict,
   Pages.ReceiveQRCode,
   Pages.ReceiveSuccess,
   Pages.SendForm,

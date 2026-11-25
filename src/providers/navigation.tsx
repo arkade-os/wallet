@@ -20,6 +20,7 @@ import Wallet from '../screens/Wallet/Index'
 import BitcoinDetail from '../screens/Wallet/BitcoinDetail'
 import AccountDetail from '../screens/Wallet/AccountDetail'
 import WalletSwap from '../screens/Wallet/Swap/Index'
+import Predict from '../screens/Wallet/Predict/Index'
 import Settings from '../screens/Settings/Index'
 
 import InitSuccess from '../screens/Init/Success'
@@ -64,6 +65,7 @@ export enum Pages {
   NotesRedeem,
   NotesForm,
   NotesSuccess,
+  Predict,
   ReceiveQRCode,
   ReceiveSuccess,
   SendForm,
@@ -153,6 +155,8 @@ export const pageComponent = (page: Pages): JSX.Element => {
       return <NotesForm />
     case Pages.NotesSuccess:
       return <NotesSuccess />
+    case Pages.Predict:
+      return <Predict />
     case Pages.ReceiveQRCode:
       return <ReceiveQRCode />
     case Pages.ReceiveSuccess:

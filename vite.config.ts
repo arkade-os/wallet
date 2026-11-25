@@ -28,6 +28,13 @@ export default defineConfig({
     port: 3002,
     host: true,
     allowedHosts: ['.trycloudflare.com'],
+    proxy: {
+      '/predict-api/oracle/prices': {
+        target: 'https://coinflip-mainnet-production.up.railway.app',
+        changeOrigin: true,
+        rewrite: () => '/oracle/prices',
+      },
+    },
   },
   build: {
     emptyOutDir: true,

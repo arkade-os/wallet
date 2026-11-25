@@ -3,10 +3,13 @@ import { useTranslation } from '../providers/language'
 import HomeIcon from '../icons/Home'
 import HistoryIcon from '../icons/History'
 import SettingsIcon from '../icons/Settings'
+import Glyph from '../icons/Glyph'
 import { hapticLight } from '../lib/haptics'
 import { SettingsOptions } from '../lib/types'
 import { NavigationContext, Pages } from '../providers/navigation'
 import { OptionsContext } from '../providers/options'
+import { AspContext } from '../providers/asp'
+import { getPredictConfig } from '../lib/predict/constants'
 import UsersRound from '../icons/UsersRound'
 
 interface DesktopWalletShellProps {
@@ -15,18 +18,26 @@ interface DesktopWalletShellProps {
 }
 
 export default function DesktopWalletShell({ logoVisible, page }: DesktopWalletShellProps) {
+  const { aspInfo } = useContext(AspContext)
   const { navigate } = useContext(NavigationContext)
   const { setOption, option } = useContext(OptionsContext)
 
   const { t } = useTranslation()
 
+  const predictEnabled = getPredictConfig(aspInfo.network, aspInfo.url || undefined).enabled
+  const predictActive = page === Pages.Predict
   const activityActive = page === Pages.Activity || page === Pages.Transaction
   const settingsActive = page === Pages.Settings || page === Pages.Vtxos
-  const homeActive = !activityActive && !settingsActive
+  const homeActive = !predictActive && !activityActive && !settingsActive
 
   const goHome = () => {
     hapticLight()
     navigate(Pages.Wallet)
+  }
+
+  const goToPredict = () => {
+    hapticLight()
+    navigate(Pages.Predict)
   }
 
   const goToActivity = () => {
@@ -60,6 +71,20 @@ export default function DesktopWalletShell({ logoVisible, page }: DesktopWalletS
           <HomeIcon size={20} strokeWidth={1.8} />
           <span>{t('common.home')}</span>
         </button>
+        {predictEnabled ? (
+          <button
+            type='button'
+            className={
+              predictActive ? 'desktop-wallet-nav__item desktop-wallet-nav__item--active' : 'desktop-wallet-nav__item'
+            }
+            aria-current={predictActive ? 'page' : undefined}
+            data-testid='desktop-nav-predict'
+            onClick={goToPredict}
+          >
+            <Glyph name='predict' size={20} strokeWidth={1.8} />
+            <span>{t('predict.title')}</span>
+          </button>
+        ) : null}
         <button
           type='button'
           className={

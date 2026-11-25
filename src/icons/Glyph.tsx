@@ -35,6 +35,9 @@ export const glyphs = {
   shield: 'M12 3 5 6v5c0 4.5 2.9 8.3 7 10 4.1-1.7 7-5.5 7-10V6l-7-3ZM9 12l2 2 4-4',
   share: 'M12 15V3M8 7l4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7',
   swap: 'M7 4 4 7l3 3M4 7h13M17 20l3-3-3-3M20 17H7',
+  trendUp: 'M4 17l5.5-5.5 3.5 3.5L20 7M14.5 7H20v5.5',
+  trendDown: 'M4 7l5.5 5.5 3.5-3.5L20 17M14.5 17H20v-5.5',
+  predict: 'M4 17l5-5 3.5 3L20 7M15 7h5v5',
 } as const
 
 export type GlyphName = keyof typeof glyphs
