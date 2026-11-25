@@ -1,6 +1,7 @@
-import { useContext } from 'react'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { useContext, type ReactNode } from 'react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { CovenantSpendBusyError } from '@arkade-taxi/client'
 import type { ClaimWatch } from '@arkade-taxi/client/wallet'
 import { AspContext } from '../../providers/asp'
 import { ConfigContext } from '../../providers/config'
@@ -16,7 +17,7 @@ const OWN = 'tark1ownaddress'
 const RENEWAL = 'tark1renewalcontract'
 const ROTATED = 'tark1rotatedkeyrenewal'
 
-const feed = vi.hoisted(() => ({ claims: [] as unknown[], subscribed: [] as string[] }))
+const feed = vi.hoisted(() => ({ claims: [] as unknown[], subscribed: [] as string[], purchase: vi.fn() }))
 
 // The real watch and triage; only the Taxi's stream is stubbed, and it lists every claim whatever was asked.
 vi.mock('../../lib/receiverClaims', async (importOriginal) => {
@@ -39,6 +40,7 @@ vi.mock('../../lib/receiverClaims', async (importOriginal) => {
             return () => {}
           },
           verifyIncomingClaim: async () => ({}),
+          purchase: feed.purchase,
         }) as never,
       trust: {} as never,
       spendConfig: async () => ({}) as never,
@@ -61,8 +63,20 @@ vi.mock('../../lib/taxiInputReservations', () => ({
   reserveTaxiClaim: async () => {},
 }))
 vi.mock('../../lib/swapRepository', () => ({ unreservedCoins: async () => [] }))
-vi.mock('../../screens/Wallet/Receive/ClaimSheet', () => ({ default: () => null }))
-vi.mock('../../components/SheetModal', () => ({ default: () => null }))
+vi.mock('../../screens/Wallet/Receive/ClaimSheet', () => ({
+  default: ({ plan, claiming, spent, error, onClaim }: Record<string, unknown> & { onClaim: () => void }) => (
+    <>
+      <output data-testid='claim-error'>{error as string}</output>
+      <button disabled={!plan || Boolean(claiming) || Boolean(spent)} onClick={onClaim}>
+        Claim
+      </button>
+    </>
+  ),
+}))
+vi.mock('../../components/SheetModal', () => ({
+  default: ({ isOpen, children }: { isOpen: boolean; children?: ReactNode }) =>
+    isOpen ? <div data-testid='sheet-modal'>{children}</div> : null,
+}))
 
 const claimFor = (receiverAddress: string, transferId = 't1') => ({
   transferId,
@@ -123,12 +137,14 @@ const renderClaims = (wallet: Record<string, unknown>, config: Record<string, un
 }
 
 const offered = () => screen.getByTestId('claimable')
+const claimButton = () => screen.getByRole('button', { name: 'Claim' })
 
 describe('Taxi claim watch', () => {
   beforeEach(() => {
     localStorage.clear()
     feed.claims = []
     feed.subscribed = []
+    feed.purchase.mockReset()
     rememberReceiverTaxi({ network: mockAspContextValue.aspInfo.network, url: TAXI, operatorKey: OPERATOR })
   })
 
@@ -183,5 +199,23 @@ describe('Taxi claim watch', () => {
     await act(async () => {})
     expect(offered()).not.toHaveTextContent(claimKey(TAXI, 't2'))
     expect(feed.subscribed.sort()).toEqual([OWN, RENEWAL].sort())
+  })
+
+  it('leaves a claim refused for a batch-registered coin unspent and claimable again', async () => {
+    feed.claims = [claimFor(OWN)]
+    feed.purchase
+      .mockRejectedValueOnce(new CovenantSpendBusyError([`${'22'.repeat(32)}:0`], new Error('VTXO_ALREADY_REGISTERED')))
+      .mockResolvedValueOnce('33'.repeat(32))
+    renderClaims({ svcWallet: walletWith(async () => []) })
+    await waitFor(() => expect(claimButton()).toBeEnabled())
+
+    fireEvent.click(claimButton())
+    await waitFor(() => expect(screen.getByTestId('claim-error')).toHaveTextContent('nothing was spent'))
+    await waitFor(() => expect(claimButton()).toBeEnabled())
+    expect(offered()).toHaveTextContent(claimKey(TAXI, 't1'))
+
+    fireEvent.click(claimButton())
+    await waitFor(() => expect(offered()).toBeEmptyDOMElement())
+    expect(feed.purchase).toHaveBeenCalledTimes(2)
   })
 })

@@ -23,6 +23,7 @@ import { extractError } from '../lib/error'
 import { consoleError } from '../lib/logs'
 import {
   ClaimSpent,
+  CovenantSpendBusyError,
   claimKey,
   offerKey,
   receiverFareOf,
@@ -298,7 +299,11 @@ export const ReceiverClaimsProvider = ({ children }: { children: ReactNode }) =>
   const currentKey = current && offerKey(current)
   const plan = currentKey ? plans.get(currentKey) : undefined
   const failure = currentKey ? errors.get(currentKey) : undefined
-  const error = failure ? extractError(failure instanceof ClaimSpent ? failure.reason : failure) : ''
+  const error = !failure
+    ? ''
+    : failure instanceof CovenantSpendBusyError
+      ? 'A coin this claim spends is in a settlement batch right now, so nothing was spent. Try again shortly.'
+      : extractError(failure instanceof ClaimSpent ? failure.reason : failure)
   const claiming = Boolean(busy)
   const showClaim =
     Boolean(current) &&

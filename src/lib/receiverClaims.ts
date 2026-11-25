@@ -3,6 +3,7 @@ import { createClaimWatch, type ClaimWatch, type RememberedTaxi } from '@arkade-
 import { consoleError } from './logs'
 import { walletArkadeContext } from './receiverTaxi'
 
+export { CovenantSpendBusyError } from '@arkade-taxi/client'
 export {
   ClaimSpent,
   claimKey,
