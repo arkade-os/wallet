@@ -89,6 +89,18 @@ export function readContacts(): Contact[] {
   return readList(CONTACTS_KEY)
 }
 
+export function saveContacts(contacts: Contact[]): boolean {
+  return writeList(CONTACTS_KEY, contacts)
+}
+
+export function restoreContacts(contacts: Contact[], split: boolean): boolean {
+  // Finish migrating local legacy entries before installing a restored snapshot.
+  readContacts()
+  if (!splitMigrated() || !saveContacts(contacts)) return false
+  const unnamed = split ? [] : contacts.filter((contact) => !contact.name?.trim())
+  return !unnamed.length || migrateUnnamed(unnamed)
+}
+
 const splitMigrated = (): boolean => {
   try {
     return localStorage.getItem(SPLIT_KEY) === '1'
@@ -105,8 +117,8 @@ const markSplitMigrated = (): void => {
   }
 }
 
-const migrateUnnamed = (unnamed: Contact[]): void => {
-  if (!unnamed.length) return
+const migrateUnnamed = (unnamed: Contact[]): boolean => {
+  if (!unnamed.length) return true
   const recents = readRecents()
   const merged = [...recents]
   for (const item of unnamed) {
@@ -119,10 +131,11 @@ const migrateUnnamed = (unnamed: Contact[]): void => {
       merged.push({ address, sendCount, lastSentAt })
     }
   }
-  writeList(RECENTS_KEY, merged)
-  writeList(
+  const recentsSaved = writeList(RECENTS_KEY, merged)
+  if (!recentsSaved) return false // don't remove from contacts if recents didn't land
+  return writeList(
     CONTACTS_KEY,
-    readList(CONTACTS_KEY).filter((contact) => contact.name?.trim()),
+    readList(CONTACTS_KEY).filter((c) => c.name?.trim()),
   )
 }
 
@@ -190,17 +203,18 @@ export function recordSentRecent(address: string | undefined, now = Date.now()):
   } catch {}
 }
 
-/** Record a completed send. The tick may only add a contact, never overwrite
- *  one the user already named. */
+/** Record a completed send; true when the tick added a contact. A tick for an
+ *  earlier recipient adds nothing, so its name never lands on another payee. */
 export function rememberSentDestination(
-  send: Parameters<typeof sendDestination>[0],
-  saveAsContact: boolean,
+  send: Parameters<typeof sendDestination>[0] & Pick<SendInfo, 'saveAsContact'>,
   now = Date.now(),
-): void {
+): boolean {
   const address = sendDestination(send)
-  if (!address) return
+  if (!address) return false
   recordSentRecent(address, now)
-  if (saveAsContact && !contactForAddress(address)) saveContact(address, '')
+  const tick = send.saveAsContact
+  if (tick?.address !== address || contactForAddress(address)) return false
+  return saveContact(address, tick.name)
 }
 
 export function forgetContacts(): void {

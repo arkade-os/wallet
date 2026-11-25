@@ -1,5 +1,6 @@
 import { useContext } from 'react'
 import { NavigationContext, Pages } from '../../providers/navigation'
+import { WalletContext } from '../../providers/wallet'
 import { FlowContext, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
 import { useTranslation } from '../../providers/language'
 import { hapticLight } from '../../lib/haptics'
@@ -17,10 +18,13 @@ export default function HomeQuickActions({
   sendDisabled?: boolean
 } = {}) {
   const { navigate } = useContext(NavigationContext)
+  const { booting, dataReady } = useContext(WalletContext)
+  const homeBusy = Boolean(booting) && !dataReady
   const { setRecvInfo, setSendInfo } = useContext(FlowContext)
   const { t } = useTranslation()
 
   const handleReceive = () => {
+    if (homeBusy) return
     hapticLight()
     if (onReceive) return onReceive()
     setRecvInfo(emptyRecvInfo)
@@ -28,6 +32,7 @@ export default function HomeQuickActions({
   }
 
   const handleSend = () => {
+    if (homeBusy) return
     hapticLight()
     if (onSend) return onSend()
     setSendInfo(emptySendInfo)
@@ -41,7 +46,7 @@ export default function HomeQuickActions({
         className='button outline'
         data-testid='home-action-receive'
         onClick={handleReceive}
-        disabled={receiveDisabled}
+        disabled={receiveDisabled || homeBusy}
       >
         <span className='home-actions__label'>
           {t('wallet.receive')}
@@ -53,7 +58,7 @@ export default function HomeQuickActions({
         className='button dark'
         data-testid='home-action-send'
         onClick={handleSend}
-        disabled={sendDisabled}
+        disabled={sendDisabled || homeBusy}
       >
         <span className='home-actions__label'>
           {t('wallet.send')}

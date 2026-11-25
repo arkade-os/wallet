@@ -1,4 +1,5 @@
 import { useContext, useState } from 'react'
+import { BackupContext } from '../../providers/backup'
 import './Contacts.css'
 import ArrowIcon from '../../icons/Arrow'
 import BackIcon from '../../icons/Back'
@@ -20,6 +21,7 @@ import {
   readRecents,
   saveContact,
 } from '../../lib/contacts'
+import { consoleError } from '../../lib/logs'
 import { emptySendInfo, FlowContext } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { useTranslation } from '../../providers/language'
@@ -31,6 +33,7 @@ type EditorMode = 'new' | 'edit' | 'convert'
 const initialFor = (label: string): string => label.trim().charAt(0).toUpperCase() || '?'
 
 export default function Contacts() {
+  const { backupContacts } = useContext(BackupContext)
   const { navigate } = useContext(NavigationContext)
   const { setSendInfo } = useContext(FlowContext)
   const { txs } = useContext(WalletContext)
@@ -97,6 +100,7 @@ export default function Contacts() {
       return setError(t('contacts.addressTaken'))
     }
     if (!saveContact(target, name, editTarget)) return setError(t('contacts.saveFailed'))
+    backupContacts(readContacts()).catch((err) => consoleError(err, 'failed to backup contacts'))
     refresh()
     setSelected(target)
     closeEditor()
@@ -104,6 +108,7 @@ export default function Contacts() {
 
   const remove = () => {
     if (!selected || !forgetContact(selected)) return setError(t('contacts.saveFailed'))
+    backupContacts(readContacts()).catch((err) => consoleError(err, 'failed to backup contacts'))
     refresh()
     setSelected(undefined)
     setDeleting(false)
@@ -275,6 +280,7 @@ export default function Contacts() {
           <ErrorMessage error={Boolean(error)} text={error} />
           <InputContainer label={t('contacts.name')}>
             <input
+              data-testid='contact-name'
               id='contact-name'
               className='input'
               aria-label={t('contacts.name')}
@@ -284,6 +290,7 @@ export default function Contacts() {
           </InputContainer>
           <InputContainer label={t('common.address')}>
             <textarea
+              data-testid='contact-address'
               id='contact-address'
               className='input contact-address-input'
               aria-label={t('common.address')}

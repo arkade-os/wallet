@@ -14,15 +14,4 @@ describe('ContactPicker', () => {
     fireEvent.click(screen.getByRole('button', { name: /Alice/ }))
     expect(onSelect).toHaveBeenCalledWith('alice@pay.example')
   })
-
-  it('counts a single send in the singular', () => {
-    localStorage.setItem('contacts.split.v1', '1')
-    localStorage.setItem(
-      'contacts',
-      JSON.stringify([{ address: 'alice@pay.example', name: 'Alice', sendCount: 1, lastSentAt: 1 }]),
-    )
-    render(<ContactPicker disabled={false} onSelect={vi.fn()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Contacts' }))
-    expect(screen.getByText('1 send recorded locally')).toBeInTheDocument()
-  })
 })

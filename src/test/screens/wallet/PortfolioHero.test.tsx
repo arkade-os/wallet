@@ -4,9 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import PortfolioHero, { HOLD_TO_HIDE_MS } from '../../../screens/Wallet/PortfolioHero'
 import { WalletContext } from '../../../providers/wallet'
 import { ConfigContext } from '../../../providers/config'
+import { FiatContext } from '../../../providers/fiat'
 import { BackupContext } from '../../../providers/backup'
 import { Currencies, Unit } from '../../../lib/types'
-import { mockConfigContextValue } from '../mocks'
+import { mockConfigContextValue, mockFiatContextValue } from '../mocks'
 
 function WithSyncing({ syncing, children }: { syncing: boolean; children: ReactNode }) {
   const wallet = useContext(WalletContext)
@@ -41,9 +42,11 @@ describe('PortfolioHero', () => {
       const config = { ...mockConfigContextValue.config, currency, unit: Unit.SATS, showBalance: true }
       return render(
         <ConfigContext.Provider value={{ ...mockConfigContextValue, config } as any}>
-          <BackupContext.Provider value={{ backupAndUpdateConfig } as any}>
-            <PortfolioHero />
-          </BackupContext.Provider>
+          <FiatContext.Provider value={mockFiatContextValue as any}>
+            <BackupContext.Provider value={{ backupAndUpdateConfig } as any}>
+              <PortfolioHero />
+            </BackupContext.Provider>
+          </FiatContext.Provider>
         </ConfigContext.Provider>,
       )
     }

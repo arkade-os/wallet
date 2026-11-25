@@ -40,7 +40,8 @@ import { useCorridorSendReceipt } from '../../hooks/useCorridorSendReceipt'
 import { lnurlSends, subscribeLnurlSends } from '../../lib/lnurlSends'
 import TransactionAmountSummary from '../../components/TransactionAmountSummary'
 import { useTranslation } from '../../providers/language'
-import { contactForAddress, savableActivityAddress, saveContact } from '../../lib/contacts'
+import { contactForAddress, readContacts, savableActivityAddress, saveContact } from '../../lib/contacts'
+import { consoleError } from '../../lib/logs'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,8 +52,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../../components/ui/alert-dialog'
+import { BackupContext } from '@/providers/backup'
 
 export default function Transaction() {
+  const { backupContacts } = useContext(BackupContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo } = useContext(FlowContext)
   const { cancelSwap, recoverSwap, swaps } = useContext(SwapsContext)
@@ -228,6 +231,7 @@ export default function Transaction() {
   const handleSaveContact = () => {
     if (!destinationAddress) return
     if (!saveContact(destinationAddress, saveContactName)) return setError(t('contacts.saveFailed'))
+    backupContacts(readContacts()).catch((err) => consoleError(err, 'failed to backup contacts'))
     setSavedContact(true)
     setSaveContactOpen(false)
     setSaveContactName('')

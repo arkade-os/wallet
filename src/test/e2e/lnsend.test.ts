@@ -25,7 +25,7 @@ const tr = translations.en
  *
  * Setup — see the header of `.env.regtest` and docs/e2e-lightning.md:
  *   1. `pnpm regtest:start` with ARKD_UNILATERAL_EXIT_DELAY=1024
- *   2. the swap service running `cli relay` against ws://localhost:10547
+ *   2. the swap service running `cli relay` against ws://localhost:7777
  *   3. its `cli card` output saved to .regtest-lightning.card.json
  * The card is deployment-specific (its `discovery_pubkey` is the solver's own
  * key), so it is generated rather than committed, and the test skips loudly

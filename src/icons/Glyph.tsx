@@ -35,12 +35,6 @@ export const glyphs = {
   shield: 'M12 3 5 6v5c0 4.5 2.9 8.3 7 10 4.1-1.7 7-5.5 7-10V6l-7-3ZM9 12l2 2 4-4',
   share: 'M12 15V3M8 7l4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7',
   swap: 'M7 4 4 7l3 3M4 7h13M17 20l3-3-3-3M20 17H7',
-  // Currency marks for asset wells
-  bitcoin:
-    'M8.500 5v14M6.500 5h7a3.500 3.500 0 0 1 0 7h-5M8.500 12h6a3.500 3.500 0 0 1 0 7h-8M10 3v2M13 3v2M10 19v2M13 19v2',
-  dollar: 'M12 3v18M16.500 7H10a3 3 0 0 0 0 6h4a3 3 0 0 1 0 6H7',
-  tether:
-    'M5 5.500h14M12 5.500V20M6.500 11.500c0 1.100 2.460 2 5.500 2s5.500-.900 5.500-2-2.460-2-5.500-2-5.500.900-5.500 2Z',
 } as const
 
 export type GlyphName = keyof typeof glyphs

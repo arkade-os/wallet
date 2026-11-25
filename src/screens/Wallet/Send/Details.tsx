@@ -39,7 +39,8 @@ import TransactionAmountSummary from '../../../components/TransactionAmountSumma
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
 import { lnurlSends, recordLnurlSend, watchLnurlConfirmation } from '../../../lib/lnurlSends'
 import { useTranslation } from '../../../providers/language'
-import { rememberSentDestination } from '../../../lib/contacts'
+import { readContacts, rememberSentDestination } from '../../../lib/contacts'
+import { BackupContext } from '../../../providers/backup'
 
 export default function SendDetails() {
   const displayContext = useAmountDisplayContext()
@@ -51,6 +52,7 @@ export default function SendDetails() {
   const { assetMetadataCache, availableBalance, balance, reloadWallet, svcWallet } = useContext(WalletContext)
   const { aspInfo } = useContext(AspContext)
   const { sendRouter } = useContext(SwapsContext)
+  const { backupContacts } = useContext(BackupContext)
   const { t } = useTranslation()
 
   const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
@@ -66,7 +68,7 @@ export default function SendDetails() {
   const [sending, setSending] = useState(false)
   const [sendDone, setSendDone] = useState(false)
 
-  const { address, arkAddress, invoice, lnUrl, pendingLnSend, satoshis, saveAsContact } = sendInfo
+  const { address, arkAddress, invoice, lnUrl, pendingLnSend, satoshis } = sendInfo
   const lnurlRoute = Boolean(lnUrl && pendingLnSend && isLnurlRail(pendingLnSend.railId))
   const amountDisplay = buildTransactionAmountDisplay({
     ...displayContext,
@@ -235,7 +237,10 @@ export default function SendDetails() {
 
   /** Every reusable destination becomes a recent; only the opt-in tick makes
    *  it a contact, so the list stays a choice rather than a side effect. */
-  const rememberDestination = () => rememberSentDestination(sendInfo, Boolean(saveAsContact))
+  const rememberDestination = () => {
+    if (!rememberSentDestination(sendInfo)) return
+    backupContacts(readContacts()).catch((err) => consoleError(err, 'failed to backup contacts'))
+  }
 
   /** Unlike {@link handleTxid} a missing txid is not an error: the solver rail
    *  commits by funding. The fee comes off the QUOTE, not the screen — a rail

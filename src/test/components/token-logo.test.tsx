@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { render } from '@testing-library/react'
-import TokenLogo, { tokenLogoTickerForTicker } from '../../components/TokenLogo'
+import TokenLogo, { tokenLogoTickerForTicker, BrazilFlagLogo, UnitedKingdomFlagLogo } from '../../components/TokenLogo'
 
 describe('tokenLogoTickerForTicker', () => {
   it('maps every supported currency ticker to a token logo ticker', () => {
@@ -19,37 +19,59 @@ describe('tokenLogoTickerForTicker', () => {
 })
 
 describe('TokenLogo', () => {
-  it('draws Bitcoin on the accent', () => {
-    const { container } = render(<TokenLogo ticker='BTC' />)
-    expect(container.querySelector('circle')?.getAttribute('fill')).toBe('var(--brand)')
-    expect(container.querySelector('path')).not.toBeNull()
+  it('renders the Brazilian flag for BRL', () => {
+    const { container } = render(<TokenLogo ticker='BRL' />)
+    expect(container.querySelector('clipPath[id^="br-flag-circle"]')).not.toBeNull()
+    expect(container.innerHTML).toContain('#009B3A')
+    expect(container.innerHTML).toContain('#FFDF00')
   })
 
-  it('draws a currency sign for fiat accounts', () => {
-    expect(render(<TokenLogo ticker='BRL' />).container.textContent).toBe('R$')
-    expect(render(<TokenLogo ticker='GBP' />).container.textContent).toBe('£')
-    expect(render(<TokenLogo ticker='EUR' />).container.textContent).toBe('€')
+  it('renders the United Kingdom flag for GBP', () => {
+    const { container } = render(<TokenLogo ticker='GBP' />)
+    expect(container.querySelector('clipPath[id^="gb-flag-circle"]')).not.toBeNull()
   })
 
-  it('draws the dollar and tether signs as glyphs, on the surface colour', () => {
-    for (const ticker of ['USD', 'USDC', 'USDT'] as const) {
-      const { container } = render(<TokenLogo ticker={ticker} />)
-      expect(container.querySelector('circle')?.getAttribute('fill')).toBe('var(--well, var(--surface))')
-      expect(container.querySelector('path')).not.toBeNull()
-    }
-  })
-
-  // Marks reference nothing by id, so the same mark can repeat in a list or
-  // a swap route without duplicate ids in the document.
-  it('renders no ids, however many times a mark repeats', () => {
+  // url(#id) resolves against the whole document, not the local <svg>, so two
+  // instances of the same flag used to point at whichever clipPath came first.
+  // TokenLogo is rendered per transaction and per swap hop, so a list with two
+  // USD entries is enough to produce the duplicate.
+  it('gives each instance of the same flag its own clip path id', () => {
     const { container } = render(
       <>
         <TokenLogo ticker='USD' />
         <TokenLogo ticker='USD' />
-        <TokenLogo ticker='BRL' />
-        <TokenLogo ticker='BRL' />
+        <BrazilFlagLogo />
+        <BrazilFlagLogo />
+        <UnitedKingdomFlagLogo />
+        <UnitedKingdomFlagLogo />
       </>,
     )
-    expect(container.querySelectorAll('[id]')).toHaveLength(0)
+
+    for (const prefix of ['us-flag-circle', 'br-flag-circle', 'gb-flag-circle']) {
+      const ids = [...container.querySelectorAll('clipPath')].map((el) => el.getAttribute('id'))
+      const matching = ids.filter((id) => id?.startsWith(prefix))
+      expect(matching).toHaveLength(2)
+      expect(new Set(matching).size).toBe(2)
+    }
+  })
+
+  // The clip path has to live inside the same <svg> that references it, or the
+  // reference is resolving against a sibling instance.
+  it('scopes each clip path to the svg that references it', () => {
+    const { container } = render(
+      <>
+        <TokenLogo ticker='USD' />
+        <TokenLogo ticker='USD' />
+      </>,
+    )
+
+    for (const svg of container.querySelectorAll('svg')) {
+      const g = svg.querySelector('g[clip-path]')
+      if (!g) continue
+      const url = g.getAttribute('clip-path') ?? ''
+      const id = url.match(/url\(#(.+)\)/)?.[1]
+      expect(id).toBeTruthy()
+      expect(svg.querySelector(`clipPath[id="${id}"]`)).not.toBeNull()
+    }
   })
 })

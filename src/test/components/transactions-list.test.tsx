@@ -56,7 +56,6 @@ describe('TransactionsList', () => {
     expect(screen.getByText('Sent')).toBeInTheDocument()
     expect(screen.queryByText(/bob@pay\.example/)).not.toBeInTheDocument()
   })
-
   it('labels a saved contact without turning the row into a contact link', () => {
     const address = 'alice@pay.example'
     saveContact(address, 'Alice')
@@ -121,7 +120,6 @@ describe('TransactionsList', () => {
     expect(container.querySelector('.activity-row__left')).toBe(left)
     expect(container.querySelector('.activity-row__amount')).toBe(amount)
   })
-
   it('filters the list by transaction type', () => {
     const swapTx = { ...mockWalletContextValue.txs[0], roundTxid: 'swap-tx', type: 'swap' }
     const sentTx = { ...mockWalletContextValue.txs[0], roundTxid: 'sent-tx', type: 'sent' }
@@ -492,7 +490,7 @@ describe('TransactionsList', () => {
     )
 
     expect(screen.getByText(/BTC to BET/)).toBeInTheDocument()
-    expect(container.querySelector('circle[fill="var(--brand)"]')).toBeInTheDocument()
+    expect(container.querySelector('circle[fill="var(--orange-500)"]')).toBeInTheDocument()
     expect(container.querySelectorAll('.swap-route-icon__fallback')).toHaveLength(1)
   })
 

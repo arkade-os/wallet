@@ -4,13 +4,14 @@ import { holdBackLayer } from '../providers/navigation'
 import { Drawer, DrawerContent } from '@/components/ui/drawer'
 
 interface SheetModalProps {
+  ariaLabel?: string
   children?: React.ReactNode
   isOpen: boolean
-  onClose: () => void
   labelledBy?: string
+  onClose: () => void
 }
 
-export default function SheetModal({ children, isOpen, onClose, labelledBy }: SheetModalProps) {
+export default function SheetModal({ ariaLabel, children, isOpen, labelledBy, onClose }: SheetModalProps) {
   const close = useRef(onClose)
   close.current = onClose
 
@@ -28,8 +29,8 @@ export default function SheetModal({ children, isOpen, onClose, labelledBy }: Sh
 
   return (
     <Drawer open={isOpen} onOpenChange={handleOpenChange}>
-      <DrawerContent className='mx-auto max-w-[640px]' aria-labelledby={labelledBy}>
-        <div className='w-full px-4 pt-3 pb-5'>{children}</div>
+      <DrawerContent aria-label={ariaLabel} aria-labelledby={labelledBy} className='mx-auto max-w-[640px]'>
+        <div className='w-full px-5 pt-4 pb-[calc(2rem+env(safe-area-inset-bottom,0px))]'>{children}</div>
       </DrawerContent>
     </Drawer>
   )

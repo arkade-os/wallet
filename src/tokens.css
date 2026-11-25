@@ -98,15 +98,15 @@
   --yellow-950: #221c08;
 
   /* Account chart identity — exact primary colors from each currency flag. */
-  --account-chart-btc: var(--brand-text);
-  --account-chart-usd: var(--brand-text);
-  --account-chart-chf: var(--brand-text);
-  --account-chart-brl: var(--brand-text);
-  --account-chart-cny: var(--brand-text);
-  --account-chart-eur: var(--brand-text);
-  --account-chart-gbp: var(--brand-text);
-  --account-chart-jpy: var(--brand-text);
-  --account-chart-default: var(--brand-text);
+  --account-chart-btc: var(--orange-500);
+  --account-chart-usd: #3c3b6e;
+  --account-chart-chf: #d52b1e;
+  --account-chart-brl: #009b3a;
+  --account-chart-cny: #de2910;
+  --account-chart-eur: #003399;
+  --account-chart-gbp: #012169;
+  --account-chart-jpy: #bc002d;
+  --account-chart-default: var(--purple-700);
 
   /* Convenience aliases (backward compat with existing code) */
   --purple: var(--purple-700);

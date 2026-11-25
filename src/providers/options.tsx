@@ -54,11 +54,6 @@ export const options: Option[] = [
     section: SettingsSections.Advanced,
   },
   {
-    icon: <ServerIcon />,
-    option: SettingsOptions.Delegates,
-    section: SettingsSections.Advanced,
-  },
-  {
     icon: <LogsIcon />,
     option: SettingsOptions.Logs,
     section: SettingsSections.Advanced,

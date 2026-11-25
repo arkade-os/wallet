@@ -1,6 +1,14 @@
 import { useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { FiatContext } from '../providers/fiat'
-import { fromSatoshis, prettyAmount, prettyFiatAmount, prettyLongText, prettyNumber, toSatoshis } from '../lib/format'
+import {
+  canConvertCurrency,
+  fromSatoshis,
+  prettyAmount,
+  prettyFiatAmount,
+  prettyLongText,
+  prettyNumber,
+  toSatoshis,
+} from '../lib/format'
 import Glyph from '../icons/Glyph'
 import Figure from './Figure'
 import AddressPattern from './AddressPattern'
@@ -10,7 +18,7 @@ import { defaultFee } from '../lib/constants'
 import ErrorMessage from './Error'
 import Button from './Button'
 import { ConfigContext } from '../providers/config'
-import { AssetOption, Currencies, Unit } from '../lib/types'
+import { AssetOption, Unit } from '../lib/types'
 import { atomicToUnits, prettyAssetAmount, unitsToAtomic } from '../lib/assets'
 import { useTranslation } from '../providers/language'
 import { MAX_SATS, digitsToValue, popDigit, pushDigit, valueToDigits } from '../lib/keypadEntry'
@@ -30,6 +38,8 @@ interface KeyboardProps {
   recipient?: string
   saveLabel?: string
   onMax?: () => void
+  title?: string
+  subtitle?: string
 }
 
 export default function Keyboard({
@@ -43,6 +53,8 @@ export default function Keyboard({
   recipient,
   saveLabel,
   onMax,
+  title,
+  subtitle,
 }: KeyboardProps) {
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat, fiatDecimals } = useContext(FiatContext)
@@ -70,7 +82,7 @@ export default function Keyboard({
   const [digits, setDigits] = useState('')
   const textValue = digitsToValue(digits, getMaxDecimals())
   const setFromValue = (value: string) => setDigits(value ? valueToDigits(value, getMaxDecimals()) : '')
-  const currencyConversionUseful = config.currency !== Currencies.BTC && toFiat(100_000_000) > 0 && fromFiat(1) > 0
+  const currencyConversionUseful = canConvertCurrency(config.currency, toFiat, fromFiat)
   const previousCurrencyConversionUseful = useRef(currencyConversionUseful)
   const defaultInputMode: KeyboardInputMode = asset?.assetId
     ? 'asset'
@@ -232,7 +244,13 @@ export default function Keyboard({
     <div className='amount-screen'>
       <header className='header'>
         <div className='header__side'>
-          <button type='button' className='icon-button' onClick={back} aria-label={t('components.close')}>
+          <button
+            type='button'
+            className='icon-button'
+            onClick={back}
+            aria-label={t('components.close')}
+            data-testid='header-back-btn'
+          >
             <Glyph name='close' size={22} strokeWidth={2} />
           </button>
         </div>
@@ -242,12 +260,13 @@ export default function Keyboard({
             <span>{prettyLongText(recipient, 8)}</span>
           </div>
         ) : (
-          <h1 className='title'>{t('common.amount')}</h1>
+          <h1 className='title'>{title ?? t('common.amount')}</h1>
         )}
         <div className='header__side header__side--end' />
       </header>
-      <section className='amount-screen__figure' aria-label={t('common.amount')}>
+      <section className='amount-screen__figure' aria-label={title ?? t('common.amount')}>
         <ErrorMessage error={Boolean(error)} text={error} />
+        {subtitle ? <p className='text-sm text-ink-3'>{subtitle}</p> : null}
         <p
           className='amount-screen__value'
           style={{ fontSize: figureSize }}
