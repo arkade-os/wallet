@@ -103,7 +103,7 @@ jobs:
       ARKD_IMAGE: ghcr.io/arkade-os/arkd:v0.9.25
       ARKD_WALLET_IMAGE: ghcr.io/arkade-os/arkd-wallet:v0.9.25
       ARKD_SIGNER_IMAGE: ghcr.io/arkade-os/arkd-signer:v0.9.25
-      EMULATOR_IMAGE: ghcr.io/arkade-os/emulator:v0.0.10-rc.0
+      EMULATOR_IMAGE: ghcr.io/arkade-os/emulator:v0.0.10
     steps:
       - uses: actions/checkout@v4
         with:
