@@ -203,6 +203,12 @@ export default function Init() {
     lineHeight: '1.2',
   }
 
+  const linkStyle = {
+    textDecoration: 'none',
+    paddingTop: '1rem',
+    cursor: 'pointer',
+  }
+
   return (
     <>
       <OnboardingLogo
@@ -315,27 +321,21 @@ export default function Init() {
           <Button disabled={error} onClick={handlePasskeyLogin} label={t('init.logInWithPasskey')} secondary />
           <div style={{ padding: '1rem 0' }}>
             <Text centered color='neutral-500'>
-              <a
-                style={{ cursor: 'pointer', textDecoration: 'none', paddingTop: '1rem' }}
-                onClick={() => setShowPasskeyUI(false)}
-              >
-                or use a mnemonic
+              <a style={linkStyle} onClick={() => setShowPasskeyUI(false)}>
+                {t('init.orUseAMnemonic')}
               </a>
             </Text>
           </div>
         </ButtonsOnBottom>
       ) : (
         <ButtonsOnBottom>
-          <Button disabled={error || !aspReady} onClick={handleNewWallet} label={`+ ${t('init.createWallet')}`} />
+          <Button disabled={error || !aspReady} onClick={handleNewWallet} label={t('init.createWallet')} />
           <Button disabled={error} onClick={handleOldWallet} label={t('init.restoreWallet')} secondary />
           {isBiometricsSupported() ? (
             <div style={{ padding: '1rem 0' }}>
               <Text centered color='neutral-500'>
-                <a
-                  style={{ cursor: 'pointer', textDecoration: 'none', paddingTop: '1rem' }}
-                  onClick={() => setShowPasskeyUI(true)}
-                >
-                  or use a passkey
+                <a style={linkStyle} onClick={() => setShowPasskeyUI(true)}>
+                  {t('init.orUseAPasskey')}
                 </a>
               </Text>
             </div>

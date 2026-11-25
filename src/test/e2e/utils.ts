@@ -151,7 +151,7 @@ export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<voi
 
 export async function createWallet(page: Page): Promise<void> {
   await page.goto('/')
-  await page.getByText(`+ ${tr.init.createWallet}`).click()
+  await page.getByText(tr.init.createWallet).click()
   await waitForWalletPage(page)
 }
 

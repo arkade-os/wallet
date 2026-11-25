@@ -8,12 +8,15 @@ import { WalletContext } from '../../providers/wallet'
 import { DevModeProvider } from '../../providers/devMode'
 import { mockAspContextValue, mockFlowContextValue, mockNavigationContextValue, mockWalletContextValue } from './mocks'
 import { createPasskeyWallet, loginWithPasskey, PasskeyNotConfirmed, type PasskeyWallet } from '../../lib/passkey'
+import { translations } from '@/lib/i18n'
 
 vi.mock('../../lib/passkey', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/passkey')>()),
   createPasskeyWallet: vi.fn(),
   loginWithPasskey: vi.fn(),
 }))
+
+const tr = translations.en
 
 function withContexts(children: React.ReactNode) {
   return (
@@ -41,7 +44,7 @@ describe('Init screen — devMode triple-tap gesture (pristine wallet)', () => {
     renderInitWithProvider()
 
     // devMode starts off: creating a wallet skips the options sheet
-    fireEvent.click(screen.getByText('+ Create wallet'))
+    fireEvent.click(screen.getByText(tr.init.createWallet))
     expect(screen.queryByTestId('toggle-hd-rotation')).not.toBeInTheDocument()
 
     // Three taps on the welcome heading toggle devMode on
@@ -50,8 +53,8 @@ describe('Init screen — devMode triple-tap gesture (pristine wallet)', () => {
     fireEvent.click(heading)
     fireEvent.click(heading)
 
-    // Now "+ Create wallet" opens the advanced sheet with the rotation toggle
-    fireEvent.click(screen.getByText('+ Create wallet'))
+    // Now "Create wallet" opens the advanced sheet with the rotation toggle
+    fireEvent.click(screen.getByText(tr.init.createWallet))
     expect(await screen.findByTestId('toggle-hd-rotation')).toBeInTheDocument()
   })
 })
@@ -86,10 +89,11 @@ describe('Init screen — passkey wallets', () => {
   })
 
   const startPasskeyWallet = async () => {
-    fireEvent.click(screen.getByText('Create with passkey'))
+    fireEvent.click(screen.getByText(tr.init.orUseAPasskey))
+    fireEvent.click(screen.getByText(tr.init.createWithPasskey))
     expect(await screen.findByText(/press Cancel/)).toBeInTheDocument()
     expect(createPasskeyWallet).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'Create passkey' }))
+    fireEvent.click(screen.getByRole('button', { name: tr.init.createPasskey }))
   }
 
   it('explains the prompts first, then creates a wallet whose words come from the new passkey', async () => {
@@ -132,7 +136,7 @@ describe('Init screen — passkey wallets', () => {
     expect(screen.getByText(/not software running as you/)).toBeInTheDocument()
     expect(navigate).not.toHaveBeenCalled()
     expect(updateWallet).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'Continue with this passkey' }))
+    fireEvent.click(screen.getByRole('button', { name: tr.init.continueWithPasskey }))
     await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.InitConnect))
     expect(updateWallet).not.toHaveBeenCalled()
     expect(setInitInfo).toHaveBeenCalledWith(
@@ -159,8 +163,8 @@ describe('Init screen — passkey wallets', () => {
   it('logs in on a new device from a passkey alone', async () => {
     vi.mocked(loginWithPasskey).mockResolvedValue({ mnemonic: words, passkeyId: 'cd', passkeyRpId: 'localhost' })
     const { navigate, setInitInfo, updateWallet } = renderWithSpies()
-    fireEvent.click(screen.getAllByText('Other login options')[0])
-    fireEvent.click(await screen.findByText('Log in with passkey'))
+    fireEvent.click(await screen.findByText(tr.init.orUseAPasskey))
+    fireEvent.click(await screen.findByText(tr.init.logInWithPasskey))
     await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.InitConnect))
     expect(updateWallet).not.toHaveBeenCalled()
     expect(setInitInfo).toHaveBeenCalledWith(
@@ -178,8 +182,8 @@ describe('Init screen — passkey wallets', () => {
     let settle: (found: { mnemonic: string; passkeyId: string; passkeyRpId: string }) => void = () => {}
     vi.mocked(loginWithPasskey).mockReturnValue(new Promise((resolve) => (settle = resolve)))
     const { navigate, setInitInfo, unmount } = renderWithSpies()
-    fireEvent.click(screen.getAllByText('Other login options')[0])
-    fireEvent.click(await screen.findByText('Log in with passkey'))
+    fireEvent.click(await screen.findByText(tr.init.orUseAPasskey))
+    fireEvent.click(await screen.findByText(tr.init.logInWithPasskey))
 
     unmount()
     await act(async () => settle({ mnemonic: words, passkeyId: 'cd', passkeyRpId: 'localhost' }))
@@ -192,10 +196,11 @@ describe('Init screen — passkey wallets', () => {
     let settle: (found: { mnemonic: string; passkeyId: string; passkeyRpId: string }) => void = () => {}
     vi.mocked(loginWithPasskey).mockReturnValue(new Promise((resolve) => (settle = resolve)))
     const { navigate, setInitInfo } = renderWithSpies()
-    fireEvent.click(screen.getAllByText('Other login options')[0])
-    fireEvent.click(await screen.findByText('Log in with passkey'))
+    fireEvent.click(await screen.findByText(tr.init.orUseAPasskey))
+    fireEvent.click(await screen.findByText(tr.init.logInWithPasskey))
+    fireEvent.click(await screen.findByText(tr.init.orUseAMnemonic))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Restore wallet' }))
+    fireEvent.click(screen.getByRole('button', { name: tr.init.restoreWallet }))
     await act(async () => settle({ mnemonic: words, passkeyId: 'cd', passkeyRpId: 'localhost' }))
 
     expect(navigate).toHaveBeenCalledWith(Pages.InitRestore)
