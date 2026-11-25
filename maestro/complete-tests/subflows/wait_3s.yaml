@@ -1,0 +1,4 @@
+appId: com.android.chrome
+---
+- waitForAnimationToEnd:
+    timeout: 3000

@@ -1,0 +1,7 @@
+appId: com.android.chrome
+---
+# recordings/taps-20260609-154156.log tap 8
+
+- tapOn:
+    point: "19%, 68%"
+    waitToSettleTimeoutMs: 800
