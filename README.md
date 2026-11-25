@@ -212,10 +212,11 @@ otherwise it will never run on CI.
 
 Two separate native Taxi jobs run eight primary cases and one final recovery case
 in each browser project, for eighteen cases in total.
-They verify each consumer's manifest-listed packages, then start an
-isolated Arkade/emulator/Taxi stack, fund the current solver, mint ARFQ and publish
-its actual signed discovery card through a local WSS relay. The exact-out case
-checks the single fill, receiver recycle and all four parties' final balances.
+They verify the wallet's manifest-listed packages and that the solver vendors the
+same archive bytes, then start an isolated Arkade/emulator/Taxi stack, fund the
+current solver, mint ARFQ and publish its actual signed discovery card through
+a local WSS relay. The exact-out case checks the single fill, receiver recycle
+and all four parties' final balances.
 Swap-screen cases trade in both directions and verify the compiled programs and
 exact balances. The interrupted-claim case checks that an unspent input stays
 reserved through a tab close, service worker restart and ordinary wallet lock/unlock.

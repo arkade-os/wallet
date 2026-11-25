@@ -1,7 +1,7 @@
 import { expect, test, type TestInfo } from '@playwright/test'
 import { RestIndexerProvider, arkade, asset } from '@arkade-os/sdk'
 import type { OfferSwapRecord } from '@arkade-os/swap'
-import { ASSET_CARRIER_SATS, ASSET_SWAP_CONTRACT_VERSIONS, bindingProgram } from '@arkade-os/swap/protocol'
+import { ASSET_CARRIER_SATS, bindingProgram } from '@arkade-os/swap/protocol'
 import { hex } from '@scure/base'
 import { navigateHome, navigateToSwaps } from '../utils'
 import { actor, admin, advances, importAsset, ledger, nativeOffers, shift, tr, type Actor } from './helpers'
@@ -133,7 +133,8 @@ async function swap(
   expect(record.spentTxid).toMatch(/^[0-9a-f]{64}$/)
   const binding = record.binding
   if (!binding) throw new Error('A directed swap records its covenant as a binding')
-  expect(ASSET_SWAP_CONTRACT_VERSIONS).toContain(binding.version)
+  expect(binding.version).toBe('asset-swap-directed-nonce')
+  expect(binding.nonce).toMatch(/^[0-9a-f]{64}$/)
   expect(binding.taker).toBeTruthy()
   expect(Boolean(binding.wantAsset)).toBe(forward)
   expect(forward ? binding.wantAsset : binding.offerAsset).toBe(assetId)
