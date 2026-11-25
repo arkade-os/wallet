@@ -41,7 +41,7 @@
     "vaul-base": "^1.0.0",
     "web-haptics": "^0.0.6",
     "ws-electrumx-client": "1.0.5",
-    "@arkade-taxi/client": "file:./vendor/carrier/arkade-taxi-client-1.1.3-11bfa10e.tgz"
+    "@arkade-taxi/client": "file:./vendor/carrier/arkade-taxi-client-1.1.4-5df105e8.tgz"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

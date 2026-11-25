@@ -117,13 +117,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: arkade-os/intent-solver
-          ref: 34a21d381fc106e0eb37ada7782695255da83861
+          ref: 855fa3a616e4c615a4c0dbddb26fd7c67137aad2
           path: .local-tests/native-solver
           persist-credentials: false
       - uses: actions/checkout@v4
         with:
           repository: ArkLabsHQ/arkade-taxi
-          ref: 11bfa10eb165f60a493055016d4e226f028378df
+          ref: 5df105e82f33a1c74a1d898c93356cb9a70150c7
           path: .local-tests/native-taxi
           persist-credentials: false
       - uses: actions/setup-node@v4

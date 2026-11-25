@@ -10,8 +10,8 @@ import { parseEnv, promisify } from 'node:util'
 import { configureRegtestEsplora } from './regtest-esplora.mjs'
 
 export const refs = Object.freeze({
-  solver: '34a21d381fc106e0eb37ada7782695255da83861',
-  taxi: '11bfa10eb165f60a493055016d4e226f028378df',
+  solver: '855fa3a616e4c615a4c0dbddb26fd7c67137aad2',
+  taxi: '5df105e82f33a1c74a1d898c93356cb9a70150c7',
   regtest: '7c91a6bdafd855ba8b8cc19cf35f46257eb1467d',
 })
 const projects = ['Mobile Chrome', 'Google Chrome']
