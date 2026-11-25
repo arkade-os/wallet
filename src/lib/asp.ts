@@ -7,12 +7,9 @@ import {
   ExtendedVirtualCoin,
   FeeInfo,
   WalletBalance,
-  DelegateContractHandler,
   IVtxoManager,
   Asset,
   ArkError,
-  DelegateInfo,
-  toXOnlySignerHex,
   isVtxoSpent,
   isRetryableProviderError,
   getNetwork,
@@ -29,6 +26,8 @@ import * as Sentry from '@sentry/react'
 import { hex } from '@scure/base'
 import { arkTransactionToTx, sortLocalTxs } from './transactionHistory'
 import { walletFingerprint } from './sentry'
+import { getActiveLanguage } from './language'
+import { translations } from './i18n'
 
 const emptyFees: FeeInfo = {
   intentFee: { offchainInput: '', offchainOutput: '', onchainInput: '', onchainOutput: '' },
@@ -97,7 +96,8 @@ export const byExpiryAsc = (a: { expiresAt?: Date | null }, b: { expiresAt?: Dat
 
 export class InsufficientFundsError extends Error {
   constructor() {
-    super('Insufficient funds')
+    const lang = getActiveLanguage()
+    super(translations[lang].send.insufficientFunds)
     this.name = 'InsufficientFundsError'
   }
 }
@@ -344,6 +344,40 @@ export const getReceivingAddresses = async (wallet: IWallet): Promise<Addresses>
   }
 }
 
+/** How long Receive waits for the unlock-time Executor registration. The SDK's own request deadline is 30 s. */
+export const EXECUTOR_SETTLE_TIMEOUT_MS = 5_000
+
+/** What the user is shown to receive on. `ownAddr` is the wallet's own Ark address (`getAddress()`) and what every
+ * other use keeps; `displayOffchainAddr` is the Executor renewal contract when one is recorded, else `ownAddr`. */
+export type DisplayAddresses = {
+  boardingAddr: string
+  ownAddr: string
+  displayOffchainAddr: string
+}
+
+/** Addresses for screens that show them to the user. Waits (bounded) for the Executor registration first: until it
+ * settles the SDK answers `getBoardingAddress()` with an address the Executor does not watch. Never throws on a
+ * failed or slow registration — the fallback is the SDK's own addresses. Does not change `getReceivingAddresses`. */
+export const getDisplayAddresses = async (
+  wallet: IWallet,
+  executor?: { settled: () => Promise<{ status?: string; renewalAddress?: string }>; timeoutMs?: number },
+): Promise<DisplayAddresses> => {
+  let renewalAddress: string | undefined
+  if (executor) {
+    let timer: number | undefined
+    const timeout = new Promise<undefined>((resolve) => {
+      timer = window.setTimeout(resolve, executor.timeoutMs ?? EXECUTOR_SETTLE_TIMEOUT_MS)
+    })
+    try {
+      renewalAddress = (await Promise.race([executor.settled().catch(() => undefined), timeout]))?.renewalAddress
+    } finally {
+      window.clearTimeout(timer)
+    }
+  }
+  const { offchainAddr, boardingAddr } = await getReceivingAddresses(wallet)
+  return { boardingAddr, ownAddr: offchainAddr, displayOffchainAddr: renewalAddress || offchainAddr }
+}
+
 export const redeemNotes = async (wallet: IWallet, notes: string[]): Promise<void> => {
   const inputs = notes.map((note) => ArkNote.fromString(note))
   const amount = inputs.reduce((acc, curr) => acc + BigInt(curr.value), BigInt(0))
@@ -398,13 +432,19 @@ export const settleVtxos = async (
   ].filter(({ input, fee }) => fee < input.value)
   const inputs = priced.map(({ input }) => input)
 
-  if (inputs.length === 0) throw new Error('No UTXOs or VTXOs eligible to settle')
+  if (inputs.length === 0) {
+    const lang = getActiveLanguage()
+    throw new Error(translations[lang].errors.noTXOstoSettle)
+  }
 
   const address = await wallet.getAddress()
   const net = priced.reduce((sum, { input, fee }) => sum + input.value - fee, 0)
   const amount = outputAfterItsFee(estimator, address, net)
 
-  if (amount < Number(dustAmount)) throw new Error('Total amount is below dust threshold')
+  if (amount < Number(dustAmount)) {
+    const lang = getActiveLanguage()
+    throw new Error(translations[lang].errors.amountBelowThreshold)
+  }
 
   const outputs = [{ address, amount: BigInt(amount) }]
 
@@ -417,49 +457,6 @@ export const settleVtxos = async (
       ...summarizeInputs(inputs),
     })
     throw error
-  }
-}
-
-export const delegateVtxos = async (wallet: ServiceWorkerWallet): Promise<void> => {
-  const cm = await wallet.getContractManager()
-  const contractWithVtxos = await cm.getContractsWithVtxos({ type: 'delegate' }, undefined, { unspentOnly: true })
-  const dm = await wallet.getDelegateManager()
-
-  if (!dm) {
-    throw new Error('Delegator manager not found')
-  }
-
-  let delegateInfo: DelegateInfo
-  try {
-    delegateInfo = await dm.getDelegateInfo()
-  } catch (error) {
-    consoleError(error, 'Error fetching delegate info')
-    return
-  }
-
-  let delegateInfoPubKey: string
-  try {
-    delegateInfoPubKey = toXOnlySignerHex(delegateInfo.pubkey)
-  } catch (error) {
-    consoleError(error, 'Invalid delegate pubkey')
-    return
-  }
-
-  const vtxosToDelegate = contractWithVtxos
-    .filter(({ contract, vtxos }) => {
-      if (vtxos.length === 0) return false
-      const contractParams = DelegateContractHandler.deserializeParams(contract.params)
-      const contractDelegatePubKey = hex.encode(contractParams.delegatePubKey) // x-only (32 bytes)
-      return contractDelegatePubKey === delegateInfoPubKey
-    })
-    // A worker older than SDK 0.4.77 ignores `unspentOnly`.
-    .flatMap((_) => _.vtxos.filter((vtxo) => !isVtxoSpent(vtxo)))
-
-  if (vtxosToDelegate.length === 0) return
-  const destination = await wallet.getAddress()
-  const result = await dm.delegate(vtxosToDelegate, destination)
-  if (result.failed.length > 0) {
-    consoleError(result.failed, 'Delegation partial failure:')
   }
 }
 
