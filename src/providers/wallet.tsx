@@ -10,6 +10,7 @@ import {
   IVtxoManager,
   IndexedDBWalletRepository,
   IndexedDBContractRepository,
+  toXOnlySignerHex,
   type Activity,
   type Identity,
   type ServiceWorkerWalletMode,
@@ -31,7 +32,8 @@ import {
   type TransactionActivityMetadata,
 } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
-import { getBalance, getUnrolledVtxos, getVtxos, settleVtxos } from '../lib/asp'
+import { canOpenWithCachedOperator, getBalance, getUnrolledVtxos, getVtxos, settleVtxos } from '../lib/asp'
+import { decodeArkAddress } from '../lib/address'
 import { resolveExits, subtractExitedAssets, type ExitRecord } from '../lib/exitHistory'
 import { AspContext } from './asp'
 import { AssetsContext } from './assets'
@@ -82,6 +84,7 @@ const ASSET_METADATA_FETCH_TIMEOUT_MS = 5_000
 
 interface InitSvcWorkerWalletParams {
   arkServerUrl: string
+  expectedNetwork?: NetworkName
   identity: Identity
   retryCount?: number
   maxRetries?: number
@@ -165,6 +168,8 @@ interface WalletContextProps {
   executorRenewalAddress?: string
   /** The worker's first contract sync since setup has not landed: balances and history are stored data. */
   syncing?: boolean
+  revalidatingOperator?: boolean
+  operatorRevalidationFailed?: boolean
   satsPreview?: number
   booting?: boolean
   loadError: string | null
@@ -256,6 +261,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
   const [dataReady, setDataReady] = useState(false)
   const [syncing, setSyncing] = useState(() => Boolean(wallet.pubkey))
+  const [operatorRevalidation, setOperatorRevalidation] = useState<'ready' | 'checking' | 'failed'>('ready')
+  const revalidatingOperator = operatorRevalidation !== 'ready'
   const [booting, setBooting] = useState(() => Boolean(wallet.pubkey))
   const [loadError, setLoadError] = useState<string | null>(null)
   const [authState, setAuthState] = useState<WalletAuthState>('unknown')
@@ -314,6 +321,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const lnurlResyncRef = useRef<ReturnType<typeof lnurlResyncOnPayment>>()
   const swMessageHandlerRef = useRef<(event: MessageEvent) => void>()
   const reinitInProgress = useRef(false)
+  const restartForSigner = useRef<string>()
   const initAbortRef = useRef<AbortController | null>(null)
   // One per init session; a session that no longer owns it cannot settle, store an address or reload for the next.
   const executorSessionRef = useRef<{
@@ -348,9 +356,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // every effect that reloads, so it is the first to run on the commit that
   // brings the network in.
   const networkRef = useRef(aspInfo.network)
+  const operatorUnreachable = useRef(aspInfo.unreachable)
   useEffect(() => {
     networkRef.current = aspInfo.network
-  }, [aspInfo.network])
+    operatorUnreachable.current = aspInfo.unreachable
+  }, [aspInfo.network, aspInfo.unreachable])
 
   // Each init gets its own AbortSignal; lock/reset aborts the current signal
   // with 'lock-reset' so stale paths can decide whether to tear down the SW.
@@ -623,13 +633,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [wallet.pubkey])
 
-  // History is loaded after `client.ready` (see SwapsProvider). Skip here when
-  // url and network are set — that is the path that starts the swap client.
-  // This branch is not first unlock: `initWallet` already had a server URL.
+  // Local history must be usable even when the swap client's restore needs the indexer.
+  const wasOperatorUnreachable = useRef(aspInfo.unreachable)
   useEffect(() => {
+    const reconnected = wasOperatorUnreachable.current && !aspInfo.unreachable
+    wasOperatorUnreachable.current = aspInfo.unreachable
     if (!svcWallet) return
-    if (!aspInfo.url || !aspInfo.network) reloadWallet().catch(consoleError)
-  }, [svcWallet, aspInfo.url, aspInfo.network])
+    if (reconnected || aspInfo.unreachable || !aspInfo.url || !aspInfo.network) reloadWallet().catch(consoleError)
+  }, [svcWallet, aspInfo.unreachable, aspInfo.url, aspInfo.network])
 
   useEffect(() => {
     if (!import.meta.env.DEV || !isDevAutoInit) return
@@ -819,7 +830,15 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     identity: Identity,
     params: InitSvcWorkerWalletParams,
   ): Promise<boolean> => {
-    const { arkServerUrl, retryCount = 0, maxRetries = 2, executorUrl, walletMode, restoring = false } = params
+    const {
+      arkServerUrl,
+      expectedNetwork,
+      retryCount = 0,
+      maxRetries = 2,
+      executorUrl,
+      walletMode,
+      restoring = false,
+    } = params
     try {
       setLoadingStatus(t('loading.startingWallet'))
       const mode = walletMode ?? config.walletMode ?? 'static'
@@ -859,6 +878,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         serviceWorkerPath: '/wallet-service-worker.mjs',
         identity,
         arkServer: { url: arkServerUrl },
+        expectedNetwork,
         executorUrl,
         walletMode: mode,
         // Contract sync finishes in the background; the coin-event reload below repaints. Not lazyBoarding: its
@@ -889,6 +909,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // lockup is spent. Needs no client lock, so a passive tab still groups.
       svcWallet.activity.use(
         swapRecordResolver(undefined, async (script) => {
+          if (operatorUnreachable.current) return []
           const reader = await svcWallet.getArkadeReader()
           const { vtxos } = await reader.getVtxos({ scripts: [script] })
           return vtxos
@@ -910,7 +931,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const vtxoMgr = await svcWallet.getVtxoManager()
-      const { walletInitialized } = await svcWallet.getStatus()
+      const { walletInitialized, providerConnectionState } = await svcWallet.getStatus()
 
       // Single checkpoint before any state/listener commits. Migration and
       // getVtxoManager/getStatus are side-effect-free w.r.t. React/DOM, so
@@ -924,6 +945,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       setVtxoManager(vtxoMgr)
       setInitialized(walletInitialized)
       setSyncing(true)
+      if (providerConnectionState?.mode === 'degraded' && providerConnectionState.provider === 'arkade') {
+        setOperatorRevalidation('checking')
+      }
 
       // Safe on every unlock: watches are keyed by txid and the confirmation queue ignores a key it already holds.
       resumeLnurlConfirmations()
@@ -1141,6 +1165,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }) => {
     const arkServerUrl = aspInfo.url
     const network = aspInfo.network as NetworkName
+    if (!network || arkServerUrl !== config.aspUrl) throw new Error('Operator information is unavailable')
+    if (aspInfo.unreachable && !canOpenWithCachedOperator(wallet, aspInfo)) {
+      throw new Error('Operator information is unavailable')
+    }
 
     let identity: Identity
     let pubkey: string
@@ -1173,12 +1201,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const didInit = await initSvcWorkerWallet({
       identity,
       arkServerUrl,
+      expectedNetwork: network,
       executorUrl,
       walletMode,
       restoring: credentials.restoring,
     })
     if (!didInit) return
-    updateWallet({ ...wallet, network, pubkey })
+    updateWallet((current) => ({ ...current, network, operatorUrl: arkServerUrl, pubkey }))
     setInitialized(true)
   }
 
@@ -1194,7 +1223,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         await initWallet({ privateKey })
       }
     } catch (err) {
-      setAuthState('locked')
+      setAuthState(authState === 'passwordless' && aspInfo.retryable ? 'passwordless' : 'locked')
       if (err instanceof DOMException) throw new Error('Invalid password')
       throw err instanceof Error ? err : new Error('Invalid password')
     }
@@ -1214,9 +1243,46 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     await initSvcWorkerWallet({
       identity,
       arkServerUrl,
+      expectedNetwork: wallet.network || undefined,
       executorUrl,
     })
   }
+
+  useEffect(() => {
+    if (!svcWallet) return
+    if (aspInfo.unreachable) {
+      setOperatorRevalidation('checking')
+      return
+    }
+    if (!revalidatingOperator || !aspInfo.signerPubkey) return
+    let cancelled = false
+    const validateSigner = async () => {
+      const { serverPubKey } = decodeArkAddress(await svcWallet.getAddress())
+      if (cancelled) return
+      const signer = toXOnlySignerHex(aspInfo.signerPubkey)
+      if (serverPubKey === signer) {
+        restartForSigner.current = undefined
+        setOperatorRevalidation('ready')
+        return
+      }
+      const scope = `${wallet.pubkey}:${aspInfo.url}:${signer}`
+      if (restartForSigner.current === scope) {
+        setOperatorRevalidation('failed')
+        return
+      }
+      restartForSigner.current = scope
+      setOperatorRevalidation('checking')
+      await restartWallet()
+    }
+    validateSigner().catch((error) => {
+      if (!cancelled) setOperatorRevalidation('failed')
+      consoleError(error, 'Error revalidating the operator signer')
+    })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aspInfo, revalidatingOperator, svcWallet, wallet.pubkey])
 
   // Self-heal when the SW dies: re-run setup with the existing identity so
   // SwapsProvider and other consumers re-bind via setSvcWallet, instead of
@@ -1233,6 +1299,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       const initialized = await initSvcWorkerWallet({
         identity,
         arkServerUrl,
+        expectedNetwork: wallet.network || undefined,
         executorUrl,
       })
       if (!initialized) return
@@ -1304,6 +1371,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const settlePreconfirmed = async () => {
+    if (aspInfo.unreachable) throw new Error(t('init.arkadeServerUnreachable'))
+    if (revalidatingOperator) {
+      throw new Error(t(operatorRevalidation === 'failed' ? 'wallet.operatorSignerUnverified' : 'wallet.syncing'))
+    }
     if (!svcWallet || !vtxoManager) throw new Error('Service worker not initialized')
     await settleVtxos(svcWallet, vtxoManager, aspInfo.dust, wallet.thresholdMs, aspInfo.fees?.intentFee)
     notifyTxSettled()
@@ -1362,7 +1433,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         executorRenewalAddress,
         satsPreview,
         booting,
-        syncing,
+        syncing: !aspInfo.unreachable && (syncing || operatorRevalidation === 'checking'),
+        revalidatingOperator,
+        operatorRevalidationFailed: operatorRevalidation === 'failed',
         loadError,
         dismissLoadError,
         reloadWallet,

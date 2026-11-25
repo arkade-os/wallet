@@ -39,7 +39,7 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
 
   // update limits when aspInfo or svcWallet changes
   useEffect(() => {
-    if (!aspInfo.network || !svcWallet) return
+    if (!aspInfo.network || aspInfo.unreachable || !svcWallet) return
 
     limits.current.utxo = {
       min: Number(import.meta.env.VITE_UTXO_MIN_AMOUNT || aspInfo.utxoMinAmount || aspInfo.dust || -1),
@@ -50,7 +50,7 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
       min: Number(import.meta.env.VITE_VTXO_MIN_AMOUNT || aspInfo.vtxoMinAmount || aspInfo.dust || -1),
       max: Number(import.meta.env.VITE_VTXO_MAX_AMOUNT || aspInfo.vtxoMaxAmount || -1),
     }
-  }, [aspInfo.network, svcWallet])
+  }, [aspInfo, svcWallet])
 
   /**
    * Calculates the maximum allowed amount based on UTXO and VTXO limits.

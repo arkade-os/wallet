@@ -2,6 +2,7 @@ import { useCallback, useContext, useEffect, useRef, useState, useSyncExternalSt
 import DismissibleBanner from '../../components/DismissibleBanner'
 import ErrorMessage from '../../components/Error'
 import { AspContext } from '../../providers/asp'
+import { WalletContext } from '../../providers/wallet'
 import { aspErrorText } from '../../lib/asp'
 import { ConfigContext } from '../../providers/config'
 import HomeIcon from '../../icons/Home'
@@ -28,6 +29,7 @@ import { useTranslation } from '../../providers/language'
 
 export default function Wallet() {
   const { aspInfo } = useContext(AspContext)
+  const { revalidatingOperator, operatorRevalidationFailed } = useContext(WalletContext)
   const { announcement } = useContext(AnnouncementContext)
   const { config } = useContext(ConfigContext)
   const { backupAndUpdateConfig } = useContext(BackupContext)
@@ -35,7 +37,6 @@ export default function Wallet() {
   const { nudge, nudgeCheckComplete } = useContext(NudgeContext)
   const { t } = useTranslation()
 
-  const [error, setError] = useState(false)
   const [homeScrolled, setHomeScrolled] = useState(false)
   const [balanceCollapseProgress, setBalanceCollapseProgress] = useState(0)
   const bootAnimActive = useSyncExternalStore(subscribeBootAnim, getBootAnimActive)
@@ -68,10 +69,6 @@ export default function Wallet() {
     const dismissedBanners = [...(config.dismissedBanners ?? []), 'pwa-install']
     backupAndUpdateConfig({ ...config, dismissedBanners })
   }
-
-  useEffect(() => {
-    setError(aspInfo.unreachable)
-  }, [aspInfo.unreachable])
 
   useEffect(() => {
     const scrollEl = document.querySelector<HTMLElement>('.wallet-home-content')
@@ -126,9 +123,19 @@ export default function Wallet() {
         <WalletStaggerContainer animate={shouldStagger} className='home-stack' hold={bootAnimActive}>
           <WalletStaggerChild animate={shouldStagger} className='home-stack__hero'>
             <PortfolioHero ref={balanceRef} collapseProgress={balanceCollapseProgress} />
+            <div role='status'>
+              <ErrorMessage
+                error={aspInfo.unreachable || Boolean(operatorRevalidationFailed)}
+                text={
+                  aspInfo.unreachable
+                    ? aspErrorText(aspInfo, t('wallet.showingLastSyncedData'), t('errors.outdatedWallet'))
+                    : t('wallet.operatorSignerUnverified')
+                }
+              />
+            </div>
           </WalletStaggerChild>
           <WalletStaggerChild animate={shouldStagger} className='home-stack__actions'>
-            <HomeQuickActions />
+            <HomeQuickActions operatorUnavailable={aspInfo.unreachable || Boolean(revalidatingOperator)} />
           </WalletStaggerChild>
           {hasHomeNotices ? (
             <WalletStaggerChild animate={shouldStagger}>
@@ -154,14 +161,6 @@ export default function Wallet() {
                   visible={pwaBannerVisible}
                 />
               </FlexCol>
-            </WalletStaggerChild>
-          ) : null}
-          {error ? (
-            <WalletStaggerChild animate={shouldStagger}>
-              <ErrorMessage
-                error={error}
-                text={aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))}
-              />
             </WalletStaggerChild>
           ) : null}
           <WalletStaggerChild animate={shouldStagger} className='home-stack__section'>

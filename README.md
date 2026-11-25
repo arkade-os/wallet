@@ -16,6 +16,10 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
   </tr>
 </table>
 
+## Operator outages
+
+A wallet that has previously loaded on this browser can unlock and show its last synced balance and activity during a temporary Arkade operator outage. Settings and local backup controls remain accessible. The wallet checks for reconnection and resumes operator-dependent actions when the service returns. First-time setup requires a reachable operator.
+
 ## Recovering an asset mint
 
 Minting with a new control asset requires two separate issuances. The wallet saves a local recovery record before

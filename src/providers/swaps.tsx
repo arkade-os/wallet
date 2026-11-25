@@ -250,7 +250,9 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     availableBalance,
     assetMetadataCache,
     setCacheEntry,
+    revalidatingOperator,
   } = useContext(WalletContext)
+  const operatorUnavailable = aspInfo.unreachable || revalidatingOperator
 
   const [markets, setMarkets] = useState<DiscoveredMarket[]>([])
   const cardsVersion = useSyncExternalStore(subscribeSolverCards, getSolverCardsVersion, getSolverCardsVersion)
@@ -684,6 +686,9 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
    * does not. Everything else runs from `args` either way.
    */
   const runOnDriver = async <T,>(op: DriverOp, args: unknown[], here?: () => Promise<T>): Promise<T> => {
+    if (operatorUnavailable && op !== 'cancelOpenSwapQuotes' && op !== 'cancelSwap' && op !== 'recoverSwap') {
+      throw new Error('Arkade server unreachable')
+    }
     const locally = () => (here ? here() : (runHere(op, args) as Promise<T>))
     if (!navigator.locks) return locally()
     if (!held.current && granted.current) {
@@ -1080,6 +1085,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     ({ assetId, amount }) => /^[0-9a-f]{68}$/.test(assetId) && BigInt(amount) > 0n,
   )
   const swapAvailable =
+    !operatorUnavailable &&
     (markets.length > 0 || hasOnchainPayout || Boolean(hasAssetToDiscover) || availableBalance > 0) &&
     Boolean(emulatorPubkey)
   const value = useMemo(
@@ -1117,6 +1123,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       aspInfo.url,
       aspInfo.network,
       aspInfo.dust,
+      operatorUnavailable,
       outcomeOf,
       errorOf,
     ],

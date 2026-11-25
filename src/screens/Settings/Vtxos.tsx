@@ -42,7 +42,9 @@ export default function Vtxos() {
   const { aspInfo, calcBestMarketHour } = useContext(AspContext)
   const { config } = useContext(ConfigContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
-  const { assetMetadataCache, reloadWallet, vtxos, vtxoManager, wallet, svcWallet } = useContext(WalletContext)
+  const { assetMetadataCache, reloadWallet, vtxos, vtxoManager, wallet, svcWallet, revalidatingOperator } =
+    useContext(WalletContext)
+  const operatorUnavailable = aspInfo.unreachable || revalidatingOperator
   const { language, t } = useTranslation()
 
   const defaultLabel = t('vtxos.renewVirtualCoins')
@@ -161,6 +163,7 @@ export default function Vtxos() {
   const listableVtxos = allVtxos.filter((vtxo) => vtxo.isSpent === false)
 
   const handleRollover = async () => {
+    if (operatorUnavailable) return
     try {
       setRollingover(true)
       await settleVtxos(svcWallet, vtxoManager, aspInfo.dust, wallet.thresholdMs, aspInfo.fees?.intentFee)
@@ -421,7 +424,11 @@ export default function Vtxos() {
         <>
           <ButtonsOnBottom>
             {hasInputsToSettle && !hideUtxos ? (
-              <Button onClick={handleRollover} label={label} disabled={rollingover || !aboveDust} />
+              <Button
+                onClick={handleRollover}
+                label={label}
+                disabled={rollingover || !aboveDust || operatorUnavailable}
+              />
             ) : null}
             {wallet.nextRollover ? (
               <Button onClick={() => setReminderIsOpen(true)} label={t('transaction.addReminder')} secondary />

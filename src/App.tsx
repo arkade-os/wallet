@@ -21,6 +21,7 @@ import { consoleError } from './lib/logs'
 import DesktopWalletShell from './components/DesktopWalletShell'
 import { OptionsContext } from './providers/options'
 import { SettingsOptions } from './lib/types'
+import { canOpenWithCachedOperator } from './lib/asp'
 
 const PASSWORDLESS_AUTO_RELOAD_KEY = 'passwordless-auto-reload-attempted'
 const DESKTOP_WALLET_PAGES = new Set([
@@ -77,8 +78,17 @@ export default function App() {
   const { direction, navigate, screen } = useContext(NavigationContext)
   const { appIntent, initInfo, resetFlow, sendInfo, setAppIntent, setSendInfo } = useContext(FlowContext)
   const { option } = useContext(OptionsContext)
-  const { authState, unlockWallet, walletLoaded, initialized, wallet, dataReady, loadError, devAutoInitFailed } =
-    useContext(WalletContext)
+  const {
+    authState,
+    unlockWallet,
+    walletLoaded,
+    initialized,
+    wallet,
+    dataReady,
+    loadError,
+    devAutoInitFailed,
+    revalidatingOperator,
+  } = useContext(WalletContext)
 
   const { outcomeOf } = useContext(SwapsContext)
   const loadingStatus = useLoadingStatus()
@@ -94,7 +104,9 @@ export default function App() {
   }, [])
   const [bootAnimDone, setBootAnimDone] = useState(false)
   const [bootExitMode, setBootExitMode] = useState<'fly-to-target' | 'fly-up'>('fly-up')
+  const [offlineBootFailed, setOfflineBootFailed] = useState(false)
 
+  const operatorUnreachable = useRef(aspInfo.unreachable)
   const passwordlessBootAttempted = useRef(false)
   const passwordlessReloadTimer = useRef<ReturnType<typeof setTimeout>>()
   const devAutoInitHomeRedirected = useRef(false)
@@ -147,8 +159,6 @@ export default function App() {
 
   useEffect(() => {
     if (isIAB) return navigate(Pages.InAppBrowser)
-    if (aspInfo.unreachable) return navigate(Pages.Unavailable)
-    if (jsCapabilitiesChecked && !isCapable) return navigate(Pages.Unavailable)
     // avoid redirect if the user is still setting up the wallet
     if (initInfo.password || initInfo.privateKey) return
     if (!walletLoaded) return navigate(Pages.Loading)
@@ -162,17 +172,7 @@ export default function App() {
     if (screen === Pages.Init && (authState === 'authenticated' || authState === 'passwordless')) {
       return navigate(Pages.Wallet)
     }
-  }, [
-    walletLoaded,
-    wallet.pubkey,
-    authState,
-    initInfo,
-    aspInfo.unreachable,
-    jsCapabilitiesChecked,
-    isCapable,
-    hasDevAutoInit,
-    initialized,
-  ])
+  }, [walletLoaded, wallet.pubkey, authState, initInfo, hasDevAutoInit, initialized])
 
   const prefersReduced = useReducedMotion()
   const effectiveDirection = prefersReduced ? 'none' : direction
@@ -186,7 +186,10 @@ export default function App() {
   const isNewUser = walletLoaded && !wallet.pubkey && !isDevAutoInitializing
   const allChecksReady = jsCapabilitiesChecked && configLoaded && aspReady
   const hasStoredWallet = walletLoaded && !!wallet.pubkey
-  const shouldShowUnlock = hasStoredWallet && authState === 'locked' && !aspInfo.unreachable
+  const operatorBlocksBoot = aspInfo.unreachable && (!canOpenWithCachedOperator(wallet, aspInfo) || offlineBootFailed)
+  const operatorUnavailable = aspInfo.unreachable || revalidatingOperator
+  const receiveUnavailable = initialized && operatorUnavailable && screen === Pages.ReceiveQRCode
+  const shouldShowUnlock = hasStoredWallet && authState === 'locked'
   const bootReady = jsCapabilitiesChecked && configLoaded && (aspReady || hasStoredWallet)
 
   // Hold the loading screen until wallet data is ready, except while the connect
@@ -201,7 +204,6 @@ export default function App() {
     !appIntent &&
     !isInInitFlow &&
     !isIAB &&
-    !aspInfo.unreachable &&
     (authState === 'passwordless' || authState === 'authenticated')
   const shouldHoldOnLoading =
     hasStoredWallet &&
@@ -220,8 +222,20 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    operatorUnreachable.current = aspInfo.unreachable
+    if (aspInfo.unreachable) return
+    setOfflineBootFailed(false)
+    passwordlessBootAttempted.current = false
+  }, [aspInfo.unreachable])
+
+  useEffect(() => {
+    if (receiveUnavailable) navigate(Pages.Wallet)
+  }, [navigate, receiveUnavailable])
+
+  useEffect(() => {
     if (!aspInfo.url) return
     if (!allChecksReady) return
+    if (operatorBlocksBoot || !isCapable || isIAB) return
     if (!wallet.pubkey || initialized) return
     if (authState !== 'passwordless') return
     if (passwordlessBootAttempted.current) return
@@ -229,6 +243,11 @@ export default function App() {
     passwordlessBootAttempted.current = true
     unlockWallet(defaultPassword).catch((err) => {
       consoleError(err, 'error auto-initializing passwordless wallet')
+      if (operatorUnreachable.current) {
+        setOfflineBootFailed(true)
+        return
+      }
+      if (aspInfo.unreachable) return
       try {
         if (sessionStorage.getItem(PASSWORDLESS_AUTO_RELOAD_KEY)) return
         sessionStorage.setItem(PASSWORDLESS_AUTO_RELOAD_KEY, 'true')
@@ -237,7 +256,18 @@ export default function App() {
         // ignore session storage errors; keep the app on loading instead of retry-looping
       }
     })
-  }, [allChecksReady, wallet.pubkey, initialized, authState, unlockWallet, aspInfo.url])
+  }, [
+    allChecksReady,
+    operatorBlocksBoot,
+    isCapable,
+    isIAB,
+    wallet.pubkey,
+    initialized,
+    authState,
+    unlockWallet,
+    aspInfo.url,
+    aspInfo.unreachable,
+  ])
 
   useEffect(() => {
     if (!hasDevAutoInit) devAutoInitHomeRedirected.current = false
@@ -257,7 +287,7 @@ export default function App() {
       authState === 'authenticated' &&
       initialized &&
       (dataReady || isConnectIntent) &&
-      !aspInfo.unreachable &&
+      !operatorUnavailable &&
       !isIAB &&
       !initInfo.password &&
       !initInfo.privateKey &&
@@ -283,20 +313,23 @@ export default function App() {
   // `screen` starts at `Init` and Init is what bounces an existing wallet on,
   // so onboarding mounted every boot — invisible, but focusable and read aloud.
   const onboardingIsMoot = hasStoredWallet && authState === 'authenticated' && screen === Pages.Init
-  const page =
-    isDevAutoInitializing || !(bootReady || isNewUser)
-      ? Pages.Loading
-      : showReturningHome
-        ? Pages.Wallet
-        : authState === 'locked' && !aspReady
-          ? Pages.Loading
-          : shouldHoldOnLoading
+  const page = isIAB
+    ? Pages.InAppBrowser
+    : operatorBlocksBoot || (jsCapabilitiesChecked && !isCapable)
+      ? Pages.Unavailable
+      : isDevAutoInitializing || !(bootReady || isNewUser)
+        ? Pages.Loading
+        : showReturningHome || receiveUnavailable
+          ? Pages.Wallet
+          : authState === 'locked' && !aspReady
             ? Pages.Loading
-            : shouldShowUnlock
-              ? Pages.Unlock
-              : onboardingIsMoot
-                ? Pages.Wallet
-                : screen
+            : shouldHoldOnLoading
+              ? Pages.Loading
+              : shouldShowUnlock
+                ? Pages.Unlock
+                : onboardingIsMoot
+                  ? Pages.Wallet
+                  : screen
 
   // Boot animation: persists on Loading, then flies to the LogoIcon position when
   // Wallet is reached. For any other destination (Unlock, Init, etc.), exits with fly-up.

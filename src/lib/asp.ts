@@ -11,11 +11,14 @@ import {
   Asset,
   ArkError,
   isVtxoSpent,
+  isRetryableProviderError,
+  getNetwork,
+  type NetworkName,
   ArkAddress,
   Estimator,
   IntentFeeConfig,
 } from '@arkade-os/sdk'
-import { Addresses, Tx, Vtxo } from './types'
+import { Addresses, Tx, Vtxo, Wallet } from './types'
 import { AspInfo } from '../providers/asp'
 import { consoleError } from './logs'
 import { getConfirmedAndNotExpiredUtxos } from './utxo'
@@ -77,6 +80,15 @@ export const aspErrorText = (info: AspInfo, fallback: string, outdatedText?: str
     ? (outdatedText ??
       'Your wallet is outdated and needs to be updated to be compatible with the latest Arkade version.')
     : fallback
+
+export const canOpenWithCachedOperator = (wallet: Wallet, info: AspInfo): boolean =>
+  Boolean(
+    wallet.pubkey &&
+      wallet.network &&
+      wallet.network === info.network &&
+      info.retryable &&
+      (!wallet.operatorUrl || wallet.operatorUrl === info.url),
+  )
 
 // Compare by batch expiry ascending; VTXOs without an expiry sort last.
 export const byExpiryAsc = (a: { expiresAt?: Date | null }, b: { expiresAt?: Date | null }): number =>
@@ -234,6 +246,8 @@ export const getAspInfo = async (url: string): Promise<AspInfo> => {
   const provider = new RestArkProvider(fullUrl)
   try {
     const infos = await provider.getInfo()
+    getNetwork(infos.network as NetworkName)
+    toXOnlySignerHex(infos.signerPubkey)
     return { ...infos, unreachable: false, url }
   } catch (err) {
     consoleError(err, 'error getting asp info')
@@ -247,7 +261,7 @@ export const getAspInfo = async (url: string): Promise<AspInfo> => {
         err.metadata?.min_version ?? err.metadata?.minVersion ?? err.message.match(/>=\s*v?([\d.]+)/)?.[1]
       return { ...emptyAspInfo, unreachable: true, outdated: true, minBuildVersion, url }
     }
-    return { ...emptyAspInfo, unreachable: true, url }
+    return { ...emptyAspInfo, unreachable: true, retryable: isRetryableProviderError(err), url }
   }
 }
 

@@ -1,11 +1,13 @@
 import { ReactNode, createContext, useContext, useEffect, useState } from 'react'
 import { ArkadeInfo, ScheduledSession } from '@arkade-os/sdk'
 import { emptyAspInfo, getAspInfo } from '../lib/asp'
+import { readWalletFromStorage } from '../lib/storage'
 import { ConfigContext } from './config'
 
 export type AspInfo = ArkadeInfo & {
   unreachable: boolean
   url: string
+  retryable?: boolean
   // Set when the server rejected us with BUILD_VERSION_TOO_OLD: the client is
   // too old to talk to this server (it fails even getInfo, so it also reads as
   // `unreachable`). `minBuildVersion` is the server's advertised minimum, if any.
@@ -34,11 +36,36 @@ export const AspProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (!config.aspUrl || !configLoaded) return
-    getAspInfo(config.aspUrl)
-      .then(setAspInfo)
-      .catch(() => {
-        setAspInfo({ ...emptyAspInfo, unreachable: true })
+    const url = config.aspUrl
+    let cancelled = false
+    let checking = false
+    let timer: ReturnType<typeof setTimeout>
+    const check = async () => {
+      if (checking) return
+      checking = true
+      clearTimeout(timer)
+      const info = await getAspInfo(url).catch(() => ({ ...emptyAspInfo, unreachable: true, url }))
+      if (cancelled) return
+      checking = false
+      const wallet = readWalletFromStorage()
+      setAspInfo((previous) => {
+        if (!info.retryable) return info
+        if (previous.url === url && previous.signerPubkey) {
+          return { ...previous, unreachable: true, retryable: true, serviceStatus: {} }
+        }
+        const network = wallet?.operatorUrl && wallet.operatorUrl !== url ? '' : wallet?.network
+        return { ...info, network: network || '' }
       })
+      timer = setTimeout(check, info.unreachable ? 10_000 : 60_000)
+    }
+    setAspInfo(emptyAspInfo)
+    void check()
+    window.addEventListener('online', check)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+      window.removeEventListener('online', check)
+    }
   }, [config.aspUrl, configLoaded])
 
   /**

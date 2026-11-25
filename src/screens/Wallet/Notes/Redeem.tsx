@@ -21,7 +21,8 @@ export default function NotesRedeem() {
   const { aspInfo } = useContext(AspContext)
   const { noteInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { svcWallet } = useContext(WalletContext)
+  const { svcWallet, revalidatingOperator } = useContext(WalletContext)
+  const operatorUnavailable = aspInfo.unreachable || revalidatingOperator
   const { t } = useTranslation()
 
   const defaultButtonLabel = t('notes.redeemNote')
@@ -49,6 +50,7 @@ export default function NotesRedeem() {
   if (!svcWallet) return <LoadingLogo text={t('common.loading')} />
 
   const handleRedeem = async () => {
+    if (operatorUnavailable) return
     setError('')
     setRedeeming(true)
     try {
@@ -82,7 +84,11 @@ export default function NotesRedeem() {
         )}
       </Content>
       <ButtonsOnBottom>
-        <Button onClick={handleRedeem} label={buttonLabel} disabled={redeeming || Boolean(noteInfo.error)} />
+        <Button
+          onClick={handleRedeem}
+          label={buttonLabel}
+          disabled={redeeming || Boolean(noteInfo.error) || operatorUnavailable}
+        />
       </ButtonsOnBottom>
     </>
   )
