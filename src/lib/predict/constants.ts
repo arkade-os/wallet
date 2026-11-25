@@ -21,7 +21,8 @@ export const PREDICT_GRID_S = 300
 export const PREDICT_LOCK_S = 60
 export const PREDICT_MIN_LEFT_S = 60
 export const PREDICT_MAX_AHEAD_S = 3600
-export const STAKE_MIN = 10_000n
+// Minimum stake that always beats the 1,000-sat beacon read fee across the full 1.05x–10x range.
+export const STAKE_MIN = 25_000n
 export const STAKE_MAX_MUTINYNET = 1_000_000n
 export const STAKE_MAX_MAINNET = 100_000n
 export const Q_MAX_MUTINYNET = 1_000_000_000n

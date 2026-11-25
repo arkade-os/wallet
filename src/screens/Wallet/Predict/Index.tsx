@@ -23,8 +23,8 @@ import PredictChart from './PredictChart'
 import ReviewSheet from './ReviewSheet'
 import { formatClockTime, formatGap, formatMultiplier, formatSats } from './format'
 
-const MAINNET_PRESETS = [10_000, 25_000, 50_000, 100_000]
-const TESTNET_PRESETS = [10_000, 50_000, 100_000, 250_000]
+const MAINNET_PRESETS = [25_000, 50_000, 75_000, 100_000]
+const TESTNET_PRESETS = [25_000, 50_000, 100_000, 250_000]
 
 type View = { name: 'market' } | { name: 'positions' } | { name: 'position'; id: string }
 
@@ -55,7 +55,7 @@ export default function Predict() {
   const presets = config.profile.isMainnet ? MAINNET_PRESETS : TESTNET_PRESETS
   const [view, setView] = useState<View>({ name: 'market' })
   const [kind, setKind] = useState<PredictKind>(2)
-  const [stakeSats, setStakeSats] = useState<bigint>(BigInt(presets[1]!))
+  const [stakeSats, setStakeSats] = useState<bigint>(BigInt(presets[0]!))
   const [stakeOpen, setStakeOpen] = useState(false)
   const [closeOpen, setCloseOpen] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
@@ -84,11 +84,11 @@ export default function Predict() {
   const estimate = useMemo(() => {
     if (multiplier == null || stakeSats <= 0n) return null
     const gross = predictPayout(stakeSats, multiplier)
-    return gross > BEACON_READ_FEE ? gross - BEACON_READ_FEE : null
+    return gross - BEACON_READ_FEE > stakeSats ? gross - BEACON_READ_FEE : null
   }, [multiplier, stakeSats])
 
   const lineReady = config.demoMode || lineOfficial
-  const canReview = Boolean(lineCents && lineReady && selectedExpiry && multiplier != null && !stakeError)
+  const canReview = Boolean(lineCents && lineReady && selectedExpiry && estimate != null && !stakeError)
 
   const gapCents = market && lineCents ? market.priceCents - lineCents : null
   const opensAt = selectedExpiry ? windowOpen(selectedExpiry) : 0

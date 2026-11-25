@@ -144,7 +144,7 @@ describe('Predict screen & desktop navigation', () => {
     for (const key of ['5', '0', '0', '0']) fireEvent.click(await screen.findByTestId(`keyboard-${key}`))
     fireEvent.click(screen.getByTestId('save-amount'))
 
-    expect(screen.getByRole('alert')).toHaveTextContent('10,000')
+    expect(screen.getByRole('alert')).toHaveTextContent('25,000')
     expect(screen.getByRole('button', { name: 'Review prediction' })).toBeDisabled()
   })
 
