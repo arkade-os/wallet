@@ -117,7 +117,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: arkade-os/intent-solver
-          ref: eddd330b86ff48b3e75091b90264bcb3015cfe77
+          ref: 34a21d381fc106e0eb37ada7782695255da83861
           path: .local-tests/native-solver
           persist-credentials: false
       - uses: actions/checkout@v4
@@ -137,7 +137,7 @@ jobs:
       - name: Verify installed native wallet packages
         run: node scripts/carrier-artifacts/verify.mjs --installed
       - name: Verify the native solver vendors the wallet's archives
-        run: diff -r --exclude=manifest.json vendor/carrier .local-tests/native-solver/packages/solver-app/vendor/carrier
+        run: diff <(cd vendor/carrier && sha256sum *.tgz) <(cd .local-tests/native-solver/packages/solver-app/vendor/carrier && sha256sum *.tgz)
       - name: Install native solver
         working-directory: .local-tests/native-solver
         run: pnpm install --frozen-lockfile
