@@ -5435,6 +5435,17 @@ button.predict-field:active {
   font-weight: 700;
 }
 
+.predict-home__rotate {
+  animation: predict-rotate 360ms var(--ease-out);
+}
+
+@keyframes predict-rotate {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
 .predict-home__title {
   font-size: 1rem;
   font-weight: 600;

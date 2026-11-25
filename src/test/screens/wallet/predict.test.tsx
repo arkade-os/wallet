@@ -7,6 +7,7 @@ import { NavigationContext, Pages } from '../../../providers/navigation'
 import { OptionsContext } from '../../../providers/options'
 import { WalletContext } from '../../../providers/wallet'
 import Predict from '../../../screens/Wallet/Predict/Index'
+import PredictSection from '../../../screens/Wallet/PredictSection'
 import {
   mockAspContextValue,
   mockConfigContextValue,
@@ -158,5 +159,24 @@ describe('Predict screen & desktop navigation', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('100,000')
     expect(screen.getByRole('button', { name: 'Review prediction' })).toBeDisabled()
+  })
+
+  it('rotates what a sample stake pays on each side on Home', async () => {
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <AspContext.Provider
+          value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network: 'bitcoin' } }}
+        >
+          <ConfigContext.Provider value={mockConfigContextValue as any}>
+            <PredictSection />
+          </ConfigContext.Provider>
+        </AspContext.Provider>
+      </NavigationContext.Provider>,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('home-predict-line')).toHaveTextContent(/If (Higher|Lower) wins: 100,000 sats →/),
+    )
+    const first = screen.getByTestId('home-predict-line').textContent
+    await waitFor(() => expect(screen.getByTestId('home-predict-line').textContent).not.toBe(first), { timeout: 5_000 })
   })
 })
