@@ -504,4 +504,16 @@ describe('useLnurlRails', () => {
     // The ceiling is the rail's maximum, so the solver's fee is what the server quotes.
     expect(query.get('amount')).toBe('100000000000')
   })
+
+  it('gets no Lightning invoice where the fee would take the payment past the maximum', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], receiveFeeSat: 225 })
+    const rail = renderRail()
+    await waitFor(() => expect(rail.result.current.status).toBe('ready'))
+    const receiver = rail.result.current.receiver
+    // 99,999,900 sats plus the 225-sat fee passes the rail's 100,000,000-sat maximum.
+    const { result } = renderHook(() => useLnurlRails(receiver, 99_999_900, false, { arkade: '', onchain: '' }))
+
+    await waitFor(() => expect(result.current.errors.lightning).toMatch(/Unable to create offline invoice/))
+    expect(result.current.targets.lightning).toBeUndefined()
+  })
 })

@@ -249,6 +249,10 @@ export function fakeLnurlServer(opts: {
       if (opts.receiveFeeSat !== undefined && receiveMsat) {
         const msat = (amount: number) => ({ amount: String(amount), unit: 'msat' })
         const feeMsat = opts.receiveFeeSat * 1000
+        // As lnurl-server does, refuse a quote whose payment passes the payer's ceiling, `amount`.
+        if (receiveMsat + feeMsat > Number(url.searchParams.get('amount'))) {
+          return json(200, { status: 'ERROR', reason: 'Unable to create offline invoice' })
+        }
         return json(200, {
           pr: fakeInvoice(receiveMsat + feeMsat),
           routes: [],

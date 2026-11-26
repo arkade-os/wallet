@@ -69,7 +69,8 @@ const lnurlClient = createLnurlClient()
 
 /** Asks for the Lightning leg as the amount the receiver nets, where the server can price that (LUD-XX
  *  `receiveAmount`). The payer then pays the solver's fee on top, up to the rail's maximum, as on the swap
- *  rail. Asked for plainly, the invoice is for the amount and the fee comes out of what arrives. */
+ *  rail. Otherwise, or with no Lightning maximum to cap the payer, it asks plainly, as before: the invoice
+ *  is for the amount and the fee comes out of what arrives. */
 const netAmountClient: Pick<LnurlClient, 'requestInvoice'> = {
   requestInvoice: (payRequest, opts) => {
     const max = lnurlRailLimits(payRequest).find((rail) => rail.type === 'lightning')?.max
