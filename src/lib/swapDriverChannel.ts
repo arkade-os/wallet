@@ -26,7 +26,7 @@ import { getActiveLanguage } from './language'
 import { translations } from './i18n'
 
 /** One name per origin, matching the lock it shadows. */
-const CHANNEL_NAME = 'swap-driver'
+const CHANNEL_NAME = 'swap-driver-v2'
 
 /**
  * How long a follower waits for any tab to admit it is driving.
@@ -64,9 +64,12 @@ export type DriverOp =
   | 'cancelOpenSwapQuotes'
   | 'chooseSwapQuote'
   | 'acceptSwapQuote'
+  | 'quoteAssetPayment'
+  | 'acceptAssetPayment'
+  | 'checkAssetPayment'
 
 /** What the holder runs on a follower's behalf. */
-export type DriverHandler = (op: DriverOp, args: unknown[]) => Promise<unknown>
+export type DriverHandler = (op: DriverOp, args: unknown[], scope: string) => Promise<unknown>
 
 /**
  * What the holder tells every other tab a swap just did.
@@ -120,12 +123,13 @@ export class DriverPromoted extends Error {
   }
 }
 
-type Wire =
+type Wire = (
   | { kind: 'request'; id: string; op: DriverOp; args: unknown[] }
   | { kind: 'ack'; id: string }
   | { kind: 'result'; id: string; ok: true; value: unknown }
   | { kind: 'result'; id: string; ok: false; error: WireError }
   | { kind: 'update'; update: DriverUpdate }
+) & { scope: string }
 
 /**
  * An Error reduced to what survives a structured clone, and rebuilt from it.
@@ -182,9 +186,13 @@ const noChannel = (): DriverChannel => ({
  * and wrong under test, where two providers stand in for two tabs in a single
  * window. Per-instance is the shape that is correct in both.
  */
-export const openDriverChannel = (): DriverChannel => {
-  if (typeof BroadcastChannel === 'undefined') return noChannel()
+export const openDriverChannel = (scope?: string): DriverChannel => {
+  if (!scope || typeof BroadcastChannel === 'undefined') return noChannel()
   const channel = new BroadcastChannel(CHANNEL_NAME)
+  let closed = false
+  const post = (message: Wire) => {
+    if (!closed) channel.postMessage(message)
+  }
 
   /** Asks this tab is waiting on, by request id. */
   const pending = new Map<
@@ -202,22 +210,26 @@ export const openDriverChannel = (): DriverChannel => {
     // Ack before the work, not after: it is the only thing that tells the
     // asking tab a driver exists, and the work it is acking for can take a
     // solver round trip to finish.
-    channel.postMessage({ kind: 'ack', id: request.id } satisfies Wire)
+    post({ kind: 'ack', id: request.id, scope: request.scope })
     try {
-      const value = await run(request.op, request.args)
-      channel.postMessage({ kind: 'result', id: request.id, ok: true, value } satisfies Wire)
+      if (request.scope !== scope)
+        throw new Error('The swap driver belongs to a different wallet — reload and try again')
+      const value = await run(request.op, request.args, request.scope)
+      post({ kind: 'result', id: request.id, ok: true, value, scope: request.scope })
     } catch (err) {
-      channel.postMessage({ kind: 'result', id: request.id, ok: false, error: toWire(err) } satisfies Wire)
+      post({ kind: 'result', id: request.id, ok: false, error: toWire(err), scope: request.scope })
     }
   }
 
   channel.onmessage = (event: MessageEvent<Wire>) => {
     const message = event.data
-    if (!message || typeof message !== 'object') return
+    if (closed || !message || typeof message !== 'object' || typeof message.scope !== 'string') return
+    if (message.kind === 'request') {
+      void answer(message)
+      return
+    }
+    if (message.scope !== scope) return
     switch (message.kind) {
-      case 'request':
-        void answer(message)
-        return
       case 'ack':
         pending.get(message.id)?.ack()
         return
@@ -231,6 +243,7 @@ export const openDriverChannel = (): DriverChannel => {
 
   return {
     ask<T>(op: DriverOp, args: unknown[], escape?: Promise<unknown>): Promise<T> {
+      if (closed) return Promise.reject(new DriverUnavailable())
       // `randomUUID` needs a secure context, and so does `navigator.locks` —
       // which the caller checks first, and without which no tab delegates at
       // all. Asking is unreachable where this would not exist.
@@ -262,7 +275,7 @@ export const openDriverChannel = (): DriverChannel => {
           },
           () => {},
         )
-        channel.postMessage({ kind: 'request', id, op, args } satisfies Wire)
+        post({ kind: 'request', id, op, args, scope })
       })
     },
     serve(next: DriverHandler) {
@@ -272,13 +285,14 @@ export const openDriverChannel = (): DriverChannel => {
       }
     },
     publish(update: DriverUpdate) {
-      channel.postMessage({ kind: 'update', update } satisfies Wire)
+      post({ kind: 'update', update, scope })
     },
     subscribe(listener: (update: DriverUpdate) => void) {
       updateListeners.add(listener)
       return () => updateListeners.delete(listener)
     },
     close() {
+      closed = true
       handler = undefined
       updateListeners.clear()
       for (const waiter of [...pending.values()]) waiter.fail(new DriverUnavailable())

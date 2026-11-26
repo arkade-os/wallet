@@ -13,6 +13,7 @@ import {
   type Activity,
   type Identity,
   type ServiceWorkerWalletMode,
+  type WalletUpdate,
 } from '@arkade-os/sdk'
 import {
   clearStorage,
@@ -42,6 +43,7 @@ import { deepLinkInUrl } from '../lib/deepLink'
 import { assetNameChanged, referencedAssetIds } from '../lib/assets'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
+import { useTaxiActivity, forgetTaxiActivity } from '../lib/taxiActivity'
 import { activitiesToTxs, getActivities } from '../lib/activityHistory'
 import { arkTransactionToTx } from '../lib/transactionHistory'
 import { Indexer } from '../lib/indexer'
@@ -82,6 +84,7 @@ const ASSET_METADATA_FETCH_TIMEOUT_MS = 5_000
 
 interface InitSvcWorkerWalletParams {
   arkServerUrl: string
+  expectedNetwork: NetworkName
   identity: Identity
   retryCount?: number
   maxRetries?: number
@@ -246,6 +249,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     lnSends: LnSendView[]
     exits: ExitRecord[]
   }>({ activities: [], metadata: {}, lnSends: [], exits: [] })
+  const taxiActivities = useTaxiActivity(aspInfo.network)
   const [assetSwaps, setAssetSwaps] = useState<WalletAssetSwap[]>([])
   const [wallet, setWallet] = useState(() => readWalletFromStorage() ?? defaultWallet)
   const satsPreview = useMemo(() => readLastSats(wallet.pubkey), [wallet.pubkey])
@@ -254,6 +258,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const walletLoaded = true
   const [initialized, setInitialized] = useState<boolean>(false)
   const [svcWallet, setSvcWallet] = useState<ServiceWorkerWallet>()
+  const renderedSvcWallet = useRef(svcWallet)
+  renderedSvcWallet.current = svcWallet
   const [dataReady, setDataReady] = useState(false)
   const [syncing, setSyncing] = useState(() => Boolean(wallet.pubkey))
   const [booting, setBooting] = useState(() => Boolean(wallet.pubkey))
@@ -296,11 +302,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         metadata: history.metadata,
         lnSends: history.lnSends,
         exits: history.exits,
+        taxi: taxiActivities,
         network: aspInfo.network,
         assetDisplay: (id) => assetMetadataCache.current.get(id)?.metadata,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [history, assetSwaps, aspInfo.network, assetDisplayVersion],
+    [history, assetSwaps, taxiActivities, aspInfo.network, assetDisplayVersion],
   )
 
   const ungroupedTxs = useMemo(
@@ -312,7 +319,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const statusPingInterval = useRef<ReturnType<typeof setInterval>>()
   const reloadTimerRef = useRef<ReturnType<typeof setTimeout>>()
   const lnurlResyncRef = useRef<ReturnType<typeof lnurlResyncOnPayment>>()
-  const swMessageHandlerRef = useRef<(event: MessageEvent) => void>()
+  const walletUpdateUnsubscribeRef = useRef<() => void>()
+  const walletMounted = useRef(true)
+  const activeWalletRef = useRef<{ wallet: ServiceWorkerWallet; network: NetworkName; signal: AbortSignal }>()
   const reinitInProgress = useRef(false)
   const initAbortRef = useRef<AbortController | null>(null)
   // One per init session; a session that no longer owns it cannot settle, store an address or reload for the next.
@@ -339,19 +348,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   configRef.current = config
   const walletRef = useRef(wallet)
   walletRef.current = wallet
-  // Same hazard: a listener that captured an early `aspInfo` captured it before
-  // the server answered, when the network was still unset. The exit timestamp
-  // lookup needs the live one to pick an explorer. Synced after commit rather
-  // than during render, so the ref only ever holds a network React actually
-  // rendered with — a render that gets discarded must not leave its network
-  // behind for `reloadWallet` to pick an explorer from. Declared here, above
-  // every effect that reloads, so it is the first to run on the commit that
-  // brings the network in.
-  const networkRef = useRef(aspInfo.network)
-  useEffect(() => {
-    networkRef.current = aspInfo.network
-  }, [aspInfo.network])
-
   // Each init gets its own AbortSignal; lock/reset aborts the current signal
   // with 'lock-reset' so stale paths can decide whether to tear down the SW.
   // A new init aborts the previous with 'init', which means "abandon, don't clear".
@@ -365,6 +361,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const abortInitSession = () => {
     initAbortRef.current?.abort('lock-reset')
     initAbortRef.current = null
+    activeWalletRef.current = undefined
     endExecutorSession()
   }
 
@@ -386,20 +383,33 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     return session
   }
 
-  const clearIfLockReset = async (svcWallet: ServiceWorkerWallet, signal: AbortSignal) => {
+  const disposeIfLockReset = async (svcWallet: ServiceWorkerWallet, signal: AbortSignal) => {
     if (!signal.aborted || signal.reason !== 'lock-reset') return
     try {
-      await svcWallet.clear()
+      await svcWallet.dispose()
     } catch (err) {
-      consoleError(err, 'Error clearing stale service worker wallet')
+      consoleError(err, 'Error disposing stale service worker wallet')
     }
   }
 
-  const removeServiceWorkerMessageHandler = (handler = swMessageHandlerRef.current) => {
-    if (!handler) return
-    navigator.serviceWorker.removeEventListener('message', handler)
-    if (swMessageHandlerRef.current === handler) swMessageHandlerRef.current = undefined
+  const unsubscribeWalletUpdates = () => {
+    walletUpdateUnsubscribeRef.current?.()
+    walletUpdateUnsubscribeRef.current = undefined
   }
+
+  useEffect(() => {
+    walletMounted.current = true
+    return () => {
+      walletMounted.current = false
+      initAbortRef.current?.abort('unmount')
+      activeWalletRef.current = undefined
+      clearInterval(statusPingInterval.current)
+      clearTimeout(reloadTimerRef.current)
+      lnurlResyncRef.current?.cancel()
+      walletUpdateUnsubscribeRef.current?.()
+      walletUpdateUnsubscribeRef.current = undefined
+    }
+  }, [])
 
   // Currency identity (flags, fiat rates, fiat-style formatting) must be pinned to
   // asset IDs present in a curated list — never inferred from self-reported tickers,
@@ -432,6 +442,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const prefetchAssetMetadata = async (swWallet: ServiceWorkerWallet, assetIds: Set<string>) => {
+    const owner = activeWalletRef.current
+    if (owner?.wallet !== swWallet) return
+    const ownsPrefetch = () => walletMounted.current && activeWalletRef.current === owner && !owner.signal.aborted
+    if (!ownsPrefetch()) return
     if (assetMetadataPrefetchRunning.current) {
       // The latest reload is authoritative; coalesce overlapping requests into one follow-up.
       assetMetadataPrefetchRunning.current.pending = { wallet: swWallet, assetIds }
@@ -439,6 +453,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
     const run: { pending?: { wallet: ServiceWorkerWallet; assetIds: Set<string> } } = {}
     assetMetadataPrefetchRunning.current = run
+    const fetches = assetMetadataFetches.current
+    let ids: string[] = []
     try {
       const now = Date.now()
       let failuresChanged = false
@@ -448,12 +464,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           failuresChanged = true
         }
       }
-      const ids = [...assetIds].filter((assetId) => {
+      ids = [...assetIds].filter((assetId) => {
         const cached = assetMetadataCache.current.get(assetId)
         if (cached && now - cached.cachedAt < ASSET_METADATA_TTL_MS) return false
         if ((assetMetadataFailures.current.get(assetId) ?? 0) > now) return false
-        if (assetMetadataFetches.current.has(assetId)) return false
-        assetMetadataFetches.current.add(assetId)
+        if (fetches.has(assetId)) return false
+        fetches.add(assetId)
         return true
       })
       let nextIndex = 0
@@ -461,12 +477,15 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
       const fetchNext = async () => {
         while (nextIndex < ids.length) {
+          if (!ownsPrefetch()) return
           const assetId = ids[nextIndex++]
           let timeout: ReturnType<typeof setTimeout> | undefined
           let request: Promise<AssetDetails | undefined> | undefined
           let timedOut = false
           try {
-            request = Promise.resolve().then(() => swWallet.assetManager.getAssetDetails(assetId))
+            request = Promise.resolve().then(() =>
+              ownsPrefetch() ? swWallet.assetManager.getAssetDetails(assetId) : undefined,
+            )
             const meta = await Promise.race([
               request,
               new Promise<never>((_, reject) => {
@@ -476,6 +495,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
                 }, ASSET_METADATA_FETCH_TIMEOUT_MS)
               }),
             ])
+            if (!ownsPrefetch()) return
             if (meta) {
               cacheAssetDetails(assetId, meta)
               cacheChanged = true
@@ -485,6 +505,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
               failuresChanged = true
             }
           } catch (err) {
+            if (!ownsPrefetch()) return
             assetMetadataFailures.current.set(assetId, Date.now() + ASSET_METADATA_FAILURE_TTL_MS)
             failuresChanged = true
             if (timedOut) {
@@ -495,9 +516,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           } finally {
             if (timeout) clearTimeout(timeout)
             if (timedOut && request) await request.catch(() => undefined)
-            assetMetadataFetches.current.delete(assetId)
+            fetches.delete(assetId)
           }
         }
+        if (!ownsPrefetch()) return
         if (cacheChanged) {
           saveAssetMetadataToStorage(assetMetadataCache.current, referencedAssetIdsRef.current)
           cacheChanged = false
@@ -510,6 +532,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
       await Promise.all(Array.from({ length: Math.min(ASSET_METADATA_FETCH_CONCURRENCY, ids.length) }, fetchNext))
     } finally {
+      for (const assetId of ids) fetches.delete(assetId)
       if (assetMetadataPrefetchRunning.current === run) {
         assetMetadataPrefetchRunning.current = null
         if (run.pending) {
@@ -718,10 +741,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [initialized, dataReady, noteInfo.satoshis, deepLinkInfo])
 
-  const reloadWallet = async (swWallet = svcWallet) => {
-    if (!swWallet) return
+  const reloadWallet = async (swWallet = activeWalletRef.current?.wallet) => {
+    const owner = activeWalletRef.current
+    if (!swWallet || owner?.wallet !== swWallet) return
     const pubkeyAtStart = walletRef.current.pubkey
     const stillThisWallet = () => walletRef.current.pubkey === pubkeyAtStart
+    const ownsReload = () =>
+      walletMounted.current && activeWalletRef.current === owner && !owner.signal.aborted && stillThisWallet()
+    if (!ownsReload()) return
     const isFirstLoad = !hasLoadedOnce.current
     if (isFirstLoad && stillThisWallet()) {
       setLoadError(null)
@@ -730,23 +757,29 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     try {
       if (isFirstLoad) setLoadingStatus(t('loading.fetchingCoins'))
       const vtxos = await getVtxos(swWallet)
+      if (!ownsReload()) return
       // Fetched apart from the set above, which must not learn about exits —
       // see `getUnrolledVtxos`. Cheap: the worker answers both from its local
       // repo, so this is a postMessage, not a request.
       const unrolledVtxos = await getUnrolledVtxos(swWallet)
+      if (!ownsReload()) return
       if (isFirstLoad) setLoadingStatus(t('loading.fetchingTransactions'))
       const activities = await getActivities(swWallet)
+      if (!ownsReload()) return
       // Before the metadata snapshot below, not after: `resolveExits` persists
       // what it learns, and the history memo reads a snapshot taken here, so a
       // write that lands after this line stays invisible until the next reload.
-      const exits = await resolveExits(unrolledVtxos, networkRef.current)
+      const exits = await resolveExits(unrolledVtxos, owner.network)
+      if (!ownsReload()) return
       const metadata = readAllTransactionActivityMetadata()
       // Read, never resolved here: the swap client owns a send's outcome and
       // has already written it (see providers/swaps), so this pass only picks
       // up what the store says.
       const lnSends = await lnSendViews()
+      if (!ownsReload()) return
       if (isFirstLoad) setLoadingStatus(t('loading.updatingBalance'))
       const { total, available, assets, availableAssets, unrolled } = await getBalance(swWallet)
+      if (!ownsReload()) return
       // An exited coin is no longer Arkade money: it cannot be spent offchain,
       // no batch can lift it back, and this wallet has no path that moves it —
       // the sweep belongs to the exit tool. The SDK's `total` is right for what
@@ -762,14 +795,16 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // the owned list was covered before, which is why such a row fell back to
       // a truncated asset id with a letter where its logo belongs, and why the
       // fall happened a day late: the entry survived until the TTL evicted it.
+      const swapAssets = await readSwapRecordAssets()
+      if (!ownsReload()) return
       const referenced = referencedAssetIds({
         owned: ownedAssets,
         rows: activities.flatMap((activity) =>
           activity.txs.flatMap((tx) => (arkTransactionToTx(tx).assets ?? []).map((asset) => asset.assetId)),
         ),
-        swaps: await readSwapRecordAssets(),
+        swaps: swapAssets,
       })
-      if (!stillThisWallet()) return
+      if (!ownsReload()) return
       referencedAssetIdsRef.current = referenced
       if (isFirstLoad && referenced.size > 0) setLoadingStatus(t('loading.loadingAssetMetadata'))
       const sats = total - unrolled
@@ -791,7 +826,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       }
       prefetchAssetMetadata(swWallet, referenced).catch((err) => consoleError(err, 'Error prefetching asset metadata'))
     } catch (err) {
-      if (!stillThisWallet()) return
+      if (!ownsReload()) return
       consoleError(err, 'Error reloading wallet')
       if (!hasLoadedOnce.current) {
         setBooting(false)
@@ -819,7 +854,15 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     identity: Identity,
     params: InitSvcWorkerWalletParams,
   ): Promise<boolean> => {
-    const { arkServerUrl, retryCount = 0, maxRetries = 2, executorUrl, walletMode, restoring = false } = params
+    const {
+      arkServerUrl,
+      expectedNetwork,
+      retryCount = 0,
+      maxRetries = 2,
+      executorUrl,
+      walletMode,
+      restoring = false,
+    } = params
     try {
       setLoadingStatus(t('loading.startingWallet'))
       const mode = walletMode ?? config.walletMode ?? 'static'
@@ -859,6 +902,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         serviceWorkerPath: '/wallet-service-worker.mjs',
         identity,
         arkServer: { url: arkServerUrl },
+        expectedNetwork,
         executorUrl,
         walletMode: mode,
         // Contract sync finishes in the background; the coin-event reload below repaints. Not lazyBoarding: its
@@ -915,11 +959,12 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // Single checkpoint before any state/listener commits. Migration and
       // getVtxoManager/getStatus are side-effect-free w.r.t. React/DOM, so
       // running them after an abort is wasteful but safe.
-      if (signal.aborted) {
-        await clearIfLockReset(svcWallet, signal)
+      if (signal.aborted || !walletMounted.current) {
+        await disposeIfLockReset(svcWallet, signal)
         return false
       }
 
+      activeWalletRef.current = { wallet: svcWallet, network: expectedNetwork, signal }
       setSvcWallet(svcWallet)
       setVtxoManager(vtxoMgr)
       setInitialized(walletInitialized)
@@ -931,7 +976,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // and the wallet renews its coins itself. The session lets Receive wait (bounded) for the outcome, because the
       // SDK answers `getBoardingAddress()` with the wallet's own address until the watch is registered.
       if (executorUrl) {
-        const network = aspInfo.network as NetworkName
+        const network = expectedNetwork
         const session = beginExecutorSession(signal)
         const isCurrent = () => executorSessionRef.current === session && !signal.aborted
         const settle = (settlement: ExecutorSettlement) => {
@@ -1017,18 +1062,23 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       lnurlResyncRef.current?.cancel()
       lnurlResyncRef.current = lnurlResyncOnPayment(syncLnurl, reloadAfterSync)
 
+      const ownsWalletUpdates = () =>
+        walletMounted.current && !signal.aborted && renderedSvcWallet.current === svcWallet
       const scheduleReload = () => {
         // Debounced reload: short delay lets the indexer update its cache.
         // If multiple updates arrive in quick succession, only the last
         // one triggers a reload (avoids redundant fetches).
         clearTimeout(reloadTimerRef.current)
-        reloadTimerRef.current = setTimeout(() => reloadWallet(svcWallet), 1000)
+        reloadTimerRef.current = setTimeout(() => {
+          if (ownsWalletUpdates()) reloadWallet(svcWallet).catch(consoleError)
+        }, 1000)
       }
 
       // handle messages from the service worker
       // we listen for UTXO/VTXO updates to refresh the tx history and balance
-      const handleServiceWorkerMessages = (event: MessageEvent) => {
-        const { type, payload } = event.data ?? {}
+      let listening = true
+      const handleWalletUpdates = ({ type, payload }: WalletUpdate) => {
+        if (!listening || !ownsWalletUpdates()) return
         // A lazy boot's first sync can land before VTXO_UPDATE's worker listener exists; CONTRACT_EVENT's is set up first.
         const coinEvent = type === 'CONTRACT_EVENT' && ['vtxo_received', 'vtxo_spent'].includes(payload?.event?.type)
         if (coinEvent || ['VTXO_UPDATE', 'UTXO_UPDATE'].includes(type)) {
@@ -1052,12 +1102,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         }
       }
 
-      if (swMessageHandlerRef.current) {
-        removeServiceWorkerMessageHandler(swMessageHandlerRef.current)
-      }
+      if (!walletMounted.current) return false
+      unsubscribeWalletUpdates()
       // Late is safe with a lazy boot: the worker persists coins before announcing them, and the first reload runs after this.
-      navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessages)
-      swMessageHandlerRef.current = handleServiceWorkerMessages
+      const unsubscribe = svcWallet.onWalletUpdate(handleWalletUpdates)
+      walletUpdateUnsubscribeRef.current = () => {
+        listening = false
+        unsubscribe()
+      }
 
       // ping the service worker wallet status every 1 second
       if (statusPingInterval.current) clearInterval(statusPingInterval.current)
@@ -1173,6 +1225,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const didInit = await initSvcWorkerWallet({
       identity,
       arkServerUrl,
+      expectedNetwork: network,
       executorUrl,
       walletMode,
       restoring: credentials.restoring,
@@ -1214,6 +1267,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     await initSvcWorkerWallet({
       identity,
       arkServerUrl,
+      expectedNetwork: aspInfo.network as NetworkName,
       executorUrl,
     })
   }
@@ -1233,6 +1287,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       const initialized = await initSvcWorkerWallet({
         identity,
         arkServerUrl,
+        expectedNetwork: aspInfo.network as NetworkName,
         executorUrl,
       })
       if (!initialized) return
@@ -1256,8 +1311,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     clearTimeout(reloadTimerRef.current)
     reloadTimerRef.current = undefined
     lnurlResyncRef.current?.cancel()
-    removeServiceWorkerMessageHandler()
-    await svcWallet.clear()
+    unsubscribeWalletUpdates()
+    await svcWallet.dispose()
     setAuthState('locked')
     setInitialized(false)
     setDataReady(false)
@@ -1282,7 +1337,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     statusPingInterval.current = undefined
     clearTimeout(reloadTimerRef.current)
     reloadTimerRef.current = undefined
-    removeServiceWorkerMessageHandler()
+    unsubscribeWalletUpdates()
     forgetLnurlSends()
     // clearStorage() wipes every key, so contacts and recents go with it.
     await clearStorage()
@@ -1290,6 +1345,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     // previous wallet's swaps in the activity list. Never fatal — a reset that
     // aborted here would leave the wallet itself half-cleared, which is worse
     // than stale swap rows.
+    forgetTaxiActivity()
     await assetSwapRepository.clear().catch((err) => consoleError(err, 'failed to clear swap records'))
     setAssetSwaps([])
     await svcWallet.clear()

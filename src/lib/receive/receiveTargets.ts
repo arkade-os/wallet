@@ -1,4 +1,4 @@
-import { encodeBitcoinLink } from '../bip21'
+import { encodeBitcoinLink, type Bip21Taxi } from '../bip21'
 
 export type ReceiveMethod = 'full' | 'lnaddress' | 'lightning' | 'ark' | 'btc' | 'token'
 /** Names what Copy puts on the clipboard; the copy button's test id is `${kind}-address-copy`. */
@@ -17,6 +17,8 @@ export interface ReceiveInputs {
   sats: number
   quote?: TokenQuoteInput
   tokensOffered: boolean
+  /** A Taxi request; only the Any wallet link carries it. */
+  taxi?: Bip21Taxi
 }
 export interface ReceiveTarget {
   qr: string
@@ -44,7 +46,13 @@ export function receiveTarget(method: ReceiveMethod, i: ReceiveInputs): ReceiveT
   switch (method) {
     case 'full': {
       if (!i.ark && !i.btc) return undefined
-      const qr = encodeBitcoinLink({ address: i.btc, ark: i.ark, lightning: sats ? i.invoice : i.lnurl, sats })
+      const qr = encodeBitcoinLink({
+        address: i.btc,
+        ark: i.ark,
+        lightning: sats ? i.invoice : i.lnurl,
+        sats,
+        taxi: i.taxi,
+      })
       return target(qr, 'bip21')
     }
     // The unified address: one Lightning address whose server also pays out on Arkade and Bitcoin.

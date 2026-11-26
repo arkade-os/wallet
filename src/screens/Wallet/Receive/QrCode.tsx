@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
 import QrCode from '../../../components/QrCode'
@@ -12,9 +12,9 @@ import { canBrowserShareData, shareData } from '../../../lib/share'
 import FlexCol from '../../../components/FlexCol'
 import FlexRow from '../../../components/FlexRow'
 import { LimitsContext } from '../../../providers/limits'
-import { Asset, Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
+import { Asset, Coin, ExtendedVirtualCoin, type WalletUpdate } from '@arkade-os/sdk'
 import LoadingLogo from '../../../components/LoadingLogo'
-import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
+import { encodeBip21, encodeBip21Asset, type Bip21Taxi } from '../../../lib/bip21'
 import { atomicToUnits, unitsToAtomic } from '../../../lib/assets'
 import ErrorMessage from '../../../components/Error'
 import { getDisplayAddresses } from '../../../lib/asp'
@@ -61,6 +61,8 @@ import {
 } from '../../../lib/receive/receiveTargets'
 import { decodeInvoice } from '../../../lib/bolt11'
 import LnurlRailPanel from './LnurlRail'
+import { ReceiverClaimsContext } from '../../../providers/receiverClaims'
+import TaxiChoice from './TaxiChoice'
 import ReceiveFormats, { FormatsCard, type FormatRow } from './ReceiveFormats'
 import { useTranslation } from '../../../providers/language'
 import { TokenOnChainLogo } from '../../../components/ChainLogo'
@@ -115,12 +117,16 @@ export default function ReceiveQRCode() {
   const { notifyPaymentReceived } = useContext(NotificationsContext)
   const { assetBalances, assetMetadataCache, svcWallet, executorSettled, executorSettledCount } =
     useContext(WalletContext)
+  const renderedSvcWallet = useRef(svcWallet)
+  renderedSvcWallet.current = svcWallet
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
+  const { remember } = useContext(ReceiverClaimsContext)
   const { t } = useTranslation()
 
   const copyToClipboard = useCopyToClipboard()
 
   const [assetAmount, setAssetAmount] = useState(BigInt(0))
+  const [taxiSelection, setTaxiSelection] = useState<{ requestId: string; value: Bip21Taxi }>()
   const [amountTextValue, setAmountTextValue] = useState('')
   // The sheet's amount as typed, so a denomination switch re-expresses it without the rounding of re-parsing.
   const [sheetSats, setSheetSats] = useState(0)
@@ -175,6 +181,11 @@ export default function ReceiveQRCode() {
   const [arkAddress, setArkAddress] = useState(offchainAddr)
   const [btcAddress, setBtcAddress] = useState(boardingAddr)
   const [bip21Uri, setBip21Uri] = useState('')
+  const bitcoinTaxiRequest = !isAssetReceive && (satoshis ?? 0) >= 0 && (satoshis ?? 0) < Number(aspInfo.dust)
+  // Keyed to the address the QR and TaxiChoice both read, so a choice never outlives it.
+  const taxiRequestId = `${aspInfo.network}:${assetId ?? ''}:${satoshis}:${arkAddress}`
+  const taxi = taxiSelection?.requestId === taxiRequestId ? taxiSelection.value : undefined
+  const setTaxi = (value?: Bip21Taxi) => setTaxiSelection(value ? { requestId: taxiRequestId, value } : undefined)
 
   // Fetch addresses on mount, and again once the Executor registration settles: until then the SDK may answer with
   // the wallet's own boarding address, which the Executor does not watch. The read waits (bounded) for it.
@@ -257,6 +268,7 @@ export default function ReceiveQRCode() {
     method === 'token' ? tokenId : undefined,
   )
   const activeToken = tokenRails.rails.find((r) => r.id === tokenId)
+  const requestTaxi = taxi ? { url: taxi.url, fareId: taxi.fareId, payer: taxi.payer } : undefined
   const inputs: ReceiveInputs = {
     ark: addressesCurrent ? arkAddress : '',
     btc: addressesCurrent ? btcAddress : '',
@@ -270,6 +282,7 @@ export default function ReceiveQRCode() {
       lnurlConfigured &&
       config.receiveViaTokens &&
       (satoshis ? tokenRails.rails : tokenRails.options).length > 0,
+    taxi: bitcoinTaxiRequest ? requestTaxi : undefined,
   }
   const methods = receiveMethods(inputs)
   // A method with nothing to put in the QR (its invoice failed, its token left the amount's bounds) shows Any wallet;
@@ -278,6 +291,8 @@ export default function ReceiveQRCode() {
     method === 'token' ? Boolean(activeToken) : generatingInvoice || Boolean(receiveTarget(method, inputs))
   const shown: ReceiveMethod =
     methods.includes(method) && holdsQr ? method : methods[0] === 'lnaddress' ? 'lnaddress' : 'full'
+  // Only the BIP21 link carries ark= and so a Taxi request: an asset's QR always, bitcoin's as Any wallet.
+  const taxiShown = Boolean(isAssetReceive) || shown === 'full'
   // The bare Arkade address would drop assetid= and have the payer send BTC, so the asset QR is always its link.
   const target = isAssetReceive
     ? bip21Uri
@@ -290,7 +305,7 @@ export default function ReceiveQRCode() {
     const ark = vtxoTxsAllowed() ? ownAddresses?.displayAddr || '' : ''
     const btc = utxoTxsAllowed() ? ownAddresses?.boardingAddr || '' : ''
     const bip21 = isAssetReceive
-      ? encodeBip21Asset(ark, assetId, assetAmount, assetMeta?.metadata?.decimals)
+      ? encodeBip21Asset(ark, assetId, assetAmount, assetMeta?.metadata?.decimals, ark ? requestTaxi : undefined)
       : encodeBip21(btc, ark, invoice, satoshis, lnurl)
 
     return { ark, btc, bip21 }
@@ -317,25 +332,33 @@ export default function ReceiveQRCode() {
     recvInfo.satoshis,
     invoice,
     lnurl,
+    taxi,
   ])
+
+  useEffect(() => {
+    if (addressesCurrent && taxiShown && (isAssetReceive || bitcoinTaxiRequest) && arkAddress && taxi?.operatorKey)
+      remember({ network: aspInfo.network, url: taxi.url, operatorKey: taxi.operatorKey })
+  }, [addressesCurrent, taxiShown, isAssetReceive, bitcoinTaxiRequest, arkAddress, taxi, aspInfo.network, remember])
 
   // Payment listener
   useEffect(() => {
     if (!svcWallet) return
+    let listening = true
 
-    const listenForPayments = (event: MessageEvent) => {
+    const listenForPayments = (update: WalletUpdate) => {
+      if (!listening || renderedSvcWallet.current !== svcWallet) return
       let sats = 0
       let receivedAssets: Asset[] = []
 
-      if (event.data && event.data.type === 'VTXO_UPDATE') {
-        const newVtxos = event.data.payload?.newVtxos
+      if (update.type === 'VTXO_UPDATE') {
+        const newVtxos = update.payload?.newVtxos
         if (Array.isArray(newVtxos)) {
           sats = (newVtxos as ExtendedVirtualCoin[]).reduce((acc, v) => acc + v.value, 0)
           for (const v of newVtxos as ExtendedVirtualCoin[]) {
             receivedAssets.push(...(v.assets ?? []))
           }
         } else {
-          consoleError('VTXO_UPDATE message has unexpected payload shape:', event.data.payload)
+          consoleError(update.payload, 'VTXO_UPDATE message has unexpected payload shape')
         }
       }
 
@@ -349,12 +372,12 @@ export default function ReceiveQRCode() {
         return acc
       }, [] as Asset[])
 
-      if (event.data && event.data.type === 'UTXO_UPDATE') {
-        const coins = event.data.payload?.coins
+      if (update.type === 'UTXO_UPDATE') {
+        const coins = update.payload?.coins
         if (Array.isArray(coins)) {
           sats = (coins as Coin[]).reduce((acc, v) => acc + v.value, 0)
         } else {
-          consoleError('UTXO_UPDATE message has unexpected payload shape:', event.data.payload)
+          consoleError(update.payload, 'UTXO_UPDATE message has unexpected payload shape')
         }
       }
 
@@ -365,8 +388,11 @@ export default function ReceiveQRCode() {
       }
     }
 
-    navigator.serviceWorker.addEventListener('message', listenForPayments)
-    return () => navigator.serviceWorker.removeEventListener('message', listenForPayments)
+    const unsubscribe = svcWallet.onWalletUpdate(listenForPayments)
+    return () => {
+      listening = false
+      unsubscribe()
+    }
     // The asset pill switches what this screen receives without remounting it.
   }, [svcWallet, isAssetReceive])
 
@@ -841,6 +867,29 @@ export default function ReceiveQRCode() {
               </>
             )}
             {showingQr ? <LnurlRailPanel rail={lnurlRail} /> : null}
+            {showingQr && (assetId || bitcoinTaxiRequest) && arkAddress ? (
+              <div hidden={!taxiShown}>
+                {assetId ? (
+                  <TaxiChoice
+                    key={taxiRequestId}
+                    assetId={assetId}
+                    receiverAddress={arkAddress}
+                    ticker={assetPresentation.ticker}
+                    decimals={assetMeta?.metadata?.decimals}
+                    value={taxi}
+                    onChange={setTaxi}
+                  />
+                ) : (
+                  <TaxiChoice
+                    key={taxiRequestId}
+                    satoshis={satoshis}
+                    receiverAddress={arkAddress}
+                    value={taxi}
+                    onChange={setTaxi}
+                  />
+                )}
+              </div>
+            ) : null}
             {/* In the flow, not a fixed footer: pinned, it covered the buttons on short phones. */}
             {showingQr && !isAssetReceive ? <FormatsCard onClick={() => setFormatsOpen(true)} /> : null}
           </FlexCol>

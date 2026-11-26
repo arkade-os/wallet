@@ -1,5 +1,5 @@
 import { useContext, useState } from 'react'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { OpenRfqAuction, Outcome, Quote, Swap, SwapUpdate } from '@arkade-os/swap'
@@ -207,12 +207,12 @@ function Harness({ tab = 'a' }: { tab?: string }) {
 
 let reloadWallet = vi.fn()
 
-const wrap = (children: React.ReactNode, network = 'mutinynet') => (
+const wrap = (children: React.ReactNode, network = 'mutinynet', identityByte = 0, url = 'http://ark.local') => (
   <AspContext.Provider
     value={
       {
         ...mockAspContextValue,
-        aspInfo: { ...mockAspContextValue.aspInfo, network, url: 'http://ark.local' },
+        aspInfo: { ...mockAspContextValue.aspInfo, network, url },
       } as never
     }
   >
@@ -223,7 +223,7 @@ const wrap = (children: React.ReactNode, network = 'mutinynet') => (
           dataReady: true,
           txs: [],
           reloadWallet,
-          svcWallet: { identity: {} },
+          svcWallet: { identity: { xOnlyPublicKey: async () => new Uint8Array(32).fill(identityByte) } },
           isVerifiedAsset: () => true,
         } as never
       }
@@ -339,6 +339,94 @@ const renderTwoTabs = () =>
   )
 
 describe('SwapsProvider single-driver rule', () => {
+  it('delegates for the same identity through canonical operator URL aliases', async () => {
+    render(
+      wrap(
+        <SwapsProvider>
+          <Harness tab='a' />
+        </SwapsProvider>,
+      ),
+    )
+    await waitFor(() => expect(ready).toHaveBeenCalledOnce())
+    render(
+      wrap(
+        <SwapsProvider>
+          <Harness tab='b' />
+        </SwapsProvider>,
+        'mutinynet',
+        0,
+        'http://ark.local/',
+      ),
+    )
+    await act(async () => {})
+    const follower = within(screen.getByTestId('tab-b'))
+    await userEvent.click(follower.getByText('Receive b'))
+    await waitFor(() => expect(follower.getByTestId('invoice')).toHaveTextContent(INVOICE), { timeout: 3000 })
+    expect(ready).toHaveBeenCalledOnce()
+    expect(receive).toHaveBeenCalledOnce()
+  })
+
+  it.each([
+    ['identity', 'mutinynet', 1, 'http://ark.local'],
+    ['network', 'signet', 0, 'http://ark.local'],
+    ['operator', 'mutinynet', 0, 'http://another-ark.local'],
+  ])('refuses a %s-mismatched follower before quoting or accepting', async (_label, network, identityByte, url) => {
+    clientQuote.mockResolvedValue({
+      id: 'scoped-quote',
+      take: { amount: 1000n },
+      expiresAt: Date.now() / 1000 + 600,
+    } as Quote)
+    function Trade() {
+      const { quoteExchange, acceptSwapQuote } = useContext(SwapsContext)
+      const [error, setError] = useState('')
+      return (
+        <>
+          <button
+            onClick={() =>
+              void quoteExchange({
+                deposit: { asset: { id: 'btc' }, atomic: 1000n },
+                receive: { asset: { id: MUTINYNET_USDT_ASSET_ID }, atomic: 1000n },
+              } as never)
+                .then((quote) => acceptSwapQuote(quote))
+                .then(() => setError('funded'))
+                .catch((error: Error) => setError(error.message))
+            }
+          >
+            trade
+          </button>
+          <output data-testid='trade-result'>{error}</output>
+        </>
+      )
+    }
+    render(
+      wrap(
+        <SwapsProvider>
+          <Harness tab='a' />
+        </SwapsProvider>,
+      ),
+    )
+    await waitFor(() => expect(ready).toHaveBeenCalledOnce())
+    render(
+      wrap(
+        <SwapsProvider>
+          <Trade />
+        </SwapsProvider>,
+        String(network),
+        Number(identityByte),
+        String(url),
+      ),
+    )
+    await act(async () => {})
+    await userEvent.click(screen.getByText('trade'))
+    await waitFor(() => expect(screen.getByTestId('trade-result')).not.toBeEmptyDOMElement(), { timeout: 3000 })
+    expect(screen.getByTestId('trade-result')).toHaveTextContent(
+      'The swap driver belongs to a different wallet — reload and try again',
+    )
+    expect(clientQuote).not.toHaveBeenCalled()
+    expect(accept).not.toHaveBeenCalled()
+    expect(receive).not.toHaveBeenCalled()
+  })
+
   it('closes and accepts a follower choice using only the holder-owned auction and quote', async () => {
     const auction = {
       id: 'open-1',

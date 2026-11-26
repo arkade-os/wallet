@@ -83,6 +83,7 @@ beforeAll(() => {
 })
 
 const receiveLightning = vi.fn()
+const walletUpdates = new Set<(update: unknown) => void>()
 const backupAndUpdateConfig = vi.fn<(config: Config) => void>()
 const updateConfig = vi.fn<(config: Config) => void>()
 const backupConfig = vi.fn<(config: Config) => Promise<void>>(async () => {})
@@ -91,6 +92,12 @@ const svcWallet = {
   identity: SingleKey.fromHex('03'.repeat(32)),
   getAddress: async () => DECODABLE_ARK,
   getBoardingAddress: async () => WALLET_BOARDING_ADDRESS,
+  onWalletUpdate: (callback: (update: unknown) => void) => {
+    walletUpdates.add(callback)
+    return () => {
+      walletUpdates.delete(callback)
+    }
+  },
 }
 const atMarket = (sats: number) => (sats * BTC_USD) / 1e8
 
@@ -476,15 +483,12 @@ describe('Receive screen, rail composition', () => {
 
   it('asks its LNURL for no further invoice once the payment arrives', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
-    const addListener = vi.mocked(navigator.serviceWorker.addEventListener)
-    addListener.mockClear()
     renderReceive(10_000, {}, {}, true)
     await waitFor(() => expect(callbacks()).toHaveLength(1))
 
-    const payment = { data: { type: 'VTXO_UPDATE', payload: { newVtxos: [{ value: 9_990 }] } } } as MessageEvent
+    const payment = { type: 'VTXO_UPDATE', payload: { newVtxos: [{ value: 9_990 }] } }
     await act(async () => {
-      for (const [type, listener] of addListener.mock.calls)
-        if (type === 'message') (listener as EventListener)(payment)
+      for (const listener of walletUpdates) listener(payment)
       await new Promise((resolve) => setTimeout(resolve, 300))
     })
 

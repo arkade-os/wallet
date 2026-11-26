@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
+  '@arkade-taxi/covenant': file:vendor/carrier/arkade-taxi-covenant-1.1.4-5df105e8.tgz
+  '@arkade-taxi/protocol': file:vendor/carrier/arkade-taxi-protocol-1.1.4-5df105e8.tgz
+  '@arkade-taxi/client': file:vendor/carrier/arkade-taxi-client-1.1.4-5df105e8.tgz
   '@babel/core': '>=7.29.6 <8.0.0'
   js-yaml@<4: '>=3.15.0 <4.0.0'
   js-yaml@>=4: '>=4.2.0 <5.0.0'
@@ -17,16 +20,19 @@ importers:
     dependencies:
       '@arkade-os/lnurl-client':
         specifier: 0.9.4
-        version: 0.9.4(@arkade-os/sdk@0.5.13)
+        version: 0.9.4(@arkade-os/sdk@0.5.14)
       '@arkade-os/sdk':
-        specifier: 0.5.13
-        version: 0.5.13
+        specifier: 0.5.14
+        version: 0.5.14
       '@arkade-os/solver-discovery':
         specifier: 0.4.0
         version: 0.4.0
       '@arkade-os/swap':
-        specifier: 0.1.15
-        version: 0.1.15(nostr-tools@2.24.1(typescript@5.9.3))
+        specifier: 0.1.16
+        version: 0.1.16(typescript@5.9.3)
+      '@arkade-taxi/client':
+        specifier: file:vendor/carrier/arkade-taxi-client-1.1.4-5df105e8.tgz
+        version: file:vendor/carrier/arkade-taxi-client-1.1.4-5df105e8.tgz
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -241,8 +247,8 @@ packages:
       '@arkade-os/sdk':
         optional: true
 
-  '@arkade-os/sdk@0.5.13':
-    resolution: {integrity: sha512-BoSXlYLxg8G2hdl93LoKFToeVPn3A+qLTOWsI/0i6J6H1htF9jcFm19tBvFzsn5wVhl41Qy8Y7P12wnqiPE/fQ==}
+  '@arkade-os/sdk@0.5.14':
+    resolution: {integrity: sha512-XmIAC/Yaf6Cj+6bvD5QucHb2ENfquU9JbUFyyyIC1j2M2USfYGLHll5WrvhUE5oKBVbEyMWMWKaG/NoPgsjBjg==}
     engines: {node: '>=22.13.0 <27'}
     peerDependencies:
       '@arkade-os/compiler': ^0.1.0-rc.1
@@ -269,14 +275,21 @@ packages:
     resolution: {integrity: sha512-oIKsS4lt8yXbUDKzo2uLd4cbZZLEN6/iGQlaOaW72mA7dvtLCznylVEpUTvpdIggQIIRd6DpvFzN/DlJXecBRg==}
     engines: {node: '>=20.19'}
 
-  '@arkade-os/swap@0.1.15':
-    resolution: {integrity: sha512-va6sH71+GbJgkd+EiMktI0MtpeM+5OwaFVidJJY5T3lVe7RRGcefQw1QMKEkOrkQeI8zw86tskwXC4nP55VJpA==}
+  '@arkade-os/swap@0.1.16':
+    resolution: {integrity: sha512-vzajHjQ5c11Tx71pDea3P+OTaXeB+jAHf7RQ0YZGq6t8FHKZ5WEzu+hWwqdyQx3nTnElvu4vYZ3asBgRdukqPg==}
     engines: {node: '>=22.13.0'}
-    peerDependencies:
-      nostr-tools: 2.24.1
-    peerDependenciesMeta:
-      nostr-tools:
-        optional: true
+
+  '@arkade-taxi/client@file:vendor/carrier/arkade-taxi-client-1.1.4-5df105e8.tgz':
+    resolution: {integrity: sha512-77ZpY/j58LT3arAYjc6nbzM1U2FBZvjllW3rB3KlmxJBIoTl4hsnfQIxCvvC3jOimemLwYVEVD/Fsg/lixc4+A==, tarball: file:vendor/carrier/arkade-taxi-client-1.1.4-5df105e8.tgz}
+    version: 1.1.4
+
+  '@arkade-taxi/covenant@file:vendor/carrier/arkade-taxi-covenant-1.1.4-5df105e8.tgz':
+    resolution: {integrity: sha512-7MFT18dqxpmxEm19RF61+OGzwrlB/wJ0pkkEfcfjSHsEvf/I5beBVIF3DLhXX/A5lsa3N8Y4be93uMN4q7lbOA==, tarball: file:vendor/carrier/arkade-taxi-covenant-1.1.4-5df105e8.tgz}
+    version: 1.1.4
+
+  '@arkade-taxi/protocol@file:vendor/carrier/arkade-taxi-protocol-1.1.4-5df105e8.tgz':
+    resolution: {integrity: sha512-sHLPc/WL0Q9TyUthW2lZDkVOLiq3JntcrwRn5rUV7cPeBtXGwuwTCEPpDgAzEC4qzFyafk5IrQ2xsVxiXAfGCw==, tarball: file:vendor/carrier/arkade-taxi-protocol-1.1.4-5df105e8.tgz}
+    version: 1.1.4
 
   '@asamuzakjp/css-color@3.2.0':
     resolution: {integrity: sha512-K1A6z8tS3XsmCMM86xoWdn7Fkdn9m6RSVtocUrJYIwZnFVkng/PvkEoWtOWmP+Scc6saYWHWZYbndEEXxl24jw==}
@@ -3310,15 +3323,15 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/lnurl-client@0.9.4(@arkade-os/sdk@0.5.13)':
+  '@arkade-os/lnurl-client@0.9.4(@arkade-os/sdk@0.5.14)':
     dependencies:
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
       '@scure/base': 2.0.0
     optionalDependencies:
-      '@arkade-os/sdk': 0.5.13
+      '@arkade-os/sdk': 0.5.14
 
-  '@arkade-os/sdk@0.5.13':
+  '@arkade-os/sdk@0.5.14':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 8.0.0
@@ -3343,9 +3356,9 @@ snapshots:
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
 
-  '@arkade-os/swap@0.1.15(nostr-tools@2.24.1(typescript@5.9.3))':
+  '@arkade-os/swap@0.1.16(typescript@5.9.3)':
     dependencies:
-      '@arkade-os/sdk': 0.5.13
+      '@arkade-os/sdk': 0.5.14
       '@arkade-os/solver-discovery': 0.4.0
       '@noble/ciphers': 2.1.1
       '@noble/curves': 2.4.0
@@ -3353,7 +3366,6 @@ snapshots:
       '@scure/base': 2.4.0
       '@scure/btc-signer': 2.4.1
       light-bolt11-decoder: 3.2.0
-    optionalDependencies:
       nostr-tools: 2.24.1(typescript@5.9.3)
     transitivePeerDependencies:
       - '@arkade-os/compiler'
@@ -3367,7 +3379,51 @@ snapshots:
       - expo-background-task
       - expo-sqlite
       - expo-task-manager
+      - typescript
       - utf-8-validate
+
+  '@arkade-taxi/client@file:vendor/carrier/arkade-taxi-client-1.1.4-5df105e8.tgz':
+    dependencies:
+      '@arkade-os/sdk': 0.5.14
+      '@arkade-taxi/covenant': file:vendor/carrier/arkade-taxi-covenant-1.1.4-5df105e8.tgz
+      '@arkade-taxi/protocol': file:vendor/carrier/arkade-taxi-protocol-1.1.4-5df105e8.tgz
+      '@noble/hashes': 2.4.0
+      '@scure/base': 2.0.0
+      '@scure/btc-signer': 2.4.1
+    transitivePeerDependencies:
+      - '@arkade-os/compiler'
+      - '@ledgerhq/ledger-bitcoin'
+      - '@react-native-async-storage/async-storage'
+      - bip32
+      - bitcoinjs-lib
+      - bufferutil
+      - ecpair
+      - expo
+      - expo-background-task
+      - expo-sqlite
+      - expo-task-manager
+      - utf-8-validate
+
+  '@arkade-taxi/covenant@file:vendor/carrier/arkade-taxi-covenant-1.1.4-5df105e8.tgz':
+    dependencies:
+      '@arkade-os/sdk': 0.5.14
+      '@noble/hashes': 2.4.0
+      '@scure/btc-signer': 2.4.1
+    transitivePeerDependencies:
+      - '@arkade-os/compiler'
+      - '@ledgerhq/ledger-bitcoin'
+      - '@react-native-async-storage/async-storage'
+      - bip32
+      - bitcoinjs-lib
+      - bufferutil
+      - ecpair
+      - expo
+      - expo-background-task
+      - expo-sqlite
+      - expo-task-manager
+      - utf-8-validate
+
+  '@arkade-taxi/protocol@file:vendor/carrier/arkade-taxi-protocol-1.1.4-5df105e8.tgz': {}
 
   '@asamuzakjp/css-color@3.2.0':
     dependencies:

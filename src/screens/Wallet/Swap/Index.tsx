@@ -79,6 +79,7 @@ interface SwapQuote {
   fromCurrencyValue: number
   toCurrencyValue: number
   giveCurrencyValue: number
+  balanceChange?: string
 }
 
 const keypadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'Back']
@@ -269,6 +270,7 @@ export default function WalletSwap() {
   const [firmQuoting, setFirmQuoting] = useState<ReadonlySet<string>>(() => new Set())
   const [quoteClock, setQuoteClock] = useState(() => Math.floor(Date.now() / 1000))
   const submitting = useRef(false)
+  const [unsettled, setUnsettled] = useState<ReadonlySet<string>>(() => new Set())
 
   const fromAsset =
     swapAssets.find((asset) => asset.assetId === fromAssetId) ??
@@ -377,6 +379,7 @@ export default function WalletSwap() {
   const selectedExpired = Boolean(selected && selected.quote.expiresAt <= quoteNow)
   const awaitingFirm = firmQuoting.has(inputKey) && !chosen
   const firmError = !chosen && !awaitingFirm && firmHere && 'error' in firmHere ? firmHere.error : ''
+  const fundingUnsettled = unsettled.has(inputKey)
 
   useEffect(() => {
     setSelectedOffer(undefined)
@@ -497,11 +500,23 @@ export default function WalletSwap() {
     )
     return { ...display, feeLabel: quoteFeeLabel(display, firm) }
   }
-  const reviewQuote = !selected
+  const firmReview = !selected
     ? quote
     : selected.plan
       ? firmDisplay(selected.plan, selected.quote)
       : selectedQuoteDisplay(quote, selected.quote)
+  const net = selected && toAsset ? netBtcChange(fromAsset, toAsset, selected.quote) : undefined
+  const netText =
+    typeof net === 'bigint' && toAsset
+      ? formatAssetQuantity(formatQuoteAmount(net, toAsset.decimals), toAsset.decimals)
+      : undefined
+  const reviewQuote =
+    netText && toAsset
+      ? { ...firmReview, balanceChange: `${(net ?? 0n) > 0n ? '+' : ''}${netText} ${toAsset.ticker}` }
+      : firmReview
+  const assertVerifiableChange = (firm: Quote) => {
+    if (toAsset && netBtcChange(fromAsset, toAsset, firm) === null) throw new Error(t('swap.quoteUnavailable'))
+  }
 
   const stageTransition = prefersReduced ? { duration: 0 } : { duration: 0.28, ease: EASE_IN_OUT_QUINT_TUPLE }
 
@@ -684,7 +699,9 @@ export default function WalletSwap() {
     setConfirmError('')
     let firm: { quote: Quote; plan: OfferPlan } | { error: string }
     try {
-      firm = { quote: await quoteExchange(plan), plan }
+      const quoted = await quoteExchange(plan)
+      assertVerifiableChange(quoted)
+      firm = { quote: quoted, plan }
     } catch (error) {
       firm = { error: extractError(error) }
     }
@@ -710,6 +727,10 @@ export default function WalletSwap() {
 
   const confirmSwap = async () => {
     if (submitting.current || !toAsset || confirming || awaitingFirm || fundsShort || chosen?.lost) return
+    const attempted = inputKey
+    const markUnsettled = (error: unknown) => {
+      if (!refusedBeforeFunding(error)) setUnsettled((current) => new Set(current).add(attempted))
+    }
     const lapsed = selected && (selectedExpired || selected.quote.expiresAt <= Math.floor(Date.now() / 1000))
     if (selected?.offer && lapsed) {
       setConfirmError(t('swap.offerExpired'))
@@ -755,6 +776,7 @@ export default function WalletSwap() {
         }
         hapticLight()
       } catch (error) {
+        markUnsettled(error)
         reportConfirmError(error, offer)
       } finally {
         submitting.current = false
@@ -762,7 +784,8 @@ export default function WalletSwap() {
       }
       return
     }
-    if (!plan || !pair?.market || !canContinue) return
+    // A quote whose funding reply was lost may have funded: never fund a fresh one for the same input.
+    if (fundingUnsettled || !plan || !pair?.market || !canContinue) return
     if (!planMatchesPair()) {
       setConfirmError(t('swap.quoteUnavailable'))
       return
@@ -773,8 +796,10 @@ export default function WalletSwap() {
     setConfirmError('')
     submitting.current = true
     setConfirming(true)
+    let accepting = false
     try {
       const firm = await quoteExchange(plan)
+      assertVerifiableChange(firm)
       // Kept before funding: a retry must accept this quote, not ask for its terms again.
       setFirmQuotes((current) => ({ ...current, [inputKey]: { quote: firm, plan } }))
       if (firm.take.amount < shown) {
@@ -782,11 +807,13 @@ export default function WalletSwap() {
         return
       }
       const funded = firmDisplay(plan, firm)
+      accepting = true
       await acceptSwapQuote(firm, buildQuoteSnapshot(plan, funded, config.currency))
       setDrawer(null)
       setSuccessQuote(funded)
       hapticLight()
     } catch (error) {
+      if (accepting) markUnsettled(error)
       reportConfirmError(error)
     } finally {
       submitting.current = false
@@ -939,6 +966,7 @@ export default function WalletSwap() {
                 throw new Error(t('swap.destinationChanged'))
               verifiedDestination = take.instrument.address
             }
+            assertVerifiableChange(verifiedQuote)
             setRememberSolver(false)
             setSelectedOffer({ quote: verifiedQuote, offer, inputKey, destination: verifiedDestination })
             openDrawer('review')
@@ -971,6 +999,11 @@ export default function WalletSwap() {
         expiresIn={selected && !selectedExpired && !chosen?.lost ? selected.quote.expiresAt - quoteNow : undefined}
         onViewQuotes={
           reviewNeedsQuotes && canViewQuotes && !confirming ? () => openDrawer('refresh-quotes') : undefined
+        }
+        onViewActivity={
+          fundingUnsettled && !confirming && (!selected || selectedExpired || chosen?.lost)
+            ? () => navigate(Pages.Wallet)
+            : undefined
         }
         onOpenChange={(open) => {
           // keep the drawer up while the swap is being created so a late
@@ -1565,6 +1598,7 @@ function ReviewDrawer({
   quoteLoading,
   expiresIn,
   onViewQuotes,
+  onViewActivity,
   onOpenChange,
   onConfirm,
 }: {
@@ -1581,6 +1615,7 @@ function ReviewDrawer({
   quoteLoading: boolean
   expiresIn?: number
   onViewQuotes?: () => void
+  onViewActivity?: () => void
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
 }) {
@@ -1638,10 +1673,10 @@ function ReviewDrawer({
             ) : null}
           </AnimatePresence>
           <Button
-            label={t(onViewQuotes ? 'swap.viewQuotes' : 'swap.confirmSwap')}
-            disabled={(!onViewQuotes && !canConfirm) || confirming}
+            label={onViewActivity ? t('swap.viewActivity') : t(onViewQuotes ? 'swap.viewQuotes' : 'swap.confirmSwap')}
+            disabled={(!onViewActivity && !onViewQuotes && !canConfirm) || confirming}
             loading={confirming}
-            onClick={onViewQuotes ?? onConfirm}
+            onClick={onViewActivity ?? onViewQuotes ?? onConfirm}
           />
         </div>
       </DrawerContent>
@@ -1692,6 +1727,9 @@ function ReviewSummary({ quote, loading }: { quote: SwapQuote; loading: boolean 
         loading={loading}
       />
       <MetricRow label={t('swap.fees')} value={quote.feeLabel} loading={loading} />
+      {quote.balanceChange ? (
+        <MetricRow label={t('swap.balanceChange')} value={quote.balanceChange} loading={loading} />
+      ) : null}
       {quote.toAsset?.networkLabel ? (
         <>
           <MetricRow label={t('common.network')} value={quote.toAsset.networkLabel} loading={false} />
@@ -1819,6 +1857,19 @@ function selectedQuoteDisplay(display: SwapQuote, quote: Quote): SwapQuote {
     rateToTicker: to.external ? 'BTC' : display.rateToTicker,
   }
 }
+
+/** An asset given for BTC paid to this wallet also funds a BTC carrier, so the net is the take less that
+ * carrier; null when the quote omits it and the change cannot be verified. */
+function netBtcChange(from: SwapAsset, to: SwapAsset, quote: Quote): bigint | null | undefined {
+  if (from.assetId === BTC_ASSET_ID || to.assetId !== BTC_ASSET_ID) return undefined
+  if (quote.route?.give.instrument.kind !== 'wallet' || quote.route?.take.instrument.kind !== 'wallet') return undefined
+  const carrier = quote.depositCarrierSats
+  return typeof carrier === 'bigint' && carrier > 0n ? quote.take.amount - carrier : null
+}
+
+// Refusals that prove nothing was sent; any other acceptance failure may have funded the quote.
+const refusedBeforeFunding = (error: unknown) =>
+  ['QuoteUnavailable', 'QuoteExpired', 'SendDeadlineExceededError'].includes((error as Error)?.name)
 
 function quoteFeeLabel(display: SwapQuote, quote: Quote): string {
   const feeAsset = quote.fee.asset === quote.give.asset ? display.fromAsset : display.toAsset

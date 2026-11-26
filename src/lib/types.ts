@@ -1,3 +1,5 @@
+import type { RecordedAssetPayment } from '@arkade-os/swap'
+import type { TaxiActivity } from './taxiActivity'
 import { Asset, NetworkName, type ExtendedVirtualCoin, type ServiceWorkerWalletMode } from '@arkade-os/sdk'
 
 export type Addresses = {
@@ -12,6 +14,7 @@ export type Config = {
       enabled: boolean
     }
   }
+  autoClaimFreeTaxi?: boolean
   aspUrl: string
   currency: Currencies
   /** Board deposits and renew them through the network's Executor while the wallet is offline. Not exposed in the UI: VITE_EXECUTOR_ENABLED sets it. */
@@ -172,6 +175,8 @@ export type Tx = {
   redeemTxid: string
   roundTxid: string
   settled: boolean
+  taxi?: TaxiActivity
+  assetPayment?: RecordedAssetPayment
   type: TxKind
   assetSwap?: {
     fromAssetId?: string

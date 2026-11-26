@@ -162,6 +162,19 @@ export const getExecutorParams = (network: NetworkName): DelegationOptions => ({
   maxFee: 1_000,
 })
 
+// The Taxi a receiver may name in his own asset requests. Its operator key is read from its
+// /v1/info, never pinned; a network with no entry hides the option.
+const RECEIVER_TAXI_URL: Record<NetworkName, string | null> = {
+  bitcoin: null,
+  mutinynet: 'https://taxi.mutinynet.arkade.sh',
+  signet: null,
+  regtest: null,
+  testnet: null,
+}
+
+export const getReceiverTaxiUrlForNetwork = (network: NetworkName): string | undefined =>
+  serviceUrlForNetwork(import.meta.env.VITE_TAXI_URL, RECEIVER_TAXI_URL, network)
+
 // covclaimd — the service that could claim a Lightning-receive lockup for an OFFLINE wallet
 
 const COVCLAIMD_PUBKEY: Record<NetworkName, string | null> = {

@@ -196,6 +196,89 @@ describe('Wallet swap flow', () => {
     fetchMocker.mockResponse(JSON.stringify({ bitcoin: { usd: 100_000 }, price: '500000' }))
   })
 
+  const walletPayout = (carrier?: bigint) => async (plan: OfferPlan) =>
+    ({
+      ...firmQuote(plan),
+      route: { give: { instrument: { kind: 'wallet' } }, take: { instrument: { kind: 'wallet' } } },
+      ...(carrier === undefined ? {} : { depositCarrierSats: carrier }),
+    }) as unknown as Quote
+  const composeAssetToBitcoin = () => {
+    renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: USDT_ID, setSwapFromAssetId: vi.fn() } })
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Bitcoin/i }))
+    for (const key of ['1', '0']) fireEvent.click(screen.getByRole('button', { name: key }))
+  }
+
+  it.each([330n, 546n])('reviews the net BTC balance change after a %s-sat deposit carrier', async (carrier) => {
+    quoteExchange.mockImplementation(walletPayout(carrier))
+    composeAssetToBitcoin()
+    await openSmartRoutingReview()
+    const firm = await quoteExchange.mock.results[0].value
+    const net = firm.take.amount - carrier
+    expect(screen.getByText('Balance change')).toBeInTheDocument()
+    expect(screen.getByText(`${net > 0n ? '+' : ''}${net.toLocaleString('en')} sats`)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+    await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledOnce())
+    expect(acceptSwapQuote.mock.calls[0][0]).toBe(firm)
+  })
+
+  it.each([undefined, 0n, -1n])(
+    'never funds a quote whose BTC balance change is unverifiable (%s)',
+    async (carrier) => {
+      quoteExchange.mockImplementation(walletPayout(carrier))
+      composeAssetToBitcoin()
+      fireEvent.click(screen.getByRole('button', { name: 'View quotes' }))
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Use smart routing' })).toBeEnabled(), {
+        timeout: 3_000,
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Use smart routing' }))
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Quote unavailable'))
+      expect(screen.queryByText('Balance change')).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm swap' }))
+      await waitFor(() => expect(quoteExchange).toHaveBeenCalledTimes(2))
+      expect(acceptSwapQuote).not.toHaveBeenCalled()
+    },
+  )
+
+  it('shows no balance change when bitcoin is what the wallet gives', async () => {
+    quoteExchange.mockImplementation(walletPayout(330n))
+    renderSwap({ config: { unit: Unit.SATS }, flow: { swapFromAssetId: 'btc', setSwapFromAssetId: vi.fn() } })
+    fireEvent.click(screen.getByRole('button', { name: /Receive Choose asset/i }))
+    fireEvent.click(screen.getByRole('button', { name: /USD/i }))
+    await userEvent.click(screen.getByRole('button', { name: /Show .+ first/ }))
+    for (const key of ['1', '0', '0', '0', '0']) await userEvent.click(screen.getByRole('button', { name: key }))
+    await openSmartRoutingReview()
+    expect(screen.queryByText('Balance change')).not.toBeInTheDocument()
+  })
+
+  it.each([0n, 1000n])('uses imported metadata and raw balances for canonical markets (%s units)', (amount) => {
+    const assetId = 'ab'.repeat(34)
+    const canonical = {
+      ...btcUsdt,
+      base_asset: { id: 'arkade:mutinynet/slip44:1', name: 'Bitcoin', ticker: 'BTC', decimals: 8 },
+      quote_asset: {
+        id: `arkade:mutinynet/asset:${assetId}`,
+        name: 'Arkade asset abababab',
+        ticker: 'abababab',
+        decimals: 0,
+      },
+    }
+    renderSwap({
+      swap: { markets: [canonical] },
+      config: { unit: Unit.SATS },
+      wallet: {
+        assetBalances: amount ? [{ assetId, amount }] : [],
+        availableAssetBalances: amount ? [{ assetId, amount }] : [],
+        assetMetadataCache: new Map([[assetId, { metadata: { name: 'Native RFQ', ticker: 'ARFQ', decimals: 0 } }]]),
+      },
+    })
+    expect(screen.getAllByText('Bitcoin')).toHaveLength(1)
+    expect(screen.queryByTestId('swap-asset-row-btc')).not.toBeInTheDocument()
+    expect(screen.getByTestId('swap-asset-row-sats')).toBeInTheDocument()
+    expect(screen.getByTestId('swap-asset-row-arfq')).toHaveTextContent(amount ? '1,000 ARFQ' : '0 ARFQ')
+    expect(screen.queryByText('Arkade asset abababab')).not.toBeInTheDocument()
+  })
+
   it('shows the unavailable state when the PR 784 swap service is unavailable', () => {
     renderSwap({ swap: { swapAvailable: false } })
     expect(screen.getByText('Swaps are unavailable')).toBeInTheDocument()
@@ -455,6 +538,26 @@ describe('Wallet swap flow', () => {
     await waitFor(() => expect(acceptSwapQuote).toHaveBeenCalledTimes(2))
     expect(acceptSwapQuote.mock.calls[1][0]).toBe(acceptSwapQuote.mock.calls[0][0])
     expect(quoteExchange).toHaveBeenCalledOnce()
+  })
+
+  it('sends the user to activity, not a fresh quote, once a lost funding reply lets the quote lapse', async () => {
+    acceptSwapQuote.mockRejectedValueOnce(new Error('Funding reply was lost'))
+    const { navigate } = await reviewSatsToBrl()
+    confirm()
+    await waitFor(() => expect(screen.getByText('Funding reply was lost')).toBeInTheDocument())
+    const issued = await quoteExchange.mock.results[0].value
+    const now = vi.spyOn(Date, 'now').mockReturnValue((issued.expiresAt + 1) * 1000)
+    try {
+      confirm()
+      await act(async () => {})
+      expect(quoteExchange).toHaveBeenCalledOnce()
+      expect(acceptSwapQuote).toHaveBeenCalledOnce()
+      fireEvent.click(await screen.findByRole('button', { name: 'View activity' }, { timeout: 2000 }))
+      expect(navigate).toHaveBeenCalledWith(Pages.Wallet)
+      expect(acceptSwapQuote).toHaveBeenCalledOnce()
+    } finally {
+      now.mockRestore()
+    }
   })
 
   it('quotes again on reopen when the driver no longer holds the firm quote', async () => {

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useLayoutEffect, useState } from 'react'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, act, fireEvent, waitFor, within } from '@testing-library/react'
 import { FlowContext, emptyRecvInfo } from '../../../providers/flow'
@@ -15,7 +15,7 @@ import {
 } from '../mocks'
 import { AspContext } from '../../../providers/asp'
 import { WalletContext } from '../../../providers/wallet'
-import { NavigationContext } from '../../../providers/navigation'
+import { NavigationContext, Pages } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { NotificationsContext } from '../../../providers/notifications'
@@ -26,6 +26,24 @@ import { LanguageContext, translate } from '../../../providers/language'
 import { Currencies, Language, Unit } from '../../../lib/types'
 import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
 import fixtures from '../../fixtures.json'
+
+vi.mock('../../../screens/Wallet/Receive/TaxiChoice', () => ({
+  default: ({ onChange, receiverAddress }: { onChange: (taxi: unknown) => void; receiverAddress: string }) => (
+    <button
+      data-receiver={receiverAddress}
+      onClick={() =>
+        onChange({
+          url: 'http://localhost:3001',
+          fareId: 'free',
+          payer: 'receiver',
+          operatorKey: 'ab'.repeat(32),
+        })
+      }
+    >
+      Choose Taxi
+    </button>
+  ),
+}))
 
 // Mock qr module used by QrCode component
 vi.mock('qr', () => ({
@@ -93,6 +111,16 @@ type RenderOverrides = {
   fiat?: Partial<typeof mockFiatContextValue>
   limits?: Partial<typeof mockLimitsContextValue>
   language?: Language
+  navigation?: Partial<typeof mockNavigationContextValue>
+  notifications?: Partial<typeof mockNotificationsContextValue>
+  onLayout?: () => void
+}
+
+function LayoutEvent({ run }: { run?: () => void }) {
+  useLayoutEffect(() => {
+    run?.()
+  }, [run])
+  return null
 }
 
 let receivingAddresses = { offchainAddr: '', boardingAddr: '' }
@@ -118,16 +146,19 @@ function buildTree(overrides?: RenderOverrides) {
       value={{ language, t: (k: string, p?: Record<string, string | number>) => translate(language, k, p) }}
     >
       <ToastProvider>
-        <NavigationContext.Provider value={mockNavigationContextValue}>
+        <NavigationContext.Provider value={{ ...mockNavigationContextValue, ...overrides?.navigation }}>
           <AspContext.Provider value={mockAspContextValue}>
             <ConfigContext.Provider value={{ ...config, updateConfig } as any}>
               <FiatContext.Provider value={{ ...mockFiatContextValue, ...overrides?.fiat } as any}>
-                <NotificationsContext.Provider value={mockNotificationsContextValue as any}>
+                <NotificationsContext.Provider
+                  value={{ ...mockNotificationsContextValue, ...overrides?.notifications } as any}
+                >
                   <FlowContext.Provider value={flow as any}>
                     <WalletContext.Provider value={wallet as any}>
                       <LimitsContext.Provider value={{ ...mockLimitsContextValue, ...overrides?.limits }}>
                         <BackupContext.Provider value={{ backupAndUpdateConfig, backupConfig } as any}>
                           <ReceiveQRCode />
+                          <LayoutEvent run={overrides?.onLayout} />
                         </BackupContext.Provider>
                       </LimitsContext.Provider>
                     </WalletContext.Provider>
@@ -160,12 +191,131 @@ const tapFixture = (addrs = { off: 'ark1testaddr', bd: 'bc1testaddr' }): RenderO
   wallet: { svcWallet: mockSvcWallet as any },
 })
 
+// The screen updates recvInfo functionally; replay each update on the fixture to read what it wrote.
+const recvWrites = (setRecvInfo: ReturnType<typeof vi.fn>) =>
+  setRecvInfo.mock.calls.map(([update]) =>
+    typeof update === 'function' ? update(tapFixture().flow!.recvInfo) : update,
+  )
+
 describe('Receive QR Code screen', () => {
   beforeEach(() => {
     copyToClipboardMock.mockClear()
     backupAndUpdateConfig.mockClear()
     updateConfig.mockClear()
     backupConfig.mockClear()
+  })
+
+  it.each(['VTXO_UPDATE', 'UTXO_UPDATE'])(
+    'ignores a foreign wallet raw %s without reporting a payment',
+    async (type) => {
+      const navigate = vi.fn()
+      const setRecvInfo = vi.fn()
+      const notifyPaymentReceived = vi.fn()
+      const onWalletUpdate = vi.fn(() => () => {})
+      const add = vi.mocked(navigator.serviceWorker.addEventListener)
+      add.mockClear()
+      renderReceiveQrCode({
+        ...tapFixture(),
+        wallet: { svcWallet: { ...mockSvcWallet, onWalletUpdate } as any },
+        flow: { ...tapFixture().flow, setRecvInfo },
+        navigation: { navigate },
+        notifications: { notifyPaymentReceived },
+      })
+      const event = {
+        data: {
+          type,
+          broadcast: true,
+          walletRequestBinding: { scope: 'b'.repeat(64), network: 'regtest' },
+          payload: type === 'VTXO_UPDATE' ? { newVtxos: [{ value: 500 }] } : { coins: [{ value: 500 }] },
+        },
+      } as MessageEvent
+      await act(async () => {
+        for (const [name, listener] of add.mock.calls)
+          if (name === 'message') (listener as (event: MessageEvent) => void)(event)
+      })
+      expect(navigate).not.toHaveBeenCalledWith(Pages.ReceiveSuccess)
+      expect(recvWrites(setRecvInfo)).not.toContainEqual(expect.objectContaining({ received: true }))
+      expect(notifyPaymentReceived).not.toHaveBeenCalled()
+      expect(onWalletUpdate).toHaveBeenCalledOnce()
+    },
+  )
+
+  it.each(['VTXO_UPDATE', 'UTXO_UPDATE'])('reports a legitimate captured-wallet %s', async (type) => {
+    let update!: (value: unknown) => void
+    const onWalletUpdate = vi.fn((callback: (value: unknown) => void) => {
+      update = callback
+      return () => {}
+    })
+    const navigate = vi.fn()
+    const setRecvInfo = vi.fn()
+    const notifyPaymentReceived = vi.fn()
+    renderReceiveQrCode({
+      ...tapFixture(),
+      wallet: { svcWallet: { ...mockSvcWallet, onWalletUpdate } as any },
+      flow: { ...tapFixture().flow, setRecvInfo },
+      navigation: { navigate },
+      notifications: { notifyPaymentReceived },
+    })
+    await act(async () =>
+      update({ type, payload: type === 'VTXO_UPDATE' ? { newVtxos: [{ value: 500 }] } : { coins: [{ value: 500 }] } }),
+    )
+    expect(recvWrites(setRecvInfo)).toContainEqual(expect.objectContaining({ received: true, satoshis: 500 }))
+    expect(notifyPaymentReceived).toHaveBeenCalledWith(500)
+    expect(navigate).toHaveBeenCalledWith(Pages.ReceiveSuccess)
+  })
+
+  it('ignores a valid old-wallet update during the next wallet render before listener cleanup', async () => {
+    let firstUpdate!: (value: unknown) => void
+    let secondUpdate!: (value: unknown) => void
+    const stopFirst = vi.fn()
+    const stopSecond = vi.fn()
+    const first = {
+      ...mockSvcWallet,
+      onWalletUpdate: (callback: (value: unknown) => void) => {
+        firstUpdate = callback
+        return stopFirst
+      },
+    }
+    const second = {
+      ...mockSvcWallet,
+      onWalletUpdate: (callback: (value: unknown) => void) => {
+        secondUpdate = callback
+        return stopSecond
+      },
+    }
+    const navigate = vi.fn()
+    const notifyPaymentReceived = vi.fn()
+    const setRecvInfo = vi.fn()
+    const view = renderReceiveQrCode({
+      ...tapFixture(),
+      wallet: { svcWallet: first as any },
+      navigation: { navigate },
+      notifications: { notifyPaymentReceived },
+    })
+    const payment = { type: 'VTXO_UPDATE', payload: { newVtxos: [{ value: 500 }] } }
+    view.rerender(
+      buildTree({
+        ...tapFixture({ off: 'ark1walletB', bd: 'bc1walletB' }),
+        wallet: { svcWallet: second as any },
+        flow: { ...tapFixture().flow, setRecvInfo },
+        navigation: { navigate },
+        notifications: { notifyPaymentReceived },
+        onLayout: () => {
+          expect(stopFirst).not.toHaveBeenCalled()
+          firstUpdate(payment)
+        },
+      }),
+    )
+    expect(navigate).not.toHaveBeenCalledWith(Pages.ReceiveSuccess)
+    expect(notifyPaymentReceived).not.toHaveBeenCalled()
+    expect(stopFirst).toHaveBeenCalledOnce()
+    await act(async () => secondUpdate(payment))
+    expect(recvWrites(setRecvInfo)).toContainEqual(expect.objectContaining({ received: true, satoshis: 500 }))
+    expect(navigate).toHaveBeenCalledExactlyOnceWith(Pages.ReceiveSuccess)
+    view.unmount()
+    await act(async () => secondUpdate(payment))
+    expect(navigate).toHaveBeenCalledOnce()
+    expect(stopSecond).toHaveBeenCalledOnce()
   })
 
   const expectNoCopyFormatsOrShare = () => {
@@ -631,6 +781,43 @@ describe('Receive QR Code screen — copy feedback', () => {
     copyToClipboardMock.mockImplementation((v) => Promise.resolve(v))
   })
 
+  it('offers nothing to copy until addresses arrive, then copies the ready address', async () => {
+    let provideAddresses!: (value: { offchainAddr: string; boardingAddr: string }) => void
+    const pending = new Promise<{ offchainAddr: string; boardingAddr: string }>((resolve) => {
+      provideAddresses = resolve
+    })
+    const service = {
+      ...mockSvcWallet,
+      getAddress: () => pending.then((addresses) => addresses.offchainAddr),
+      getBoardingAddress: () => pending.then((addresses) => addresses.boardingAddr),
+    }
+    const setRecvInfo = vi.fn()
+    const initial = {
+      ...tapFixture({ off: '', bd: '' }),
+      wallet: { svcWallet: service as any },
+    }
+    const view = renderReceiveQrCode({ ...initial, flow: { ...initial.flow, setRecvInfo } })
+    expect(screen.queryByRole('button', { name: 'Copy QR code' })).not.toBeInTheDocument()
+    expect(screen.queryByTestId(/-address-copy$/)).not.toBeInTheDocument()
+    expect(copyToClipboardMock).not.toHaveBeenCalled()
+
+    await act(async () => {
+      provideAddresses({ offchainAddr: 'ark1ready', boardingAddr: 'bc1ready' })
+    })
+    const readyInfo = recvWrites(setRecvInfo).find((info) => info.offchainAddr === 'ark1ready')
+    expect(readyInfo).toEqual(expect.objectContaining({ offchainAddr: 'ark1ready', boardingAddr: 'bc1ready' }))
+    view.rerender(buildTree({ ...initial, flow: { recvInfo: readyInfo, setRecvInfo } }))
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: 'Copy QR code' }))
+    })
+    expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).toContain('ark1ready')
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('bip21-address-copy'))
+    })
+    expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).toContain('ark1ready')
+    expect(screen.queryByTestId('sheet-modal')).not.toBeInTheDocument()
+  })
+
   it('reports a refused clipboard write instead of claiming success', async () => {
     copyToClipboardMock.mockResolvedValue(false)
     renderReceiveQrCode(tapFixture())
@@ -870,6 +1057,38 @@ describe('Receive QR Code screen — Executor addresses', () => {
     await waitFor(async () => expect(await copied()).toContain(DELEGATED))
   })
 
+  it('binds the Taxi choice and its request to the renewal contract it shows', async () => {
+    const svcWallet = walletOf(async () => DELEGATED)
+    const executorSettled = async (): Promise<Settlement> => ({ status: 'success', renewalAddress: RENEWAL })
+    render(<Harness wallet={{ svcWallet, executorSettled } as any} />)
+
+    const choose = await screen.findByText('Choose Taxi')
+    expect(choose).toHaveAttribute('data-receiver', RENEWAL)
+    fireEvent.click(choose)
+    const uri = await copied()
+    expect(uri).toContain(`ark=${RENEWAL}`)
+    expect(uri).toContain('taxi=')
+    expect(uri).not.toContain(OWN)
+  })
+
+  it('drops a Taxi choice made for the own address once the QR moves to the renewal contract', async () => {
+    const svcWallet = walletOf(async () => DELEGATED)
+    const failed = async (): Promise<Settlement> => ({ status: 'failure' })
+    const { rerender } = render(
+      <Harness wallet={{ svcWallet, executorSettled: failed, executorSettledCount: 0 } as any} />,
+    )
+    fireEvent.click(await screen.findByText('Choose Taxi'))
+    expect(await copied()).toContain(`ark=${OWN}`)
+    expect(await copied()).toContain('taxi=')
+
+    const registered = async (): Promise<Settlement> => ({ status: 'success', renewalAddress: RENEWAL })
+    rerender(<Harness wallet={{ svcWallet, executorSettled: registered, executorSettledCount: 1 } as any} />)
+
+    await waitFor(async () => expect(await copied()).toContain(`ark=${RENEWAL}`))
+    expect(await copied()).not.toContain('taxi=')
+    expect(screen.getByText('Choose Taxi')).toHaveAttribute('data-receiver', RENEWAL)
+  })
+
   it('keeps an amount entered while the addresses were still being read', async () => {
     let release!: () => void
     const svcWallet = walletOf(() => new Promise<string>((r) => (release = () => r(DELEGATED))))
@@ -880,5 +1099,29 @@ describe('Receive QR Code screen — Executor addresses', () => {
     await act(async () => release())
 
     expect(await copied()).toContain('amount=')
+  })
+})
+
+describe('Receive QR Taxi selection', () => {
+  it('encodes the verified Taxi only in the Any wallet link, without its local operator pin', async () => {
+    renderReceiveQrCode(tapFixture())
+    fireEvent.click(await screen.findByText('Choose Taxi'))
+    fireEvent.click(screen.getByRole('button', { name: 'Copy QR code' }))
+    await waitFor(() => expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).toContain('taxi='))
+    expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).not.toContain('ab'.repeat(32))
+    fireEvent.click(await screen.findByRole('button', { name: /^Other formats/ }))
+    fireEvent.click(screen.getByRole('radio', { name: /^Arkade address/ }))
+    expect(screen.getByText('Choose Taxi')).not.toBeVisible()
+    fireEvent.click(await screen.findByRole('button', { name: 'Copy QR code' }))
+    await waitFor(() => expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).toBe('ark1testaddr'))
+  })
+
+  it('drops the prior Taxi choice when the receive address changes', async () => {
+    const view = renderReceiveQrCode(tapFixture())
+    fireEvent.click(await screen.findByText('Choose Taxi'))
+    view.rerender(buildTree(tapFixture({ off: 'ark1newaddr', bd: 'bc1newaddr' })))
+    fireEvent.click(await screen.findByRole('button', { name: 'Copy QR code' }))
+    await waitFor(() => expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).toContain('ark1newaddr'))
+    expect(copyToClipboardMock.mock.calls.at(-1)?.[0]).not.toContain('taxi=')
   })
 })

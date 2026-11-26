@@ -53,8 +53,14 @@ jobs:
           node-version-file: '.nvmrc'
       - name: Install pnpm
         uses: pnpm/action-setup@v6
+      - name: Verify carrier artifacts
+        run: node scripts/carrier-artifacts/verify.mjs
+
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify the installed carrier packages
+        run: node scripts/carrier-artifacts/verify.mjs --installed
       - name: Install Playwright Browsers
         run: pnpm exec playwright install chrome chromium --with-deps
       - name: Start regtest environment
@@ -72,15 +78,87 @@ jobs:
           docker ps --format "table {{.Names}}\t{{.Status}}" || true
           echo "=== arkd logs (last 50) ==="
           docker logs arkd 2>&1 | tail -50 || true
-          echo "=== mempool_api logs (last 50) ==="
-          docker logs --tail 50 mempool_api || true
-          echo "=== mempool_mariadb logs (last 50) ==="
-          docker logs --tail 50 mempool_mariadb || true
-          echo "=== fulcrum logs (last 50) ==="
-          docker logs --tail 50 fulcrum || true
-          echo "=== executor logs (last 100) ==="
-          docker logs --tail 100 executor || true
+          echo "=== mempool API process state ==="
+          docker inspect --format '{{json .State}} restarts={{.RestartCount}}' mempool_api || true
+          for service in mempool_api mempool_mariadb bitcoin fulcrum executor; do
+            echo "=== $service logs (last 100) ==="
+            docker logs "$service" 2>&1 | tail -100 || true
+          done
       - name: Cleanup
         if: always()
         run: |
           node regtest/regtest.mjs clean --env .env.regtest
+
+  taxi-native:
+    name: Native Taxi (${{ matrix.project }})
+    permissions:
+      contents: read
+    timeout-minutes: 30
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ['Mobile Chrome', 'Google Chrome']
+    env:
+      ARKD_IMAGE: ghcr.io/arkade-os/arkd:v0.9.25
+      ARKD_WALLET_IMAGE: ghcr.io/arkade-os/arkd-wallet:v0.9.25
+      ARKD_SIGNER_IMAGE: ghcr.io/arkade-os/arkd-signer:v0.9.25
+      EMULATOR_IMAGE: ghcr.io/arkade-os/emulator:v0.0.10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: ArkLabsHQ/arkade-regtest
+          ref: 7c91a6bdafd855ba8b8cc19cf35f46257eb1467d
+          path: regtest
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: arkade-os/intent-solver
+          ref: 08b95dd5eb808ca9a3a31bd0d2823b3706350b72
+          path: .local-tests/native-solver
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: ArkLabsHQ/arkade-taxi
+          ref: 5df105e82f33a1c74a1d898c93356cb9a70150c7
+          path: .local-tests/native-taxi
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+      - uses: pnpm/action-setup@v4
+      - name: Verify native wallet archives
+        run: node scripts/carrier-artifacts/verify.mjs
+      - name: Install native wallet
+        run: pnpm install --frozen-lockfile
+      - name: Verify installed native wallet packages
+        run: node scripts/carrier-artifacts/verify.mjs --installed
+      - name: Verify the native solver vendors the wallet's archives
+        run: diff <(cd vendor/carrier && sha256sum *.tgz) <(cd .local-tests/native-solver/packages/solver-app/vendor/carrier && sha256sum *.tgz)
+      - name: Install native solver
+        working-directory: .local-tests/native-solver
+        run: pnpm install --frozen-lockfile
+      - name: Build native solver
+        working-directory: .local-tests/native-solver
+        run: pnpm build
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install chrome chromium --with-deps
+      - name: Run all native Taxi browser cases
+        run: node --experimental-eventsource scripts/taxi-native-ci.mjs "${{ matrix.project }}"
+        env:
+          CI: true
+      - name: Clean owned native Taxi infrastructure
+        if: always()
+        run: node scripts/taxi-native-ci.mjs --cleanup
+      - name: Preserve native Taxi evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: taxi-native-${{ matrix.project }}
+          path: |
+            test-results/
+            .local-tests/native-evidence/
+          retention-days: 7

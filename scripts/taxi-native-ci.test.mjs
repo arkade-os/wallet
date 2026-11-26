@@ -1,0 +1,326 @@
+// @vitest-environment node
+import assert from 'node:assert/strict'
+import { execFile } from 'node:child_process'
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { createServer } from 'node:http'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
+import { promisify } from 'node:util'
+import { fileURLToPath } from 'node:url'
+import { it } from 'vitest'
+import {
+  appendEvidence,
+  assertNativeReport,
+  cleanupOwnedStages,
+  nativeTaxiCompose,
+  nativeArkdLoopbackCompose,
+  port,
+  refs,
+} from './taxi-native-ci.mjs'
+
+it('binds only the ephemeral Arkd HTTP publication to loopback', () => {
+  const source =
+    "services:\n  arkd:\n    ports:\n      - '${ARKD_PORT:-7070}:7070'\n      - '${ARKD_ADMIN_PORT:-7071}:7071'\n"
+  const patched = nativeArkdLoopbackCompose(source)
+  assert.equal(patched, source.replace("'${ARKD_PORT:-7070}:7070'", "'127.0.0.1:${ARKD_PORT:-7070}:7070'"))
+  assert.equal(nativeArkdLoopbackCompose(patched), patched)
+  assert.throws(() => nativeArkdLoopbackCompose('services: {}'), /publication changed/)
+  assert.throws(() => nativeArkdLoopbackCompose(source + source), /publication changed/)
+})
+
+it('rejects incomplete, skipped, flaky or failed native financial coverage', () => {
+  const stats = { expected: 8, skipped: 0, unexpected: 0, flaky: 0 }
+  assertNativeReport({ stats, errors: [] }, 8)
+  for (const field of Object.keys(stats)) {
+    const value = field === 'expected' ? 7 : 1
+    assert.throws(() => assertNativeReport({ stats: { ...stats, [field]: value }, errors: [] }, 8))
+  }
+  assert.throws(() => assertNativeReport({ stats, errors: [{ message: 'Worker failed' }] }, 8))
+})
+
+it('uses the actual workflow source checkpoints for every native checkout', async () => {
+  const workflow = await readFile(new URL('../.github/workflows/playwright.yml', import.meta.url), 'utf8')
+  const pins = new Map(
+    [...workflow.matchAll(/^\s+repository: (\S+)\r?\n\s+ref: ([a-f0-9]{40})\r?$/gm)].map(([, repo, ref]) => [
+      repo,
+      ref,
+    ]),
+  )
+  for (const [name, repository] of [
+    ['solver', 'arkade-os/intent-solver'],
+    ['taxi', 'ArkLabsHQ/arkade-taxi'],
+    ['regtest', 'ArkLabsHQ/arkade-regtest'],
+  ])
+    assert.equal(refs[name], pins.get(repository), `Wrong ${name} source checkpoint`)
+  assert(Object.isFrozen(refs))
+})
+
+it('refuses a manual session in CI before starting infrastructure', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'taxi-native-manual-'))
+  try {
+    const script = fileURLToPath(new URL('./taxi-native-ci.mjs', import.meta.url))
+    const result = await promisify(execFile)(process.execPath, [script, 'Google Chrome', '--manual'], {
+      cwd: directory,
+      env: { ...process.env, CI: 'true' },
+      windowsHide: true,
+    }).catch((error) => error)
+    assert.equal(result.code, 1)
+    assert.match(result.stderr, /--manual is local only/)
+    await assert.rejects(readFile(join(directory, '.local-tests/native-ci-state.json')), { code: 'ENOENT' })
+  } finally {
+    await rm(directory, { recursive: true })
+  }
+})
+
+it('isolates the Taxi overlay while advertising the browser-accessible providers', () => {
+  const project = 'taxi-native-a1b2c3d4'
+  const overlay = nativeTaxiCompose(project, {
+    TAXI_IMAGE: 'owned-taxi',
+    TAXI_HTTP_PORT: '54000',
+    TAXI_ADMIN_PORT: '54001',
+    ARKD_PORT: '54002',
+    EMULATOR_PORT: '54003',
+    TAXI_OPERATOR_PRIVKEY: 'private fixture',
+  })
+  assert.deepEqual(overlay.networks.default, { external: true, name: `${project}_default` })
+  assert.deepEqual(overlay.services.taxi.ports, ['127.0.0.1:54000:8080', '127.0.0.1:54001:8081'])
+  assert.equal(overlay.services.taxi.environment.TAXI_ARKD_URL, 'http://arkd:7070')
+  assert.equal(overlay.services.taxi.environment.TAXI_PUBLIC_ARKD_URL, 'http://127.0.0.1:54002')
+  assert.equal(overlay.services.taxi.environment.TAXI_ESPLORA_URL, 'http://mempool_web/api')
+  assert.throws(() => nativeTaxiCompose('arkade-regtest', {}))
+})
+
+it('refuses an occupied required port and leaves its existing owner running', async () => {
+  const server = createServer((_request, response) => response.end('existing owner'))
+  await new Promise((done, reject) => server.once('error', reject).listen(0, '127.0.0.1', done))
+  const occupied = server.address().port
+  try {
+    await assert.rejects(port(occupied), /Required native port .* is unavailable/)
+  } finally {
+    try {
+      assert.equal(await (await fetch(`http://127.0.0.1:${occupied}`)).text(), 'existing owner')
+    } finally {
+      await new Promise((done) => server.close(done))
+    }
+  }
+})
+
+it('uses an available required port while retaining distinct dynamic allocations', async () => {
+  const server = createServer()
+  await new Promise((done, reject) => server.once('error', reject).listen(0, '127.0.0.1', done))
+  const requested = server.address().port
+  await new Promise((done) => server.close(done))
+
+  assert.equal(await port(requested), String(requested))
+  const first = await port()
+  const second = await port()
+  assert.notEqual(first, second)
+  for (const value of [first, second]) assert(!['60413', '60423', '60432', '60433'].includes(value))
+})
+
+it('cleans actual infrastructure after failure before any relay was created', async () => {
+  const calls = []
+  const failures = await cleanupOwnedStages({
+    relayStarted: false,
+    captureLogs: async () => calls.push('logs'),
+    cleanRelay: async () => {
+      throw new Error('Missing relay.json')
+    },
+    cleanInfra: async () => calls.push('infra'),
+    cleanImages: async () => calls.push('images'),
+  })
+  assert.deepEqual(calls, ['logs', 'infra', 'images'])
+  assert.deepEqual(failures, [])
+})
+
+it('retains cleanup failures while still cleaning every attempted resource', async () => {
+  const calls = []
+  const failures = await cleanupOwnedStages({
+    relayStarted: true,
+    captureLogs: async () => calls.push('logs'),
+    cleanRelay: async () => {
+      calls.push('relay')
+      throw new Error('Relay down failed')
+    },
+    cleanInfra: async () => {
+      calls.push('infra')
+      throw new Error('Infra down failed')
+    },
+    cleanImages: async () => calls.push('images'),
+  })
+  assert.deepEqual(calls, ['logs', 'relay', 'infra', 'images'])
+  assert.deepEqual(failures, ['Relay down failed', 'Infra down failed'])
+})
+
+it('cleans the owned Taxi overlay even when its log capture fails', async () => {
+  const calls = []
+  const failures = await cleanupOwnedStages({
+    captureTaxiLogs: async () => {
+      throw new Error('Taxi logs unavailable')
+    },
+    cleanTaxi: async () => calls.push('taxi'),
+    cleanInfra: async () => calls.push('infra'),
+  })
+  assert.deepEqual(calls, ['taxi', 'infra'])
+  assert.deepEqual(failures, ['Taxi logs unavailable'])
+})
+
+it('preserves the first crash diagnosis when fallback captures empty logs', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'taxi-native-evidence-'))
+  assert.equal(dirname(directory), tmpdir())
+  try {
+    const file = join(directory, 'service-logs.log')
+    await appendEvidence(file, 'Taxi crashed: provider rejected startup\n{"private_key":"never-upload"}')
+    await appendEvidence(file, '\n')
+    const saved = await readFile(file, 'utf8')
+    assert(saved.includes('Taxi crashed: provider rejected startup'))
+    assert(saved.includes('"private_key":"[redacted]"'))
+    assert(!saved.includes('never-upload'))
+  } finally {
+    await rm(directory, { recursive: true })
+  }
+})
+
+it('cleans infrastructure and restores registries after browser cleanup rejects', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'taxi-native-cleanup-'))
+  const file = join(directory, 'registry.json')
+  const temporary = join(directory, 'temporary.json')
+  const calls = []
+  try {
+    await writeFile(file, 'modified registry')
+    await writeFile(temporary, 'temporary registry')
+    const failures = await cleanupOwnedStages({
+      before: [
+        async () => {
+          throw new Error('Evidence directory failed')
+        },
+      ],
+      context: {
+        wallet: {
+          dispose: async () => {
+            throw new Error('Wallet dispose failed')
+          },
+        },
+        close: async () => {
+          throw new Error('Context close failed {"private_key":"never-upload"}')
+        },
+      },
+      closeFeed: async () => calls.push('feed'),
+      saveLogs: async () => {
+        throw null
+      },
+      relayStarted: true,
+      captureLogs: async () => calls.push('logs'),
+      cleanRelay: async () => calls.push('relay'),
+      cleanInfra: async () => calls.push('infra'),
+      cleanImages: async () => calls.push('images'),
+      registryBackups: [
+        [join(directory, 'missing', 'registry.json'), 'original registry'],
+        [file, 'original registry'],
+        [temporary, null],
+      ],
+    })
+    assert.deepEqual(calls, ['feed', 'logs', 'relay', 'infra', 'images'])
+    assert.deepEqual(failures.slice(0, 4), [
+      'Evidence directory failed',
+      'Wallet dispose failed',
+      'Context close failed {"private_key":"[redacted]"}',
+      'null',
+    ])
+    assert.equal(failures.length, 5)
+    assert.match(failures[4], /ENOENT/)
+    assert.equal(await readFile(file, 'utf8'), 'original registry')
+    await assert.rejects(readFile(temporary), { code: 'ENOENT' })
+  } finally {
+    await rm(directory, { recursive: true })
+  }
+})
+
+it('cleans only owned images when the second build fails before infrastructure starts', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'taxi-native-build-cleanup-'))
+  const callsFile = join(directory, 'calls.jsonl')
+  const shim = join(directory, 'commands.cjs')
+  try {
+    await mkdir(join(directory, 'regtest'))
+    await writeFile(join(directory, 'regtest', '.env.defaults'), '')
+    await writeFile(
+      shim,
+      `
+const { appendFileSync, mkdirSync, writeFileSync } = require('node:fs')
+const { basename, join } = require('node:path')
+const { promisify } = require('node:util')
+const child = require('node:child_process')
+const refs = ${JSON.stringify(refs)}
+let image
+function execFile() {}
+execFile[promisify.custom] = async (command, args, options) => {
+  appendFileSync(${JSON.stringify(callsFile)}, JSON.stringify({ command, args }) + '\\n')
+  if (command === 'git') {
+    if (args[0] === 'archive') writeFileSync(args[3], '')
+    return { stdout: refs[basename(options.cwd)] + '\\n', stderr: '' }
+  }
+  if (basename(command).replace('.exe', '') === 'tar') {
+    mkdirSync(join(args[3], 'docker'))
+    writeFileSync(join(args[3], '.env.defaults'), '')
+    writeFileSync(join(args[3], 'docker/compose.base.yml'), 'services:\\n  mempool_api:\\n    environment:\\n      DATABASE_ENABLED: "true"\\n  mempool_web:\\n')
+    writeFileSync(join(args[3], 'docker/compose.ark.yml'), "services:\\n  arkd:\\n    ports:\\n      - '\\$" + "{ARKD_PORT:-7070}:7070'\\n")
+    return { stdout: '', stderr: '' }
+  }
+  if (command === 'docker' && args[0] === 'build') {
+    if (!image) { image = args[2]; return { stdout: '', stderr: '' } }
+    throw Object.assign(new Error('NAK build failed'), { code: 1, stdout: '', stderr: '' })
+  }
+  if (command === 'docker' && args[0] === 'image') return { stdout: args[1] === 'ls' ? image + '\\n' : '', stderr: '' }
+  throw new Error('Unexpected command: ' + command)
+}
+child.execFile = execFile
+require('node:module').syncBuiltinESMExports()
+`,
+    )
+    const script = fileURLToPath(new URL('./taxi-native-ci.mjs', import.meta.url))
+    const result = await promisify(execFile)(process.execPath, ['--require', shim, script, 'Google Chrome'], {
+      cwd: directory,
+      env: {
+        ...process.env,
+        TAXI_NATIVE_SOLVER_ROOT: join(directory, 'solver'),
+        TAXI_NATIVE_TAXI_ROOT: join(directory, 'taxi'),
+        ARKD_IMAGE: 'fixture-arkd',
+        ARKD_WALLET_IMAGE: 'fixture-wallet',
+        ARKD_SIGNER_IMAGE: 'fixture-signer',
+        EMULATOR_IMAGE: 'fixture-emulator',
+      },
+      windowsHide: true,
+    }).catch((error) => error)
+    assert.equal(result.code, 1)
+    assert.match(result.stderr, /nak-build failed/)
+    assert.deepEqual(
+      (await readdir(join(directory, '.local-tests'))).filter((name) => name.startsWith('taxi-native-')),
+      [],
+    )
+    const calls = (await readFile(callsFile, 'utf8'))
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line))
+    const builds = calls.filter(({ command, args }) => command === 'docker' && args[0] === 'build')
+    assert.equal(builds.length, 2)
+    const owned = builds[0].args[2]
+    assert.match(owned, /^taxi-native-[0-9a-f]{8}-taxi$/)
+    assert.deepEqual(
+      calls.filter(({ args }) => args[0] === 'image').map(({ args }) => args),
+      [
+        ['image', 'ls', '--format', '{{.Repository}}', '--filter', `reference=${owned.slice(0, -5)}-*`],
+        ['image', 'rm', owned],
+      ],
+    )
+    assert(
+      calls.every(
+        ({ command, args }) =>
+          ['git', 'tar', 'tar.exe'].includes(command.split(/[\\/]/).pop()) ||
+          (command === 'docker' && ['build', 'image'].includes(args[0])),
+      ),
+    )
+  } finally {
+    assert.equal(dirname(directory), tmpdir())
+    await rm(directory, { recursive: true })
+  }
+})
