@@ -10,7 +10,7 @@ import { parseEnv, promisify } from 'node:util'
 import { configureRegtestEsplora } from './regtest-esplora.mjs'
 
 export const refs = Object.freeze({
-  solver: '855fa3a616e4c615a4c0dbddb26fd7c67137aad2',
+  solver: '08b95dd5eb808ca9a3a31bd0d2823b3706350b72',
   taxi: '5df105e82f33a1c74a1d898c93356cb9a70150c7',
   regtest: '7c91a6bdafd855ba8b8cc19cf35f46257eb1467d',
 })
