@@ -271,6 +271,8 @@ export const translations = {
       createWallet: 'Create wallet',
       createWithPasskey: 'Create with passkey',
       logInWithPasskey: 'Log in with passkey',
+      orUseAPasskey: 'Or use a passkey',
+      orUseAMnemonic: 'Or use a mnemonic',
       passkeyFailed: "Couldn't use that passkey. Try again, or create a wallet without one.",
       passkeyHasNoWords: "That passkey doesn't hold a wallet. Restore with your recovery phrase.",
       passkeyIntro:
@@ -283,7 +285,6 @@ export const translations = {
       passkeyNotUsed: 'No wallet was created. You can delete the passkey "{name}" from your device settings.',
       goToWallet: 'Go to wallet',
       newWalletLive: 'Your new wallet is live!',
-      otherLoginOptions: 'Other login options',
       recoveryChecksumError: 'This recovery phrase doesn’t validate. Check the words and their order.',
       recoveryInputHint: 'Type or paste your recovery phrase or private key.',
       recoveryInstructions:
@@ -1258,6 +1259,8 @@ export const translations = {
       createWallet: 'Crear wallet',
       createWithPasskey: 'Crear con passkey',
       logInWithPasskey: 'Entrar con passkey',
+      orUseAPasskey: 'O usa una passkey',
+      orUseAMnemonic: 'O usa una mnemónica',
       passkeyFailed: 'No se pudo usar esa passkey. Vuelve a intentarlo o crea una wallet sin ella.',
       passkeyHasNoWords: 'Esa passkey no contiene una wallet. Restaura con tu frase de recuperación.',
       passkeyIntro:
@@ -1270,7 +1273,6 @@ export const translations = {
       passkeyNotUsed: 'No se creó ninguna wallet. Puedes borrar la passkey "{name}" en los ajustes de tu dispositivo.',
       goToWallet: 'Ir a la wallet',
       newWalletLive: '¡Tu nueva wallet está lista!',
-      otherLoginOptions: 'Otras opciones de acceso',
       recoveryChecksumError: 'La frase de recuperación no es válida. Revisa las palabras y su orden.',
       recoveryInputHint: 'Escribe o pega tu frase de recuperación o clave privada.',
       recoveryInstructions:
@@ -2254,6 +2256,8 @@ export const translations = {
       createWallet: 'Criar carteira',
       createWithPasskey: 'Criar com passkey',
       logInWithPasskey: 'Entrar com passkey',
+      orUseAPasskey: 'Ou use uma passkey',
+      orUseAMnemonic: 'Ou use uma mnemónica',
       passkeyFailed: 'Não foi possível usar essa passkey. Tente de novo ou crie uma carteira sem ela.',
       passkeyHasNoWords: 'Essa passkey não contém uma carteira. Restaure com sua frase de recuperação.',
       passkeyIntro:
@@ -2267,7 +2271,6 @@ export const translations = {
         'Nenhuma carteira foi criada. Você pode apagar a passkey "{name}" nas configurações do dispositivo.',
       goToWallet: 'Ir para a carteira',
       newWalletLive: 'Sua nova carteira está pronta!',
-      otherLoginOptions: 'Outras opções de acesso',
       recoveryChecksumError: 'A frase de recuperação é inválida. Verifique as palavras e a ordem.',
       recoveryInputHint: 'Digite ou cole sua frase de recuperação ou chave privada.',
       recoveryInstructions:
