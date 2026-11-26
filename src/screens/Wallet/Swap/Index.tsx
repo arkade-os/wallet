@@ -557,7 +557,7 @@ export default function WalletSwap() {
   )
   const searchOpenByDefault = Boolean(
     allowDirectOpenOffers &&
-    openOfferPolicy === 'when-needed' &&
+      openOfferPolicy === 'when-needed' &&
       canViewQuotes &&
       (openOffersFirst || (discoveryReady && (!hasSavedSolver || (currentPlan && solvable === false)))),
   )
