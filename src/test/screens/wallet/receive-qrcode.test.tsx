@@ -318,11 +318,11 @@ describe('Receive QR Code screen', () => {
   })
 
   describe('other formats', () => {
-    const amountFixture = (invoice: string): RenderOverrides => ({
+    const amountFixture = (invoice: string, satoshis = 50_000): RenderOverrides => ({
       flow: {
         recvInfo: {
           ...mockFlowContextValue.recvInfo,
-          satoshis: 50_000,
+          satoshis,
           offchainAddr: 'ark1testaddr',
           boardingAddr: 'bc1testaddr',
           invoice,
@@ -365,6 +365,25 @@ describe('Receive QR Code screen', () => {
       } finally {
         now.mockRestore()
       }
+    })
+
+    it('shows the fee a Lightning payer pays on top of the amount', async () => {
+      // The fixture invoice is for 2,100 sats: asking for 2,000 leaves 100 for the swap's fee.
+      const inSats = (satoshis: number) => ({
+        ...amountFixture(fixtures.lib.bolt11.invoice, satoshis),
+        config: { useFiat: false },
+      })
+      const { rerender } = renderReceiveQrCode(inSats(2_000))
+      expect(await screen.findByTestId('receive-lightning-fee')).toHaveTextContent(
+        'Lightning payers pay 2,100 sats, including a fee of 100 sats',
+      )
+
+      await pickFormat(/^Lightning invoice/)
+      expect(screen.getByTestId('receive-lightning-fee')).toBeInTheDocument()
+
+      rerender(buildTree(inSats(2_100)))
+      await screen.findByTestId('invoice-address-copy')
+      expect(screen.queryByTestId('receive-lightning-fee')).not.toBeInTheDocument()
     })
 
     it('makes Any wallet the active radio on every mount, remembering no pick', async () => {

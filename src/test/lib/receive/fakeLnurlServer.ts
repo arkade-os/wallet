@@ -155,6 +155,8 @@ export function fakeLnurlServer(opts: {
   paymentURI?: string
   payRequestFail?: boolean
   registrationError?: string
+  /** Advertises `receiveAmountAllowed` and prices a `receiveAmount` request with this solver fee on top. */
+  receiveFeeSat?: number
 }) {
   const addresses = [...(opts.addresses ?? [])]
   let rejected = 0
@@ -209,6 +211,7 @@ export function fakeLnurlServer(opts: {
           ...(opts.simulated ? [SIM_SOLANA_OPTION] : []),
         ],
         ...(opts.tokens || opts.simulated ? { units: TOKEN_UNITS } : {}),
+        ...(opts.receiveFeeSat !== undefined ? { receiveAmountAllowed: true } : {}),
       })
     }
     if (path.startsWith('/callback/')) {
@@ -242,6 +245,21 @@ export function fakeLnurlServer(opts: {
         return json(200, { status: 'OK', paymentOption: rail, paymentDestination: destinations[rail] })
       }
       if (opts.invoiceError) return json(200, { status: 'ERROR', reason: opts.invoiceError })
+      const receiveMsat = Number(url.searchParams.get('receiveAmount'))
+      if (opts.receiveFeeSat !== undefined && receiveMsat) {
+        const msat = (amount: number) => ({ amount: String(amount), unit: 'msat' })
+        const feeMsat = opts.receiveFeeSat * 1000
+        return json(200, {
+          pr: fakeInvoice(receiveMsat + feeMsat),
+          routes: [],
+          paymentQuote: {
+            requested: msat(receiveMsat),
+            payment: msat(receiveMsat + feeMsat),
+            receive: msat(receiveMsat),
+            fees: [{ name: 'solver', amount: msat(feeMsat) }],
+          },
+        })
+      }
       return json(200, { pr: fakeInvoice(Number(url.searchParams.get('amount'))), routes: [] })
     }
     if (path.endsWith('/arkade') && method === 'POST') {

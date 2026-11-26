@@ -3,6 +3,7 @@ import { useTranslation } from '../../providers/language'
 import {
   arkadeLnurl,
   bootstrapReceiver,
+  lnurlRailLimits,
   resolveLnurlRails,
   type ArkadeLnurl,
   type ArkadeSigner,
@@ -12,6 +13,7 @@ import {
   type Receiver,
 } from '@arkade-os/lnurl-client/arkade'
 import {
+  createLnurlClient,
   LnurlError,
   type AddressListEntry,
   type DomainCapabilities,
@@ -63,6 +65,22 @@ export function lnurlReceiver(deps: {
 
 type PerRail = Partial<Record<LnurlRailType, string>>
 
+const lnurlClient = createLnurlClient()
+
+/** Asks for the Lightning leg as the amount the receiver nets, where the server can price that (LUD-XX
+ *  `receiveAmount`). The payer then pays the solver's fee on top, up to the rail's maximum, as on the swap
+ *  rail. Asked for plainly, the invoice is for the amount and the fee comes out of what arrives. */
+const netAmountClient: Pick<LnurlClient, 'requestInvoice'> = {
+  requestInvoice: (payRequest, opts) => {
+    const max = lnurlRailLimits(payRequest).find((rail) => rail.type === 'lightning')?.max
+    const lightning = (opts.paymentOption ?? 'lightning') === 'lightning'
+    if (!payRequest.receiveAmountAllowed || !lightning || !max || opts.amountSat === undefined) {
+      return lnurlClient.requestInvoice(payRequest, opts)
+    }
+    return lnurlClient.requestInvoice(payRequest, { ...opts, amountSat: max, receiveAmountSat: opts.amountSat })
+  },
+}
+
 /** `resolveLnurlRails` for the amount being requested, asked again whenever it changes. Lightning
  *  always goes through the LNURL; the Arkade and on-chain legs only when `allRails` is set. */
 export function useLnurlRails(
@@ -88,7 +106,7 @@ export function useLnurlRails(
       ...(allRails && ownOnchain ? (['onchain'] as const) : []),
     ]
     let stale = false
-    resolveLnurlRails(receiver, amountSat, rails, { arkade: ownArkade, onchain: ownOnchain })
+    resolveLnurlRails(receiver, amountSat, rails, { arkade: ownArkade, onchain: ownOnchain }, netAmountClient)
       .then((results) => {
         if (stale) return
         const resolved: PerRail = {}

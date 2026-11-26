@@ -11,6 +11,7 @@ import {
   LNURL_BASE,
   LNURL_DESTINATIONS,
   WALLET_BOARDING_ADDRESS,
+  fakeInvoice,
   fakeLnurlServer,
   namedAddress,
   namelessAddress,
@@ -488,5 +489,19 @@ describe('useLnurlRails', () => {
     rerender({ own: { arkade: DECODABLE_ARK, onchain: WALLET_BOARDING_ADDRESS } })
     await waitFor(() => expect(result.current.targets).toEqual(expect.objectContaining(LNURL_DESTINATIONS)))
     expect(result.current.errors).toEqual({})
+  })
+
+  it('asks for a Lightning invoice the receiver nets, with the fee on top, where the server prices one', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], receiveFeeSat: 225 })
+    const rail = renderRail()
+    await waitFor(() => expect(rail.result.current.status).toBe('ready'))
+    const receiver = rail.result.current.receiver
+    const { result } = renderHook(() => useLnurlRails(receiver, 20_000, false, { arkade: '', onchain: '' }))
+
+    await waitFor(() => expect(result.current.targets.lightning).toBe(fakeInvoice(20_225_000)))
+    const query = new URL(String(asked('lightning').at(-1)?.[0])).searchParams
+    expect(query.get('receiveAmount')).toBe('20000000')
+    // The ceiling is the rail's maximum, so the solver's fee is what the server quotes.
+    expect(query.get('amount')).toBe('100000000000')
   })
 })

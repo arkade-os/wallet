@@ -520,13 +520,15 @@ export default function ReceiveQRCode() {
   // Whether an amount is currently requested. Keyed off assetMeta to match how
   // handleAmountConfirm/handleAmountClear decide between asset units and sats.
   const hasAmount = assetMeta ? assetAmount > BigInt(0) : satoshis > 0
+  const prettySats = (sats: number) =>
+    useFiat && currencyConversionUseful
+      ? prettyFiatAmount(toFiat(sats), config.currency, { bitcoinUnit: config.unit })
+      : prettyAmount(sats)
   const amountHeadline = !hasAmount
     ? ''
     : assetMeta
       ? `${atomicToUnits(assetAmount, assetOption.decimals)} ${assetPresentation.ticker}`
-      : useFiat && currencyConversionUseful
-        ? prettyFiatAmount(toFiat(satoshis), config.currency, { bitcoinUnit: config.unit })
-        : prettyAmount(satoshis)
+      : prettySats(satoshis)
 
   // Mobile keyboard — bypass sheet on save, go straight to QR
   if (showKeys) {
@@ -551,14 +553,17 @@ export default function ReceiveQRCode() {
   const amountLabel = hasAmount ? t('receive.editAmount') : t('receive.addAmount')
   const unitLabel = assetMeta ? assetPresentation.ticker : 'sats'
 
-  const invoiceMinutes = (() => {
-    if (!satoshis || !invoice) return 0
+  const decodedInvoice = (() => {
+    if (!satoshis || !invoice) return undefined
     try {
-      return Math.floor((decodeInvoice(invoice).expiresAt * 1000 - Date.now()) / 60_000)
+      return decodeInvoice(invoice)
     } catch {
-      return 0
+      return undefined
     }
   })()
+  const invoiceMinutes = decodedInvoice ? Math.floor((decodedInvoice.expiresAt * 1000 - Date.now()) / 60_000) : 0
+  // Both rails credit the amount asked for and put the swap's fee on the invoice, so the payer pays it.
+  const lightningFee = decodedInvoice ? decodedInvoice.amountSats - satoshis : 0
   const formatInfo: Record<Exclude<ReceiveMethod, 'token'>, Omit<FormatRow, 'id'>> = {
     full: {
       icon: <ScanIcon />,
@@ -835,6 +840,14 @@ export default function ReceiveQRCode() {
                   ) : caption ? (
                     <Text small color='neutral-500' wrap centered>
                       {caption}
+                    </Text>
+                  ) : null}
+                  {lightningFee > 0 && (shown === 'lightning' || shown === 'full') ? (
+                    <Text small color='neutral-500' wrap centered testId='receive-lightning-fee'>
+                      {t('receive.lightningPayerPays', {
+                        amount: prettySats(satoshis + lightningFee),
+                        fee: prettySats(lightningFee),
+                      })}
                     </Text>
                   ) : null}
                 </div>
