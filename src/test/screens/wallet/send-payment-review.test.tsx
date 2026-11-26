@@ -4,6 +4,7 @@ import { arkadeAsset, assetSwapIdOf, btcOn, type OpenRfqAuction, type OpenRfqOff
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ContextType } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { lnurlSends } from '../../../lib/lnurlSends'
 import { readOpenOffersFirst, saveOpenOfferPolicy, saveOpenOffersFirst } from '../../../lib/openOfferPolicy'
 import type { PaymentQuoteRequest } from '../../../lib/paymentQuotes'
 import { readSolverRouting, saveSolverRouting } from '../../../lib/solverRouting'
@@ -29,6 +30,9 @@ import {
   mockSvcWallet,
   mockWalletContextValue,
 } from '../mocks'
+
+const addConfirmation = vi.hoisted(() => vi.fn())
+vi.mock('../../../lib/lnurlConfirmations', () => ({ pendingConfirmations: { add: addConfirmation, forget: vi.fn() } }))
 
 const now = 1734606756
 const network = 'bitcoin'
@@ -286,6 +290,31 @@ describe('reviewing a solver payment', () => {
     expect(acceptPaymentQuote).not.toHaveBeenCalled()
   })
 
+  it('refreshes the provider the user chose after its quote fails', async () => {
+    let bayAvailable = false
+    quotePaymentRoute.mockImplementation(async (_, provider) => {
+      if (provider !== bayId) return lightningQuote('harbor-quote', 2_110)
+      if (!bayAvailable) throw new Error('Bay is busy')
+      return lightningQuote('bay-quote', 2_150, bay)
+    })
+    paymentRouteCandidates.mockResolvedValue([
+      { id: harborId, name: harbor.solver },
+      { id: bayId, name: bay.solver },
+    ])
+    render(review())
+
+    expect(await screen.findByTestId('Total')).toHaveTextContent('2,110')
+    fireEvent.click(button('Change route'))
+    const routes = await screen.findByRole('dialog', { name: 'Change route' })
+    fireEvent.click(await within(routes).findByRole('button', { name: bay.solver }))
+    await waitFor(() => expect(button('Refresh quote')).toBeEnabled())
+    bayAvailable = true
+    fireEvent.click(button('Refresh quote'))
+
+    await waitFor(() => expect(screen.getByTestId('Total')).toHaveTextContent('2,150'))
+    expect(quotePaymentRoute).toHaveBeenLastCalledWith(lightningRequest, bayId)
+  })
+
   it.each([false, true])('remembers a provider after payment (open first: %s)', async (firstOpen) => {
     const first = lightningQuote('harbor-quote', 2_110)
     const alternate = lightningQuote('bay-quote', 2_150, bay)
@@ -493,6 +522,60 @@ describe('reviewing a solver payment', () => {
     expect(acceptPaymentQuote).not.toHaveBeenCalled()
   })
 
+  it('keeps a reviewed provider quote when open offers are turned off', async () => {
+    quotePaymentRoute.mockImplementation(async (_, provider) =>
+      provider === bayId ? lightningQuote('bay-quote', 2_150, bay) : lightningQuote('harbor-quote', 2_110),
+    )
+    paymentRouteCandidates.mockResolvedValue([
+      { id: harborId, name: harbor.solver },
+      { id: bayId, name: bay.solver },
+    ])
+    saveOpenOfferPolicy(network, 'ask')
+    saveOpenOffersFirst(network, direction, true)
+    render(review())
+
+    const routes = await screen.findByRole('dialog', { name: 'Change route' })
+    fireEvent.click(await within(routes).findByRole('button', { name: bay.solver }))
+    await waitFor(() => expect(screen.getByTestId('Total')).toHaveTextContent('2,150'))
+    act(() => saveOpenOfferPolicy(network, 'off'))
+
+    expect(screen.getByTestId('Total')).toHaveTextContent('2,150')
+    expect(quotePaymentRoute).toHaveBeenCalledExactlyOnceWith(lightningRequest, bayId)
+  })
+
+  it('replaces a reviewed open offer when open offers are turned off', async () => {
+    const bid = {
+      id: 'bay-bid',
+      solverPubkey: bay.discovery_pubkey,
+      solverName: bay.solver,
+      fromAmount: 2_170n,
+      toAmount: BigInt(amountSats),
+      expiresAt: now + 60,
+    } as OpenRfqOffer
+    quotePaymentRoute.mockResolvedValue(lightningQuote('harbor-quote', 2_110))
+    openPaymentQuotes.mockResolvedValue({
+      id: 'auction',
+      input: { to: invoice },
+      pair: direction,
+      closedAt: now,
+      bids: [bid],
+    })
+    chooseSwapQuote.mockResolvedValue(lightningQuote('open-quote', 2_166, bay))
+    saveOpenOfferPolicy(network, 'ask')
+    saveOpenOffersFirst(network, direction, true)
+    render(review())
+
+    const routes = within(await screen.findByRole('dialog', { name: 'Change route' }))
+    fireEvent.click(routes.getByRole('button', { name: 'Find open offers' }))
+    fireEvent.click(await routes.findByRole('button', { name: 'Select Bay' }))
+    await waitFor(() => expect(screen.getByTestId('Total')).toHaveTextContent('2,166'))
+    expect(quotePaymentRoute).not.toHaveBeenCalled()
+    act(() => saveOpenOfferPolicy(network, 'off'))
+
+    await waitFor(() => expect(screen.getByTestId('Total')).toHaveTextContent('2,110'))
+    expect(quotePaymentRoute).toHaveBeenLastCalledWith(lightningRequest, undefined)
+  })
+
   it('respects turning off open offers when no provider can quote', async () => {
     saveOpenOfferPolicy(network, 'off')
     quotePaymentRoute.mockRejectedValue(noProvider())
@@ -605,6 +688,30 @@ describe('reviewing a solver payment', () => {
     fireEvent.click(pay())
     expect(acceptPaymentQuote).toHaveBeenCalledTimes(1)
     expect(openPaymentQuotes).not.toHaveBeenCalled()
+  })
+
+  it('watches the receiver confirmation of an LNURL invoice paid through a provider', async () => {
+    const lnUrl = 'alice@pay.example'
+    const verify = 'https://pay.example/verify/1'
+    quotePaymentRoute.mockResolvedValueOnce(lightningQuote('lnurl-payment', 2_105))
+    render(review({ ...sendInfo, lnUrl, lnurlInvoice: { pr: invoice, verify } }))
+
+    expect(await screen.findByTestId('Total')).toHaveTextContent('2,105')
+    fireEvent.click(pay())
+
+    await waitFor(() =>
+      expect(addConfirmation).toHaveBeenCalledWith(
+        expect.objectContaining({ key: 'funding-txid', verifyUrl: verify, expect: { pr: invoice } }),
+      ),
+    )
+    expect(lnurlSends()).toEqual([
+      expect.objectContaining({
+        txid: 'funding-txid',
+        target: lnUrl,
+        amountSat: amountSats,
+        feeSat: 2_105 - amountSats,
+      }),
+    ])
   })
 
   it('requires a fresh Lightning invoice after a confirmed refund', async () => {

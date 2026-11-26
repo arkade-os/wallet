@@ -134,3 +134,10 @@ export const isBip21 = (data: string): boolean => {
     return false
   }
 }
+
+/** The amount a payment request fixes for its on-chain address, which the recipient must get in full. */
+export const exactBip21Amount = (address?: string, recipient?: string): number | undefined => {
+  if (!address || !recipient || !isBip21(recipient)) return
+  const payment = decodeBip21(recipient)
+  if (payment.address === address && payment.satoshis && payment.satoshis > 0) return payment.satoshis
+}

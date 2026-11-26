@@ -59,7 +59,7 @@ import { SwapsContext } from '../../../providers/swaps'
 import { newRequestId } from '../../../lib/requestId'
 import { appIntentHandoff, redirectToCallback } from '../../../lib/appIntent'
 import OpenInApp from '../../AppIntent/OpenInApp'
-import { decodeBip21, isBip21 } from '../../../lib/bip21'
+import { decodeBip21, exactBip21Amount, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
 import { atomicToUnits, isValidAssetId, prettyAssetAmount, unitsToAtomic } from '../../../lib/assets'
 import { FeesContext } from '../../../providers/fees'
@@ -854,13 +854,21 @@ export default function SendForm() {
     const onlyBtcAddress = sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice
     if (sendInfo.arkAddress) {
       setDeductFromAmount(false)
-    } else if (onlyBtcAddress) {
+    } else if (onlyBtcAddress && exactBip21Amount(sendInfo.address, sendInfo.recipient) === undefined) {
       const fees = calcOnchainOutputFee()
       setDeductFromAmount(satoshis + fees > liquidBalance)
     } else {
       setDeductFromAmount(false)
     }
-  }, [liquidBalance, sendInfo.satoshis, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.lnUrl])
+  }, [
+    liquidBalance,
+    sendInfo.satoshis,
+    sendInfo.address,
+    sendInfo.arkAddress,
+    sendInfo.invoice,
+    sendInfo.lnUrl,
+    sendInfo.recipient,
+  ])
 
   if (!svcWallet) return <LoadingLogo text={t('common.loading')} />
 
@@ -1047,7 +1055,7 @@ export default function SendForm() {
             arkAddress: undefined,
             assetPayment: undefined,
             invoice: result.pr,
-            lnurlInvoice: { pr: result.pr },
+            lnurlInvoice: { pr: result.pr, verify: result.verify, verifyBatch: result.verifyBatch },
             pendingLnSend: undefined,
             reviewId: prev.reviewId ?? newRequestId(),
             openOffer: undefined,

@@ -46,13 +46,17 @@ export default function usePaymentQuoteReview(
   const { quotePaymentRoute, paymentRouteCandidates } = useContext(SwapsContext)
   const api = useRef({ quotePaymentRoute, paymentRouteCandidates })
   api.current = { quotePaymentRoute, paymentRouteCandidates }
-  const scope = useMemo(() => ({ request, network, openOffersFirst }), [request, network, openOffersFirst])
+  const scope = useMemo(() => ({ request, network }), [request, network])
   const currentScope = useRef(scope)
   currentScope.current = scope
   const [reviewScope, setReviewScope] = useState(scope)
   const generation = useRef(0)
+  const requestedSolver = useRef<string>()
   const previous = useRef<Quote>()
+  const startedScope = useRef<typeof scope>()
   const [reviewed, setReviewed] = useState<ReviewedQuote>()
+  const reviewedNow = useRef(reviewed)
+  reviewedNow.current = reviewed
   const [candidates, setCandidates] = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(Boolean(request) && !openOffersFirst)
   const [quoteError, setQuoteError] = useState<QuoteReviewError>()
@@ -85,6 +89,7 @@ export default function usePaymentQuoteReview(
   const load = useCallback(
     async (solverId?: string) => {
       if (!request) return
+      requestedSolver.current = solverId
       const started = ++generation.current
       const isCurrent = () => started === generation.current && currentScope.current === scope
       setReviewScope(scope)
@@ -110,6 +115,7 @@ export default function usePaymentQuoteReview(
     if (!request) return
     let active = true
     previous.current = undefined
+    requestedSolver.current = undefined
     setCandidates([])
     void api.current
       .paymentRouteCandidates(request)
@@ -117,6 +123,17 @@ export default function usePaymentQuoteReview(
         if (active) setCandidates(routes)
       })
       .catch(() => undefined)
+    return () => {
+      active = false
+    }
+  }, [request, scope])
+
+  useEffect(() => {
+    if (!request) return
+    // The open-offers preference starts a review; it never replaces a saved provider's quote.
+    const saved = reviewedNow.current && !reviewedNow.current.offer
+    if (startedScope.current === scope && saved) return
+    startedScope.current = scope
     if (openOffersFirst) {
       setReviewScope(scope)
       setReviewed(undefined)
@@ -125,7 +142,6 @@ export default function usePaymentQuoteReview(
       setLoading(false)
     } else void load()
     return () => {
-      active = false
       generation.current += 1
     }
   }, [request, load, openOffersFirst, scope])
@@ -133,6 +149,7 @@ export default function usePaymentQuoteReview(
   const chooseOpenQuote = (quote: Quote, offer: OpenRfqOffer) => {
     validate(quote)
     generation.current += 1
+    requestedSolver.current = undefined
     setReviewScope(scope)
     setLoading(false)
     setQuoteError(undefined)
@@ -157,6 +174,7 @@ export default function usePaymentQuoteReview(
     expired: sameScope && expired,
     termsChanged: sameScope && termsChanged,
     load,
+    retry: () => load(requestedSolver.current),
     validate,
     chooseOpenQuote,
   }

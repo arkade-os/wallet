@@ -159,36 +159,6 @@ function RouteRow({
   )
 }
 
-function OnchainPaymentMethod({ network }: { network: string }) {
-  const { t } = useTranslation()
-  const [error, setError] = useState(false)
-
-  return (
-    <FlexCol gap='0.5rem'>
-      <label className='flex w-full items-center justify-between gap-3'>
-        <span>{t('solvers.onchainMethod')}</span>
-        <select
-          className='min-h-11 max-w-[60%] rounded-lg border border-[var(--neutral-200)] bg-background px-2 scheme-light dark:scheme-dark'
-          value={readOnchainSendPreference(network)}
-          onChange={(event) => {
-            try {
-              saveOnchainSendPreference(network, event.target.value === 'exit' ? 'exit' : 'solver')
-              setError(false)
-            } catch {
-              setError(true)
-            }
-          }}
-        >
-          <option value='solver'>{t('solvers.onchainMethodSolver')}</option>
-          <option value='exit'>{t('solvers.onchainMethodExit')}</option>
-        </select>
-      </label>
-      <TextSecondary>{t('solvers.onchainMethodHint')}</TextSecondary>
-      <ErrorMessage error={error} text={t('solvers.failedSave')} />
-    </FlexCol>
-  )
-}
-
 /** The fee a direction pays: its spread, and the flat part in the leg it is charged on. */
 export const feeLabelOf = ({ card, give }: Candidate, tickerOf: TickerOf): string => {
   const fee = card.solver_fee?.[give]
@@ -247,14 +217,15 @@ function DirectionRouting({
   })
   const disabled = new Set(effectiveSolverRouting(network, direction, candidates).disabled)
   const enabledOrder = ordered.map(({ card }) => solverId(card, network)).filter((id) => !disabled.has(id))
-  const save = (next: WalletSolverRoutingPreferences) => {
+  const persist = (write: () => void) => {
     try {
-      saveSolverRouting(network, direction, next)
+      write()
       setError('')
     } catch {
       setError(t('solvers.failedSave'))
     }
   }
+  const save = (next: WalletSolverRoutingPreferences) => persist(() => saveSolverRouting(network, direction, next))
   const canMove = (index: number, delta: number): boolean => {
     const current = ordered[index]
     const next = ordered[index + delta]
@@ -278,16 +249,33 @@ function DirectionRouting({
   const routeSupportsOffers = supportsOpenOffers(candidates[0])
   const openOffersOff = readOpenOfferPolicy(network) === 'off'
   const openOffersFirst = routeSupportsOffers && !openOffersOff && readOpenOffersFirst(network, direction)
-  const orderLabel = t(openOffersFirst || prefs.preferFirst ? 'solvers.remainingOrder' : 'solvers.orderBy')
-  const routeOrder = openOffersFirst ? [undefined, ...ordered] : routeSupportsOffers ? [...ordered, undefined] : ordered
+  const onchainRoute = isWalletOnchainRoute(candidates[0])
+  const exitFirst = onchainRoute && readOnchainSendPreference(network) === 'exit'
+  const leadFirst = openOffersFirst || exitFirst
+  const lead = routeSupportsOffers
+    ? {
+        key: 'open-offers',
+        name: t('swap.openOffers'),
+        first: openOffersFirst,
+        off: openOffersOff,
+        hint: t(openOffersOff ? 'solvers.openOffersFirstOff' : 'swap.openOffersPrivacy'),
+        choose: (first: boolean) => saveOpenOffersFirst(network, direction, first),
+      }
+    : onchainRoute
+      ? {
+          key: 'exit',
+          name: t('solvers.onchainMethodExit'),
+          first: exitFirst,
+          choose: (first: boolean) => saveOnchainSendPreference(network, first ? 'exit' : 'solver'),
+        }
+      : undefined
+  const orderLabel = t(leadFirst || prefs.preferFirst ? 'solvers.remainingOrder' : 'solvers.orderBy')
+  const routeOrder = lead ? (leadFirst ? [lead, ...ordered] : [...ordered, lead]) : ordered
   const preferredMissing =
-    !openOffersFirst &&
-    prefs.preferFirst &&
-    !candidates.some(({ card }) => solverId(card, network) === prefs.preferFirst)
+    !leadFirst && prefs.preferFirst && !candidates.some(({ card }) => solverId(card, network) === prefs.preferFirst)
   return (
     <FlexCol gap='12px'>
       <RouteLegs {...routeLegsOf(candidates[0], tickerOf)} />
-      {isWalletOnchainRoute(candidates[0]) ? <OnchainPaymentMethod network={network} /> : null}
       <TextSecondary>{t('solvers.pauseHint')}</TextSecondary>
       {enabledOrder.length === 0 ? <TextSecondary>{t('solvers.noneEnabled')}</TextSecondary> : null}
       <label className='flex w-full items-center justify-between gap-3'>
@@ -323,53 +311,44 @@ function DirectionRouting({
         text={error || (usageError ? t('solvers.usageUnavailable') : '')}
       />
       <ul className='m-0 w-full list-none divide-y divide-[var(--neutral-100)] p-0'>
-        {routeOrder.map((candidate, rowIndex) => {
-          if (!candidate) {
+        {routeOrder.map((row, rowIndex) => {
+          if (!('card' in row)) {
             return (
-              <li key='open-offers' className='flex items-center gap-3 py-3'>
-                {!openOffersOff && prefs.mode !== 'cost' ? (
+              <li key={row.key} className='flex items-center gap-3 py-3'>
+                {!row.off && prefs.mode !== 'cost' ? (
                   <span aria-hidden='true' className='w-4 shrink-0 text-sm tabular-nums text-[var(--neutral-500)]'>
-                    {openOffersFirst ? 1 : enabledOrder.length + 1}
+                    {row.first ? 1 : enabledOrder.length + 1}
                   </span>
                 ) : null}
-                <div className='min-w-0 flex-1' id={`${listId}-open-offers`}>
-                  <Text wrap>{t('swap.openOffers')}</Text>
-                  {openOffersFirst ? <TextSecondary>{t('solvers.firstChoice')}</TextSecondary> : null}
-                  <TextSecondary>
-                    {t(openOffersOff ? 'solvers.openOffersFirstOff' : 'swap.openOffersPrivacy')}
-                  </TextSecondary>
+                <div className='min-w-0 flex-1' id={`${listId}-${row.key}`}>
+                  <Text wrap>{row.name}</Text>
+                  {row.first ? <TextSecondary>{t('solvers.firstChoice')}</TextSecondary> : null}
+                  {row.hint ? <TextSecondary>{row.hint}</TextSecondary> : null}
                   <button
                     type='button'
                     className='pill-base mt-2 min-h-11 px-3 text-xs'
-                    aria-label={`${t(openOffersFirst ? 'solvers.clearFirstChoice' : 'solvers.preferFirst')}: ${t('swap.openOffers')}`}
-                    aria-describedby={`${listId}-open-offers`}
-                    disabled={openOffersOff}
-                    onClick={() => {
-                      try {
-                        saveOpenOffersFirst(network, direction, !openOffersFirst)
-                        setError('')
-                      } catch {
-                        setError(t('solvers.failedSave'))
-                      }
-                    }}
+                    aria-label={`${t(row.first ? 'solvers.clearFirstChoice' : 'solvers.preferFirst')}: ${row.name}`}
+                    aria-describedby={`${listId}-${row.key}`}
+                    disabled={row.off}
+                    onClick={() => persist(() => row.choose(!row.first))}
                   >
-                    {t(openOffersFirst ? 'settings.clear' : 'solvers.preferFirst')}
+                    {t(row.first ? 'settings.clear' : 'solvers.preferFirst')}
                   </button>
                 </div>
               </li>
             )
           }
-          const { card, give } = candidate
-          const index = rowIndex - Number(openOffersFirst)
+          const { card, give } = row
+          const index = rowIndex - Number(leadFirst)
           const id = solverId(card, network)
           const globallyEnabled = isSolverGloballyEnabled(card, network)
           const enabled = !disabled.has(id)
-          const preferred = !openOffersFirst && id === prefs.preferFirst
+          const preferred = !leadFirst && id === prefs.preferFirst
           return (
             <li key={id} className='flex items-center gap-3 py-3'>
               {enabled && prefs.mode !== 'cost' ? (
                 <span aria-hidden='true' className='w-4 shrink-0 text-sm tabular-nums text-[var(--neutral-500)]'>
-                  {enabledOrder.indexOf(id) + 1 + Number(openOffersFirst)}
+                  {enabledOrder.indexOf(id) + 1 + Number(leadFirst)}
                 </span>
               ) : null}
               <div className='min-w-0 flex-1' id={`${listId}-${index}`}>
@@ -410,10 +389,18 @@ function DirectionRouting({
                     aria-label={`${t(preferred ? 'solvers.clearFirstChoice' : 'solvers.preferFirst')}: ${card.solver}`}
                     aria-describedby={`${listId}-${index}`}
                     onClick={() =>
-                      save({
-                        ...prefs,
-                        preferFirst: preferred ? undefined : id,
-                        ...(!preferred && routeSupportsOffers ? { openOffersFirst: false } : {}),
+                      persist(() => {
+                        saveSolverRouting(network, direction, {
+                          ...prefs,
+                          preferFirst: preferred ? undefined : id,
+                          ...(!preferred && routeSupportsOffers ? { openOffersFirst: false } : {}),
+                        })
+                        try {
+                          if (!preferred && exitFirst) saveOnchainSendPreference(network, 'solver')
+                        } catch (failure) {
+                          saveSolverRouting(network, direction, prefs)
+                          throw failure
+                        }
                       })
                     }
                   >

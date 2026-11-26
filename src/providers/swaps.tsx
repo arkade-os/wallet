@@ -107,6 +107,7 @@ import {
 } from '../lib/paymentQuotes'
 import {
   canReplaceMissingPaymentRecord,
+  checkpointPaymentRecord,
   claimPaymentFunding,
   hasConfirmedPaymentRefund,
   PaymentNotSubmitted,
@@ -1448,14 +1449,18 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       if (!record) {
         if (!canReplaceMissingPaymentRecord(previous, guarded)) throw new PaymentSubmissionPending(previous.swapId)
       } else if (!fundingWasNotSubmitted(record)) {
-        if (!record.fundingTxid) throw new PaymentSubmissionPending(previous.swapId)
-        if (record.family !== 'rfq' || record.kind !== 'lightning_send' || record.state !== 'refunded') {
+        if (!record.fundingTxid) {
+          // The record is committed and this checkpoint awaited before funding, so a reservation
+          // that never reached it stopped short of submitting. The record alone proves nothing.
+          if (!canReplaceMissingPaymentRecord(previous, guarded)) throw new PaymentSubmissionPending(previous.swapId)
+        } else if (record.family !== 'rfq' || record.kind !== 'lightning_send' || record.state !== 'refunded') {
           return swapOf(record, recordOutcome(record))
+        } else {
+          const refunded = svcWallet && (await hasConfirmedPaymentRefund(record, walletLockupIndexer(svcWallet)))
+          // A refunded covenant cannot prove the payee never revealed the invoice's preimage.
+          if (refunded) throw new PaymentRequiresNewInvoice(previous.swapId)
+          throw new PaymentSubmissionPending(previous.swapId)
         }
-        const refunded = svcWallet && (await hasConfirmedPaymentRefund(record, walletLockupIndexer(svcWallet)))
-        // A refunded covenant cannot prove the payee never revealed the invoice's preimage.
-        if (refunded) throw new PaymentRequiresNewInvoice(previous.swapId)
-        throw new PaymentSubmissionPending(previous.swapId)
       }
       if (previous.quoteId === id) throw new QuoteUnavailable()
     }
@@ -1488,12 +1493,15 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
     let swap: Swap
     try {
-      swap = await withPaymentFundingCheckpoint(key, id, () =>
-        client.accept(quote, {
+      swap = await withPaymentFundingCheckpoint(key, id, async () => {
+        // A record the client already stored is funded without being written again, so the
+        // checkpoint has to run here instead: an unreached one must stay proof of non-submission.
+        if (await assetSwapRepository.getSwapRecord(id)) await checkpointPaymentRecord(id)
+        return client.accept(quote, {
           validUntil: Math.min(paymentQuoteExpiry(quote), options.validUntil ?? Infinity),
           ...(selectedVtxos ? { selectedVtxos, maxChangeFee: 0 } : {}),
-        }),
-      )
+        })
+      })
     } catch (error) {
       const stored = await assetSwapRepository
         .getSwapRecord(id)
