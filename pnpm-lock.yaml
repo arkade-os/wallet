@@ -17,16 +17,16 @@ importers:
     dependencies:
       '@arkade-os/lnurl-client':
         specifier: 0.9.4
-        version: 0.9.4(@arkade-os/sdk@0.5.13)
+        version: 0.9.4(@arkade-os/sdk@0.5.15)
       '@arkade-os/sdk':
-        specifier: 0.5.13
-        version: 0.5.13
+        specifier: 0.5.15
+        version: 0.5.15
       '@arkade-os/solver-discovery':
         specifier: 0.4.0
         version: 0.4.0
       '@arkade-os/swap':
-        specifier: 0.1.15
-        version: 0.1.15(nostr-tools@2.24.1(typescript@5.9.3))
+        specifier: 0.1.17
+        version: 0.1.17(typescript@5.9.3)
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@18.3.26)(date-fns@4.1.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -241,11 +241,11 @@ packages:
       '@arkade-os/sdk':
         optional: true
 
-  '@arkade-os/sdk@0.5.13':
-    resolution: {integrity: sha512-BoSXlYLxg8G2hdl93LoKFToeVPn3A+qLTOWsI/0i6J6H1htF9jcFm19tBvFzsn5wVhl41Qy8Y7P12wnqiPE/fQ==}
+  '@arkade-os/sdk@0.5.15':
+    resolution: {integrity: sha512-N6bmKWqCPVEUF27sGeC//CW7iu7o2HTQ+ThgrJTONjdnUqHeJM8S1ZL9CRASviSlldlH0MCX2gbpn1p0yXXw3w==}
     engines: {node: '>=22.13.0 <27'}
     peerDependencies:
-      '@arkade-os/compiler': ^0.1.0-rc.1
+      '@arkade-os/compiler': ^0.1.0
       '@react-native-async-storage/async-storage': '>=1.0.0'
       expo: '>=54.0.0'
       expo-background-task: ~1.0.10 || >=55.0.0
@@ -269,14 +269,9 @@ packages:
     resolution: {integrity: sha512-oIKsS4lt8yXbUDKzo2uLd4cbZZLEN6/iGQlaOaW72mA7dvtLCznylVEpUTvpdIggQIIRd6DpvFzN/DlJXecBRg==}
     engines: {node: '>=20.19'}
 
-  '@arkade-os/swap@0.1.15':
-    resolution: {integrity: sha512-va6sH71+GbJgkd+EiMktI0MtpeM+5OwaFVidJJY5T3lVe7RRGcefQw1QMKEkOrkQeI8zw86tskwXC4nP55VJpA==}
+  '@arkade-os/swap@0.1.17':
+    resolution: {integrity: sha512-cYYKfakwkngSwJFl6gtdJenMxx+YXmThznQS/UCNO2yDNU2YygD3/yvTVWmnsLCRd8VHDiDsOeIOnXDxkcHfnQ==}
     engines: {node: '>=22.13.0'}
-    peerDependencies:
-      nostr-tools: 2.24.1
-    peerDependenciesMeta:
-      nostr-tools:
-        optional: true
 
   '@asamuzakjp/css-color@3.2.0':
     resolution: {integrity: sha512-K1A6z8tS3XsmCMM86xoWdn7Fkdn9m6RSVtocUrJYIwZnFVkng/PvkEoWtOWmP+Scc6saYWHWZYbndEEXxl24jw==}
@@ -3310,15 +3305,15 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@arkade-os/lnurl-client@0.9.4(@arkade-os/sdk@0.5.13)':
+  '@arkade-os/lnurl-client@0.9.4(@arkade-os/sdk@0.5.15)':
     dependencies:
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
       '@scure/base': 2.0.0
     optionalDependencies:
-      '@arkade-os/sdk': 0.5.13
+      '@arkade-os/sdk': 0.5.15
 
-  '@arkade-os/sdk@0.5.13':
+  '@arkade-os/sdk@0.5.15':
     dependencies:
       '@bitcoinerlab/descriptors-scure': 3.1.7
       '@marcbachmann/cel-js': 8.0.0
@@ -3343,9 +3338,9 @@ snapshots:
       '@noble/curves': 2.4.0
       '@noble/hashes': 2.4.0
 
-  '@arkade-os/swap@0.1.15(nostr-tools@2.24.1(typescript@5.9.3))':
+  '@arkade-os/swap@0.1.17(typescript@5.9.3)':
     dependencies:
-      '@arkade-os/sdk': 0.5.13
+      '@arkade-os/sdk': 0.5.15
       '@arkade-os/solver-discovery': 0.4.0
       '@noble/ciphers': 2.1.1
       '@noble/curves': 2.4.0
@@ -3353,7 +3348,6 @@ snapshots:
       '@scure/base': 2.4.0
       '@scure/btc-signer': 2.4.1
       light-bolt11-decoder: 3.2.0
-    optionalDependencies:
       nostr-tools: 2.24.1(typescript@5.9.3)
     transitivePeerDependencies:
       - '@arkade-os/compiler'
@@ -3367,6 +3361,7 @@ snapshots:
       - expo-background-task
       - expo-sqlite
       - expo-task-manager
+      - typescript
       - utf-8-validate
 
   '@asamuzakjp/css-color@3.2.0':
