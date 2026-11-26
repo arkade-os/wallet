@@ -83,7 +83,8 @@ import UnverifiedBadge from '../../../components/UnverifiedBadge'
 import { useTranslation } from '../../../providers/language'
 import ContactPicker from '../../../components/ContactPicker'
 import Checkbox from '../../../components/Checkbox'
-import { contactForAddress, isReusableContact } from '../../../lib/contacts'
+import InputContainer from '../../../components/InputContainer'
+import { contactForAddress, isReusableContact, sendDestination } from '../../../lib/contacts'
 
 const isProductionEnv = !testDomains.some((d) => window.location.hostname.includes(d))
 
@@ -232,6 +233,8 @@ export default function SendForm() {
   const [selectedAsset, setSelectedAsset] = useState<AssetOption | null>(null)
   const [showAssetSelector, setShowAssetSelector] = useState(false)
   const [showReserveModal, setShowReserveModal] = useState(false)
+  const [contactSheetFor, setContactSheetFor] = useState<string>()
+  const [contactName, setContactName] = useState('')
   const [valueSats, setValueSats] = useState<number | undefined>(undefined)
   const [sendAll, setSendAll] = useState(false)
 
@@ -396,6 +399,8 @@ export default function SendForm() {
   // parse recipient data
   // repeat when asset changes to re-validate addresses (e.g. if user
   // selects an asset and the address is not compatible with it)
+  // every branch stores `recipient`: sendDestination trusts a payment URI there,
+  // so one left over from an earlier parse would name the wrong payee
   useEffect(() => {
     if (!readyToParse) return
     setRecipientError('')
@@ -463,7 +468,7 @@ export default function SendForm() {
         return
       }
       if (isValidArkAddress(lowerCaseData)) {
-        return setSendInfo((prev) => ({ ...prev, ...noTarget, arkAddress: lowerCaseData }))
+        return setSendInfo((prev) => ({ ...prev, ...noTarget, recipient, arkAddress: lowerCaseData }))
       }
       if (isLightningInvoice(lowerCaseData)) {
         if (isAssetSend) {
@@ -481,6 +486,7 @@ export default function SendForm() {
         setSendInfo((prev) => ({
           ...prev,
           ...noTarget,
+          recipient,
           invoice: lowerCaseData,
           satoshis,
           pendingLnSend: lowerCaseData === prev.invoice ? prev.pendingLnSend : undefined,
@@ -496,7 +502,7 @@ export default function SendForm() {
         if (isAssetSend) {
           return setRecipientError(t('send.assetsOnlyToArkade'))
         }
-        return setSendInfo((prev) => ({ ...prev, ...noTarget, address: recipient }))
+        return setSendInfo((prev) => ({ ...prev, ...noTarget, recipient, address: recipient }))
       }
       if (isArkNote(lowerCaseData)) {
         try {
@@ -508,7 +514,7 @@ export default function SendForm() {
         }
       }
       if (isValidLnUrl(lowerCaseData)) {
-        return setSendInfo((prev) => ({ ...prev, ...noTarget, lnUrl: lowerCaseData }))
+        return setSendInfo((prev) => ({ ...prev, ...noTarget, recipient, lnUrl: lowerCaseData }))
       }
       setRecipientError(t('send.invalidRecipient'))
       setReadyToParse(false)
@@ -793,6 +799,16 @@ export default function SendForm() {
     }
   }, [liquidBalance, sendInfo.satoshis, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.lnUrl])
 
+  // The same destination rememberSentDestination will save, so the tick can be checked against it.
+  const destination = sendDestination(sendInfo)
+
+  // Another payee drops the tick, so coming back to the first one asks again.
+  useEffect(() => {
+    if (sendInfo.saveAsContact && sendInfo.saveAsContact.address !== destination) {
+      setSendInfo((prev) => ({ ...prev, saveAsContact: undefined }))
+    }
+  }, [destination])
+
   if (!svcWallet) return <LoadingLogo text={t('common.loading')} />
 
   const handleError = (err: any) => {
@@ -893,13 +909,26 @@ export default function SendForm() {
     setReadyToParse(true)
   }
 
-  const saveableRecipient = sendInfo.address || sendInfo.arkAddress || sendInfo.lnUrl
-  const alreadySaved = Boolean(contactForAddress(saveableRecipient))
-  const canSaveRecipient = Boolean(saveableRecipient && isReusableContact(saveableRecipient) && !alreadySaved)
+  // Until the field's text is parsed, sendInfo still describes the previous recipient.
+  const canSaveRecipient = Boolean(
+    sendInfo.recipient === recipient &&
+      destination &&
+      isReusableContact(destination) &&
+      !contactForAddress(destination),
+  )
+  const savingAsContact = canSaveRecipient && sendInfo.saveAsContact?.address === destination
 
   const toggleSaveAsContact = () => {
     if (!canSaveRecipient) return
-    setSendInfo((prev) => ({ ...prev, saveAsContact: !prev.saveAsContact }))
+    if (savingAsContact) return setSendInfo((prev) => ({ ...prev, saveAsContact: undefined }))
+    setContactName('')
+    setContactSheetFor(destination)
+  }
+
+  const confirmSaveAsContact = () => {
+    if (!contactSheetFor) return
+    setSendInfo((prev) => ({ ...prev, saveAsContact: { address: contactSheetFor, name: contactName } }))
+    setContactSheetFor(undefined)
   }
   const lnUrlArkMethodAvailable = Boolean(
     lnUrlResponse?.transferAmounts?.some((method) => method.method === 'Ark' && method.available),
@@ -1189,11 +1218,7 @@ export default function SendForm() {
               />
               <ContactPicker disabled={processing} onSelect={handleSelectContact} />
               {canSaveRecipient ? (
-                <Checkbox
-                  checked={Boolean(sendInfo.saveAsContact)}
-                  onChange={toggleSaveAsContact}
-                  text={t('contacts.saveAsContact')}
-                />
+                <Checkbox checked={savingAsContact} onChange={toggleSaveAsContact} text={t('contacts.saveAsContact')} />
               ) : null}
               {brantaLoading ? (
                 <Text color='neutral-500' smaller>
@@ -1358,6 +1383,26 @@ export default function SendForm() {
             <Button onClick={() => setShowReserveModal(false)} label={t('common.cancel')} secondary />
           </FlexCol>
         </FlexCol>
+      </SheetModal>
+      <SheetModal
+        ariaLabel={t('contacts.save')}
+        isOpen={Boolean(contactSheetFor)}
+        onClose={() => setContactSheetFor(undefined)}
+      >
+        <div className='contact-form'>
+          <p className='settings-section-label'>{t('contacts.save')}</p>
+          <InputContainer label={t('contacts.name')}>
+            <input
+              id='send-contact-name'
+              className='input'
+              aria-label={t('contacts.name')}
+              value={contactName}
+              onChange={(e) => setContactName(e.target.value)}
+            />
+          </InputContainer>
+          <Button label={t('contacts.save')} onClick={confirmSaveAsContact} />
+          <Button label={t('common.cancel')} secondary onClick={() => setContactSheetFor(undefined)} />
+        </div>
       </SheetModal>
     </>
   )

@@ -203,17 +203,18 @@ export function recordSentRecent(address: string | undefined, now = Date.now()):
   } catch {}
 }
 
-/** Record a completed send. The tick may only add a contact, never overwrite
- *  one the user already named. */
+/** Record a completed send; true when the tick added a contact. A tick for an
+ *  earlier recipient adds nothing, so its name never lands on another payee. */
 export function rememberSentDestination(
-  send: Parameters<typeof sendDestination>[0],
-  saveAsContact: boolean,
+  send: Parameters<typeof sendDestination>[0] & Pick<SendInfo, 'saveAsContact'>,
   now = Date.now(),
-): void {
+): boolean {
   const address = sendDestination(send)
-  if (!address) return
+  if (!address) return false
   recordSentRecent(address, now)
-  if (saveAsContact && !contactForAddress(address)) saveContact(address, '')
+  const tick = send.saveAsContact
+  if (tick?.address !== address || contactForAddress(address)) return false
+  return saveContact(address, tick.name)
 }
 
 export function forgetContacts(): void {

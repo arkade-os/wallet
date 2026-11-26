@@ -42,22 +42,13 @@ import { candidateUsage } from './swapRecords'
 import { assetSwapRepository } from './swapRepository'
 import { effectiveSolverRouting } from './solverRouting'
 import { solverHealth } from './solverHealth'
+import { getActiveLanguage } from './language'
+import { translations } from './i18n'
 
-/**
- * A swap action that reached no driver at all.
- *
- * It used to mean "another tab holds the lock", which was true and useless:
- * the action can simply be run BY that tab, which is what `swapDriverChannel`
- * does now. What is left is the case where nobody answered — the holder closed
- * between the ask and the ack, or no tab has taken the lock yet — and the
- * distinction the screens still need is that this is not the corridor being
- * unavailable. The solver is fine, and the next tab to take the lock serves the
- * same call, so unlike a missing solver or an out-of-bounds amount this one is
- * worth retrying where it stands.
- */
 export class SwapsHeldElsewhere extends Error {
   constructor() {
-    super('no tab is driving swaps right now')
+    const lang = getActiveLanguage()
+    super(translations[lang].swap.heldElsewhere)
     this.name = 'SwapsHeldElsewhere'
   }
 }

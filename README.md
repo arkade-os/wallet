@@ -36,7 +36,9 @@ Recovery records are stored in this browser, not in the Nostr backup; use the sa
 | `VITE_APP_VERSION`            | App version string shown in support diagnostics                     | `VITE_APP_VERSION=1.2.3`                                                             |
 | `VITE_CHATWOOT_WEBSITE_TOKEN` | ChatWoot website token for customer support integration             | `VITE_CHATWOOT_WEBSITE_TOKEN=your-token`                                             |
 | `VITE_CHATWOOT_BASE_URL`      | ChatWoot server base URL for customer support integration           | `VITE_CHATWOOT_BASE_URL=https://app.chatwoot.com`                                    |
-| `VITE_DELEGATOR_URL`          | Delegator service URL for the wallet service worker                 | `VITE_DELEGATOR_URL=https://delegator.example.com`                                   |
+| `VITE_EXECUTOR_ENABLED`       | Set to `false` to turn the Executor off (no in-app setting)         | `VITE_EXECUTOR_ENABLED=false`                                                        |
+| `VITE_EXECUTOR_URL`           | Override the network's Executor, which boards and renews offline    | `VITE_EXECUTOR_URL=http://localhost:7280`                                            |
+| `VITE_EXECUTOR_RENEWAL_WINDOW`| Regtest only: the Executor's renewal window in seconds              | `VITE_EXECUTOR_RENEWAL_WINDOW=85800`                                                 |
 | `VITE_MAX_PERCENTAGE`         | Override the max fee percentage (default 10)                        | `VITE_MAX_PERCENTAGE=5`                                                              |
 | `VITE_NOSTR_RELAY_URL`        | Override the default Nostr relay URLs for backup                    | `VITE_NOSTR_RELAY_URL=wss://relay.example.com`                                       |
 | `VITE_SENTRY_DSN`             | Enable Sentry error tracking (only in production, not on localhost) | `VITE_SENTRY_DSN=your-sentry-dsn`                                                    |
