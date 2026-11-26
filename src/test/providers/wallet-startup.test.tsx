@@ -47,10 +47,7 @@ function Capture() {
   return null
 }
 
-const startWallet = async (
-  config = mockConfigContextValue.config,
-  credentials: Parameters<typeof wallet.initWallet>[0] = { privateKey: new Uint8Array(32).fill(1) },
-) => {
+const renderWallet = (config = mockConfigContextValue.config) =>
   render(
     <AspContext.Provider value={mockAspContextValue}>
       <ConfigContext.Provider value={{ ...mockConfigContextValue, config }}>
@@ -60,6 +57,12 @@ const startWallet = async (
       </ConfigContext.Provider>
     </AspContext.Provider>,
   )
+
+const startWallet = async (
+  config = mockConfigContextValue.config,
+  credentials: Parameters<typeof wallet.initWallet>[0] = { privateKey: new Uint8Array(32).fill(1) },
+) => {
+  renderWallet(config)
   await act(() => wallet.initWallet(credentials))
 }
 
@@ -95,6 +98,26 @@ it('reports syncing until the worker finishes its first sync, then reloads', asy
 
   await vi.waitFor(() => expect(wallet.syncing).toBe(false), { timeout: 3000 })
   await vi.waitFor(() => expect(reloads()).toBe(before + 1), { timeout: 3000 })
+})
+
+const words = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
+const passkeyUnlock = { passkeyPrf: true, passkeyId: 'ab', passkeyRpId: 'localhost', lockedByBiometrics: false }
+
+it('saves how a passkey wallet unlocks in the same write as its pubkey', async () => {
+  localStorage.clear()
+  await startWallet(mockConfigContextValue.config, { mnemonic: words, passkeyUnlock })
+
+  expect(wallet.wallet).toMatchObject({ pubkey: expect.any(String), ...passkeyUnlock })
+})
+
+it('saves nothing about the passkey when the init fails', async () => {
+  localStorage.clear()
+  mocks.setup.mockRejectedValueOnce(new Error('worker is gone'))
+  renderWallet()
+
+  await expect(act(() => wallet.initWallet({ mnemonic: words, passkeyUnlock }))).rejects.toThrow()
+  expect(wallet.wallet.passkeyPrf).toBeUndefined()
+  expect(wallet.wallet.pubkey).toBeUndefined()
 })
 
 it.each(['vtxo_received', 'vtxo_spent'])('reloads when a contract event reports %s', async (eventType) => {

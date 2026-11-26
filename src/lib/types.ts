@@ -205,6 +205,10 @@ export type Wallet = {
   network?: NetworkName | ''
   nextRollover: number
   passkeyId?: string
+  /** Words derived from the passkey's PRF on each unlock; nothing secret is stored. */
+  passkeyPrf?: boolean
+  /** The site the passkey belongs to; the biometrics screens store none, and unlock falls back to the page's host. */
+  passkeyRpId?: string
   pubkey?: string
 }
 

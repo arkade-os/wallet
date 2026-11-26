@@ -36,7 +36,7 @@ import { resolveExits, subtractExitedAssets, type ExitRecord } from '../lib/exit
 import { AspContext } from './asp'
 import { AssetsContext } from './assets'
 import { NotificationsContext } from './notifications'
-import { FlowContext } from './flow'
+import { FlowContext, type InitInfo } from './flow'
 import { arkNoteInUrl } from '../lib/arknote'
 import { deepLinkInUrl } from '../lib/deepLink'
 import { assetNameChanged, referencedAssetIds } from '../lib/assets'
@@ -52,6 +52,7 @@ import { lnurlResyncOnPayment, syncLnurlActivity } from '../lib/lnurlActivitySyn
 import { assetSwapRepository, type WalletAssetSwap } from '../lib/swapRepository'
 import { nsecToPrivateKey, getPrivateKey, noUserDefinedPassword } from '../lib/privateKey'
 import { hasMnemonic, getMnemonic, deriveNostrKeyFromMnemonic } from '../lib/mnemonic'
+import { passkeyMnemonic } from '../lib/passkey'
 import { resolveWalletMode } from '../lib/walletMode'
 import { calcBatchLifetimeMs, calcNextRollover } from '../lib/wallet'
 import { setLoadingStatus } from '../lib/loadingStatus'
@@ -116,11 +117,14 @@ interface WalletContextProps {
     privateKey?: Uint8Array
     walletMode?: ServiceWorkerWalletMode
     restoring?: boolean
+    /** Onboarding sets this; the unlock paths omit it and keep the flags already stored. */
+    passkeyUnlock?: InitInfo['passkeyUnlock']
   }) => Promise<void>
   lockWallet: () => Promise<void>
   resetWallet: () => Promise<void>
   settlePreconfirmed: () => Promise<void>
   unlockWallet: (password: string) => Promise<void>
+  unlockWithPasskey: () => Promise<void>
   updateWallet: (w: Wallet | ((prev: Wallet) => Wallet)) => void
   isLocked: () => Promise<boolean>
   reloadWallet: (svcWallet?: ServiceWorkerWallet) => Promise<void>
@@ -180,6 +184,7 @@ export const WalletContext = createContext<WalletContextProps>({
   resetWallet: () => Promise.resolve(),
   settlePreconfirmed: () => Promise.resolve(),
   unlockWallet: () => Promise.resolve(),
+  unlockWithPasskey: () => Promise.resolve(),
   updateWallet: () => {},
   reloadWallet: () => Promise.resolve(),
   restartWallet: () => Promise.resolve(),
@@ -266,6 +271,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [vtxoManager, setVtxoManager] = useState<IVtxoManager>()
 
   const hasLoadedOnce = useRef(false)
+  // A passkey-unlocked wallet has no default password to test, so whether it is open is whether this session opened it.
+  const openedThisSession = useRef(false)
   const assetMetadataCache = useRef<Map<string, CachedAssetDetails>>(readAssetMetadataFromStorage() ?? new Map())
   const assetMetadataFailures = useRef(readAssetMetadataFailuresFromStorage())
   const assetMetadataFetches = useRef(new Set<string>())
@@ -598,7 +605,13 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     let cancelled = false
     setAuthState('unknown')
 
+    if ((wallet.passkeyPrf || wallet.lockedByBiometrics) && openedThisSession.current) {
+      setAuthState('authenticated')
+      return
+    }
+
     const detectPasswordState = async () => {
+      if (wallet.passkeyPrf) return false // only its passkey opens it
       if (hasMnemonic()) {
         try {
           await getMnemonic(defaultPassword)
@@ -1138,6 +1151,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     privateKey?: Uint8Array
     walletMode?: ServiceWorkerWalletMode
     restoring?: boolean
+    passkeyUnlock?: InitInfo['passkeyUnlock']
   }) => {
     const arkServerUrl = aspInfo.url
     const network = aspInfo.network as NetworkName
@@ -1178,7 +1192,9 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       restoring: credentials.restoring,
     })
     if (!didInit) return
-    updateWallet({ ...wallet, network, pubkey })
+    openedThisSession.current = true
+    // One write with the pubkey: a failed init leaves no unlock method on a wallet that has none.
+    updateWallet({ ...wallet, network, pubkey, ...credentials.passkeyUnlock })
     setInitialized(true)
   }
 
@@ -1197,6 +1213,17 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       setAuthState('locked')
       if (err instanceof DOMException) throw new Error('Invalid password')
       throw err instanceof Error ? err : new Error('Invalid password')
+    }
+  }
+
+  const unlockWithPasskey = async () => {
+    const mnemonic = await passkeyMnemonic(wallet, isMainnet(aspInfo.network))
+    setAuthState('authenticated')
+    try {
+      await initWallet({ mnemonic })
+    } catch (err) {
+      setAuthState('locked')
+      throw err
     }
   }
 
@@ -1258,6 +1285,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     lnurlResyncRef.current?.cancel()
     removeServiceWorkerMessageHandler()
     await svcWallet.clear()
+    openedThisSession.current = false
     setAuthState('locked')
     setInitialized(false)
     setDataReady(false)
@@ -1295,6 +1323,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     await svcWallet.clear()
     await svcWallet.walletRepository.clear()
     await svcWallet.contractRepository.clear()
+    openedThisSession.current = false
     setDataReady(false)
     setBooting(false)
     hasLoadedOnce.current = false
@@ -1337,6 +1366,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         resetWallet,
         settlePreconfirmed,
         unlockWallet,
+        unlockWithPasskey,
         updateWallet,
         wallet,
         walletLoaded,

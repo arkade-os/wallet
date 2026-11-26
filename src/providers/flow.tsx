@@ -1,7 +1,7 @@
 import { readInitialAppIntent, type AppIntentState } from '../lib/appIntent'
 import { ReactNode, SetStateAction, createContext, useState } from 'react'
 import type { Asset, AssetDetails, RouteQuote, ServiceWorkerWalletMode } from '@arkade-os/sdk'
-import { Tx } from '../lib/types'
+import { Tx, Wallet } from '../lib/types'
 import type { FiatAccountSend } from '../lib/accountAssets'
 
 export interface InitInfo {
@@ -10,6 +10,10 @@ export interface InitInfo {
   mnemonic?: string
   restoring?: boolean
   walletMode?: ServiceWorkerWalletMode
+  /** The words come from a passkey and are derived again on each unlock, so they are never stored. */
+  passkeyPrf?: boolean
+  /** How this wallet unlocks, saved with its pubkey only once init succeeds, so a failed attempt leaves nothing. */
+  passkeyUnlock?: Pick<Wallet, 'lockedByBiometrics' | 'passkeyId' | 'passkeyPrf' | 'passkeyRpId'>
 }
 
 export interface NoteInfo {

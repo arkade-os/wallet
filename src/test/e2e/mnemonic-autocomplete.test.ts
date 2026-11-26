@@ -6,7 +6,6 @@ const tr = translations.en
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
-  await page.getByText(tr.init.otherLoginOptions).click()
   await page.getByText(tr.init.restoreWallet).click()
 })
 

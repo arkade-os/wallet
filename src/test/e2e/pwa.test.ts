@@ -21,7 +21,6 @@ test('should keep bottom actions above the system navigation inset', async ({ pa
   await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: { bottom: inset } })
 
   await page.goto('/')
-  await page.getByText(tr.init.otherLoginOptions).click()
   await page.getByText(tr.init.restoreWallet, { exact: true }).click()
   await expect(page.getByText(tr.common.cancel, { exact: true })).toBeVisible()
 
