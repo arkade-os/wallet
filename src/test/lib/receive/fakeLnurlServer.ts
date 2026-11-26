@@ -157,6 +157,8 @@ export function fakeLnurlServer(opts: {
   registrationError?: string
   /** Advertises `receiveAmountAllowed` and prices a `receiveAmount` request with this solver fee on top. */
   receiveFeeSat?: number
+  /** Replaces a receive quote's receive.amount, in millisats, as a misbehaving server might. */
+  quotedReceiveMsat?: number
 }) {
   const addresses = [...(opts.addresses ?? [])]
   let rejected = 0
@@ -259,7 +261,7 @@ export function fakeLnurlServer(opts: {
           paymentQuote: {
             requested: msat(receiveMsat),
             payment: msat(receiveMsat + feeMsat),
-            receive: msat(receiveMsat),
+            receive: msat(opts.quotedReceiveMsat ?? receiveMsat),
             fees: [{ name: 'solver', amount: msat(feeMsat) }],
           },
         })

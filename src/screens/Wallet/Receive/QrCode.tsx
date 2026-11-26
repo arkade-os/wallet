@@ -563,7 +563,8 @@ export default function ReceiveQRCode() {
   })()
   const invoiceMinutes = decodedInvoice ? Math.floor((decodedInvoice.expiresAt * 1000 - Date.now()) / 60_000) : 0
   // Both rails credit the amount asked for and put the swap's fee on the invoice, so the payer pays it.
-  const lightningFee = decodedInvoice ? decodedInvoice.amountSats - satoshis : 0
+  // Rounded up, so a fraction of a sat on the invoice never hides part of the fee.
+  const lightningFee = decodedInvoice ? Math.ceil(decodedInvoice.milliSats / 1000) - satoshis : 0
   const formatInfo: Record<Exclude<ReceiveMethod, 'token'>, Omit<FormatRow, 'id'>> = {
     full: {
       icon: <ScanIcon />,

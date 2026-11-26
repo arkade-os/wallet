@@ -516,4 +516,17 @@ describe('useLnurlRails', () => {
     await waitFor(() => expect(result.current.errors.lightning).toMatch(/Unable to create offline invoice/))
     expect(result.current.targets.lightning).toBeUndefined()
   })
+
+  it('refuses a Lightning invoice whose quote receives less than the amount asked for', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], receiveFeeSat: 225, quotedReceiveMsat: 19_000_000 })
+    const rail = renderRail()
+    await waitFor(() => expect(rail.result.current.status).toBe('ready'))
+    const receiver = rail.result.current.receiver
+    const { result } = renderHook(() => useLnurlRails(receiver, 20_000, false, { arkade: '', onchain: '' }))
+
+    await waitFor(() =>
+      expect(result.current.errors.lightning).toMatch(/did not quote a receive of 20000000 millisats/),
+    )
+    expect(result.current.targets.lightning).toBeUndefined()
+  })
 })
