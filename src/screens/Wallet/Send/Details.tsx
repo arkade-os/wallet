@@ -20,6 +20,7 @@ import {
   LNURL_ARKADE_RAIL,
   ONCHAIN_ROUTE_LOG,
   ONCHAIN_SWAP_RAIL,
+  WALLET_EXIT_RAIL,
   fundedResult,
   isLnurlRail,
   previewOnchainCost,
@@ -187,11 +188,16 @@ export default function SendDetails() {
     }
     const priced = sendRouter({ outputFee: calcOnchainOutputFee, intentFee })
       .then(async (router): Promise<Priced | undefined> => {
-        const cost = await previewOnchainCost(router, details.destination!, asked)
+        // Send-max is priced on the exit alone: a solver charging more than the balance must not block it.
+        const rail = satoshis === availableBalance ? WALLET_EXIT_RAIL : undefined
+        const cost = await previewOnchainCost(router, details.destination!, asked, rail)
         if (cost || !svcWallet) return cost && { cost }
         const most = (await maxCollaborativeExit(svcWallet, intentFee(), Number(aspInfo.dust))) - calcOnchainOutputFee()
+        // `most` is what the exit can deliver, so the exit prices it.
         const atMost =
-          most > 0 && most < asked ? await previewOnchainCost(router, details.destination!, most) : undefined
+          most > 0 && most < asked
+            ? await previewOnchainCost(router, details.destination!, most, WALLET_EXIT_RAIL)
+            : undefined
         if (!atMost) return undefined
         // Max asks for the whole balance, so the fees can only come out of the amount, as the exit fee does.
         if (satoshis === availableBalance) return { cost: atMost }

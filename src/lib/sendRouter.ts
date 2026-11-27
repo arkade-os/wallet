@@ -240,13 +240,16 @@ export const quoteIsForThisInvoice = (quote: Pick<RouteQuote, 'meta'>, invoice: 
 /** What an on-chain send really costs, asked before the sign screen commits to a
  *  total. `calcOnchainOutputFee()` is the collaborative exit's fee and no other
  *  rail's, so pricing the screen with it leaves {@link quoteIsForThisSend} a
- *  ceiling only the exit can meet. The spend re-quotes against this figure. */
+ *  ceiling only the exit can meet. The spend re-quotes against this figure.
+ *  `railId` prices that rail alone. */
 export const previewOnchainCost = async (
   router: PaymentRouter,
   address: string,
   amount: number,
+  railId?: string,
 ): Promise<Pick<RouteQuote, 'amount' | 'fee' | 'total'> | undefined> => {
   for (const option of await router.options({ raw: address, amount })) {
+    if (railId && option.railId !== railId) continue
     try {
       const quote = await option.quote()
       // A rail paying something else is not the one being priced.
