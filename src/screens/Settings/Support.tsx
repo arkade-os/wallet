@@ -105,7 +105,7 @@ export default function Support() {
       wallet_ark_address: addresses.ownAddr || 'not available',
       indexer_url: operatorInfo.url || config.operatorUrl || 'not available',
       btc_boarding_address: addresses.boardingAddr || 'not available',
-      ark_server_url: operatorInfo.url || config.operatorUrl || 'not available',
+      operator_url: operatorInfo.url || config.operatorUrl || 'not available',
       app_version: import.meta.env.VITE_APP_VERSION || 'not available',
       explorer_url: wallet.network ? getWebExplorerURL(wallet.network as NetworkName) : 'not available',
       build_version: buildVersion,
