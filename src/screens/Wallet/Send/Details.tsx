@@ -300,13 +300,18 @@ export default function SendDetails() {
       ...(exitOnly ? { exitOnly: true } : {}),
     })
       .then(async (router): Promise<Priced | undefined> => {
-        const method = exitOnly ? WALLET_EXIT_RAIL : overrideMethod
+        // Send-max is priced on the exit unless a route was picked: a solver charging more than the balance must not block it.
+        const method =
+          exitOnly || (!overrideMethod && satoshis === availableBalance) ? WALLET_EXIT_RAIL : overrideMethod
         const cost = await prepareOnchainSend(router, details.destination!, asked, method)
         if (cost || !svcWallet) return cost && { cost }
         if (overrideMethod) return undefined
         const most = (await maxCollaborativeExit(svcWallet, intentFee(), Number(aspInfo.dust))) - calcOnchainOutputFee()
+        // `most` is what the exit can deliver, so the exit prices it.
         const atMost =
-          most > 0 && most < asked ? await prepareOnchainSend(router, details.destination!, most, method) : undefined
+          most > 0 && most < asked
+            ? await prepareOnchainSend(router, details.destination!, most, WALLET_EXIT_RAIL)
+            : undefined
         if (!atMost) return undefined
         // Max asks for the whole balance, so the fees can only come out of the amount, as the exit fee does.
         if (!exactOnchainRequest && satoshis === availableBalance) return { cost: atMost }

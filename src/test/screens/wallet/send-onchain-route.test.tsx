@@ -493,8 +493,9 @@ describe('signing an on-chain send', () => {
       createdAt: new Date(),
       expiresAt: new Date(Date.now() + 7 * 86_400_000),
     }
-    const renderBoarded = (satoshis: number, availableBalance: number) => {
+    const renderBoarded = (satoshis: number, availableBalance: number, before: typeof optionsFor = () => []) => {
       optionsFor = (req) => [
+        ...before(req),
         {
           railId: 'onchain',
           quote: async () => {
@@ -525,6 +526,22 @@ describe('signing an on-chain send', () => {
       await waitFor(() =>
         expect(collaborativeExitWithFees).toHaveBeenCalledWith(expect.anything(), 100_000, 99_800, ADDRESS),
       )
+    })
+
+    it('prices a send-max on the exit, not on a solver charging more than the balance', async () => {
+      const sent = vi.fn()
+      renderBoarded(100_000, 100_000, (req) => [
+        solverOption({ amount: req.amount!, total: req.amount! + 5_000 }, sent),
+      ])
+
+      expect(await screen.findByText(/deducted from the amount/i)).toBeTruthy()
+      expect(screen.getByTestId('Total')).toHaveTextContent(/100.?000/)
+      await sign()
+
+      await waitFor(() =>
+        expect(collaborativeExitWithFees).toHaveBeenCalledWith(expect.anything(), 100_000, 99_800, ADDRESS),
+      )
+      expect(sent).not.toHaveBeenCalled()
     })
 
     it('refuses a specific amount before signing, with the fee and the most it can send', async () => {
