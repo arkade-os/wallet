@@ -1,6 +1,6 @@
 import { ReactNode, createContext, useEffect, useState } from 'react'
 import { readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
-import { defaultOperatorUrl, devServer, isExecutorEnabled } from '../lib/constants'
+import { defaultOperatorUrl, devServer, envOperatorUrl, isExecutorEnabled } from '../lib/constants'
 import { Config, Currencies, Themes, Unit } from '../lib/types'
 import { normalizeBitcoinUnit } from '../lib/format'
 import { setHapticsEnabled } from '../lib/haptics'
@@ -83,7 +83,7 @@ const updateDefaultConfig = (config: Partial<Config>): Config => {
 }
 
 const shouldUseDevEnvOperator = (operatorUrl: string) =>
-  import.meta.env.DEV && import.meta.env.VITE_ARK_SERVER && operatorUrl === devServer
+  import.meta.env.DEV && envOperatorUrl() && operatorUrl === devServer
 
 export const resolveTheme = (theme: Themes): Themes.Dark | Themes.Light => {
   if (theme === Themes.Auto) {
@@ -144,7 +144,7 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
     let config = readConfigFromStorage() ?? { ...defaultConfig }
     // merge with defaults to ensure all fields are present
     config = updateDefaultConfig(config)
-    const devOperatorUrl = import.meta.env.VITE_ARK_SERVER
+    const devOperatorUrl = envOperatorUrl()
     if (shouldUseDevEnvOperator(config.operatorUrl) && devOperatorUrl) {
       config.operatorUrl = devOperatorUrl
     }
