@@ -183,8 +183,8 @@ export default function ReceiveQRCode() {
   const isAssetReceive = assetId && assetId !== ''
   const hasError = Boolean(addressError)
 
-  const arkAddress = vtxoTxsAllowed() ? (offchainAddr || '') : ''
-  const btcAddress = !isAssetReceive && utxoTxsAllowed() ? (boardingAddr || '') : ''
+  const arkAddress = vtxoTxsAllowed() ? offchainAddr || '' : ''
+  const btcAddress = !isAssetReceive && utxoTxsAllowed() ? boardingAddr || '' : ''
   const noPaymentMethods = !arkAddress && !btcAddress
 
   // Fetch addresses on mount, and again once the Executor registration settles: until then the SDK may answer with

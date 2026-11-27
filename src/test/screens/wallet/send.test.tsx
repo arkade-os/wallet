@@ -1350,7 +1350,7 @@ describe('a changed recipient', () => {
     await waitFor(() => expect(sendDestination(current)).toBe(ARK), settle)
 
     type(BTC)
-    await waitFor(() => expect(current.arkAddress).toBeUndefined(), settle)
+    await waitFor(() => expect(current.address).toBe(BTC), settle)
     expect(sendDestination(current)).toBe(BTC)
   })
 
