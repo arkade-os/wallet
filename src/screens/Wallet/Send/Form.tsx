@@ -662,7 +662,6 @@ export default function SendForm() {
     if (!lnUrlResponse) return
     const { minSendable: min, maxSendable: max } = lnUrlResponse
     if (!min || !max) return
-    if (min > balance) return setError(t('send.insufficientFundsForLnurl'))
     if (min === max) {
       setAmountIsReadOnly(true)
     } else {
@@ -774,6 +773,22 @@ export default function SendForm() {
         ({ min, max }) => (sendInfo.satoshis ?? 0) >= min && (sendInfo.satoshis ?? 0) <= max,
       ),
   )
+  const lnUrlArkMethodAvailable = Boolean(
+    lnUrlResponse?.payRequest.transferAmounts?.some((method) => method.method === 'Ark' && method.available),
+  )
+  const usesStandardLightning = lnUrlResponse
+    ? !lnUrlArkMethodAvailable && !sendAll && lnUrlResponse.payRequest.paymentOptions === undefined
+    : Boolean(sendInfo.invoice)
+  const canUseAssetForLightning =
+    !isAssetSend &&
+    !sendInfo.arkAddress &&
+    vtxoTxsAllowed() &&
+    typeof navigator.locks?.request === 'function' &&
+    availableAssetBalances.some(({ assetId, amount }) => isValidAssetId(assetId) && amount > 0n) &&
+    usesStandardLightning
+  const lnurlBalanceUnavailable = Boolean(
+    lnUrlResponse?.minSendable && lnUrlResponse.minSendable > balance && !canUseAssetForLightning,
+  )
 
   // manage button label and errors
   useEffect(() => {
@@ -788,7 +803,7 @@ export default function SendForm() {
     }
     const satoshis = sendInfo.satoshis ?? 0
     setLabel(
-      satoshis > liquidBalance
+      satoshis > liquidBalance && !canUseAssetForLightning
         ? t('send.insufficientFunds')
         : lnUrlResponse?.minSendable && satoshis < lnUrlResponse.minSendable
           ? t('send.amountBelowLnurlMin')
@@ -814,6 +829,7 @@ export default function SendForm() {
     linkedFundingAvailable,
     lnUrlResponse,
     lnurlAmountUnavailable,
+    canUseAssetForLightning,
   ])
 
   // manage server unreachable error
@@ -1009,10 +1025,6 @@ export default function SendForm() {
     setSendInfo((prev) => ({ ...prev, saveAsContact: { address: contactSheetFor, name: contactName } }))
     setContactSheetFor(undefined)
   }
-  const lnUrlArkMethodAvailable = Boolean(
-    lnUrlResponse?.payRequest.transferAmounts?.some((method) => method.method === 'Ark' && method.available),
-  )
-
   const handleContinue = async () => {
     setProcessing(true)
     const satoshis = sendInfo.satoshis ?? 0
@@ -1232,9 +1244,10 @@ export default function SendForm() {
         (lnUrlArkMethodAvailable && !receivingAddresses?.offchainAddr) ||
         Boolean(recipientError) ||
         lnurlAmountUnavailable ||
+        lnurlBalanceUnavailable ||
         amountIsAboveMaxLimit(satoshis) ||
         amountIsBelowMinLimit(satoshis) ||
-        satoshis > liquidBalance ||
+        (satoshis > liquidBalance && !canUseAssetForLightning) ||
         aspInfo.unreachable ||
         Boolean(error) ||
         satoshis < 1 ||
@@ -1349,7 +1362,10 @@ export default function SendForm() {
         <Content>
           <Padded>
             <FlexCol gap='1.25rem' className='send-form-stack'>
-              <ErrorMessage error={Boolean(error || carrierError)} text={error || carrierError} />
+              <ErrorMessage
+                error={Boolean(error || carrierError || lnurlBalanceUnavailable)}
+                text={error || carrierError || (lnurlBalanceUnavailable ? t('send.insufficientFundsForLnurl') : '')}
+              />
               <OpenInApp />
               <InputAddress
                 disabled={processing}

@@ -3,8 +3,9 @@ import { arkadeAsset, btcOn, type Quote, type QuoteInput } from '@arkade-os/swap
 import type { DiscoveredMarket } from '@arkade-os/solver-discovery'
 import { toInvoiceFacts } from './lnSwap'
 import { isValidAssetId } from './assets'
+import { decodeInvoice, invoiceMatchesNetwork } from './bolt11'
 
-type LightningPaymentRequest = { kind: 'lightning'; invoice: string; amount?: number }
+export type LightningPaymentRequest = { kind: 'lightning'; invoice: string; amount?: number }
 
 export interface AssetPaymentRequest {
   address: string
@@ -56,6 +57,22 @@ export function paymentQuoteInput(request: PaymentQuoteRequest, network: Network
   return request.kind === 'asset' ? assetPaymentQuoteInput(request, network) : openPaymentQuoteInput(request, network)
 }
 
+const invoiceKey = (paymentHash: string, network: NetworkName, walletPubkey: string) =>
+  JSON.stringify([network, walletPubkey, 'lightning', paymentHash.toLowerCase()])
+
+export function lookupLightningPaymentKey(
+  request: LightningPaymentRequest,
+  network: NetworkName,
+  walletPubkey: string | undefined,
+): string {
+  const target = invoiceTarget(request.invoice)
+  if (!target || !walletPubkey) throw new Error('The Lightning payment is unavailable')
+  const decoded = decodeInvoice(target)
+  if (!decoded.paymentHash || !invoiceMatchesNetwork(decoded, network))
+    throw new Error('The Lightning payment is unavailable')
+  return invoiceKey(decoded.paymentHash, network, walletPubkey)
+}
+
 export function paymentAttemptKey(
   request: PaymentQuoteRequest,
   network: NetworkName,
@@ -64,12 +81,7 @@ export function paymentAttemptKey(
 ): string {
   if (!walletPubkey) throw new Error('Payment wallet is unavailable')
   if (request.kind === 'lightning') {
-    return JSON.stringify([
-      network,
-      walletPubkey,
-      'lightning',
-      invoiceFacts(request, network).paymentHash.toLowerCase(),
-    ])
+    return invoiceKey(invoiceFacts(request, network).paymentHash, network, walletPubkey)
   }
   if (typeof reviewId !== 'string' || !reviewId) throw new Error('The payment review is unavailable')
   // A review can reopen after editing the composer. Only the same payment

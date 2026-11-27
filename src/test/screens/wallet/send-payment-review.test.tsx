@@ -105,6 +105,17 @@ const assetQuote = (id: string, total = 2_200): Quote => ({
   assetPayment: { receiveAddress: assetRequest.address, validUntil: now + 30 },
   fee: { asset: assetId, amount: 2n },
 })
+const conversionQuote = (lightning: Quote): Quote => ({
+  ...assetQuote('asset-conversion'),
+  give: { asset: assetId, amount: 820n },
+  take: lightning.give,
+  route: {
+    give: { corridor: 'arkade', asset: assetId, instrument: { kind: 'wallet' } },
+    take: { corridor: 'arkade', asset: bitcoin, instrument: { kind: 'wallet' } },
+  },
+  assetPayment: undefined,
+  carrierSats: 330n,
+})
 const assetBid = {
   id: 'asset-bid',
   solverPubkey: bay.discovery_pubkey,
@@ -127,6 +138,10 @@ const onchainPaymentRouteCandidates = vi.fn().mockResolvedValue([])
 const openPaymentQuotes = vi.fn<() => Promise<OpenRfqAuction>>()
 const chooseSwapQuote = vi.fn<() => Promise<Quote>>()
 const acceptPaymentQuote = vi.fn()
+const getChainedPayment = vi.fn()
+const quoteChainedPayment = vi.fn()
+const startChainedPayment = vi.fn()
+const finishChainedPayment = vi.fn()
 const cancelOpenSwapQuotes = vi.fn().mockResolvedValue(undefined)
 const setSendInfo = vi.fn()
 const context = {
@@ -134,7 +149,7 @@ const context = {
   config: { ...mockConfigContextValue.config, unit: Unit.SATS },
   useFiat: false,
 }
-const review = (info: SendInfo = sendInfo) => (
+const review = (info: SendInfo = sendInfo, chainBalance?: number) => (
   <NavigationContext.Provider value={mockNavigationContextValue}>
     <ConfigContext.Provider value={context}>
       <FiatContext.Provider value={mockFiatContextValue}>
@@ -145,7 +160,9 @@ const review = (info: SendInfo = sendInfo) => (
                 value={{
                   ...mockWalletContextValue,
                   balance: 100_000,
-                  availableBalance: 100_000,
+                  availableBalance: chainBalance ?? 100_000,
+                  availableAssetBalances:
+                    chainBalance === undefined ? [] : [{ assetId: assetRequest.assetId, amount: 5_000n }],
                   svcWallet: mockSvcWallet as never,
                   assetMetadataCache: new Map([
                     [
@@ -171,6 +188,14 @@ const review = (info: SendInfo = sendInfo) => (
                       acceptPaymentQuote,
                       cancelOpenSwapQuotes,
                       sendRouter,
+                      ...(chainBalance !== undefined
+                        ? {
+                            getChainedPayment,
+                            quoteChainedPayment,
+                            startChainedPayment,
+                            finishChainedPayment,
+                          }
+                        : {}),
                     } as unknown as ContextType<typeof SwapsContext>
                   }
                 >
@@ -772,5 +797,139 @@ describe('reviewing a solver payment', () => {
     expect(send).toHaveBeenCalledTimes(1)
     expect(exit).toHaveBeenCalledTimes(1)
     expect(acceptPaymentQuote).not.toHaveBeenCalled()
+  })
+})
+
+describe('paying a Lightning invoice with an asset', () => {
+  const credited = { phase: 'credited', swapId: 'offer:asset-conversion', sats: 2_110n, spendable: true }
+  const converting = { phase: 'converting', swapId: 'offer:asset-conversion', sats: 2_110n }
+  const lightning = lightningQuote('lightning-quote', 2_110)
+  const conversion = conversionQuote(lightning)
+  const originalLocks = Object.getOwnPropertyDescriptor(navigator, 'locks')
+
+  beforeEach(() => {
+    Object.defineProperty(navigator, 'locks', { value: { request: vi.fn() }, configurable: true })
+    localStorage.clear()
+    vi.clearAllMocks()
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(now * 1_000)
+    quotePaymentRoute.mockReset().mockResolvedValue(lightning)
+    paymentRouteCandidates.mockResolvedValue([])
+    getChainedPayment.mockReset().mockResolvedValue(undefined)
+    quoteChainedPayment.mockReset().mockResolvedValue(conversion)
+    startChainedPayment.mockReset().mockResolvedValue(undefined)
+    finishChainedPayment.mockReset().mockResolvedValue({
+      id: assetSwapIdOf('rfq', lightning.id),
+      fundingTxid: 'lightning-funding',
+      give: lightning.give,
+      fee: lightning.fee,
+    })
+  })
+  afterEach(() => {
+    if (originalLocks) Object.defineProperty(navigator, 'locks', originalLocks)
+    else Reflect.deleteProperty(navigator, 'locks')
+    vi.useRealTimers()
+  })
+
+  const reviewAsset = async () => {
+    fireEvent.click(await screen.findByRole('button', { name: 'Pay with an asset' }))
+    fireEvent.click(screen.getByTestId(`chain-payment-asset-${assetRequest.assetId}`))
+    return await screen.findByTestId('chained-payment-quote')
+  }
+
+  it('shows the two swaps and advances only when their reviewed BTC payout is spendable', async () => {
+    render(review(sendInfo, 600))
+    const summary = await reviewAsset()
+    expect(summary).toHaveTextContent('8.2 GUCCI')
+    expect(summary).toHaveTextContent('330 sats')
+    expect(summary).toHaveTextContent('2,110 sats')
+    expect(summary).toHaveTextContent('Bay')
+    expect(summary).toHaveTextContent('Harbor')
+    expect(screen.getByTestId(`chain-payment-asset-${assetRequest.assetId}`)).toHaveTextContent('Unverified')
+    expect(quoteChainedPayment).toHaveBeenCalledExactlyOnceWith(assetRequest.assetId, lightning, lightningRequest)
+    expect(startChainedPayment).not.toHaveBeenCalled()
+
+    getChainedPayment.mockResolvedValue(converting)
+    fireEvent.click(button('Swap and pay'))
+    await waitFor(() =>
+      expect(startChainedPayment).toHaveBeenCalledExactlyOnceWith(
+        assetRequest.assetId,
+        conversion,
+        lightning,
+        lightningRequest,
+      ),
+    )
+    expect(await screen.findByTestId('chained-payment-status')).toHaveTextContent(/Waiting for the asset swap/)
+    expect(finishChainedPayment).not.toHaveBeenCalled()
+    expect(setSendInfo).not.toHaveBeenCalled()
+
+    getChainedPayment.mockResolvedValue({ ...credited, spendable: false })
+    await waitFor(() => expect(screen.getByTestId('chained-payment-status')).toHaveTextContent(/to become spendable/), {
+      timeout: 2_000,
+    })
+    expect(finishChainedPayment).not.toHaveBeenCalled()
+
+    getChainedPayment.mockResolvedValue(credited)
+    await waitFor(() => expect(finishChainedPayment).toHaveBeenCalledExactlyOnceWith(lightning, lightningRequest), {
+      timeout: 2_000,
+    })
+    expect(setSendInfo).toHaveBeenCalledWith(
+      expect.objectContaining({ txid: 'lightning-funding', railId: 'lightning' }),
+    )
+    expect(acceptPaymentQuote).not.toHaveBeenCalled()
+  })
+
+  it('reopens a credited conversion without automatically paying or buying BTC again', async () => {
+    getChainedPayment.mockResolvedValue(credited)
+    render(review(sendInfo, 3_000))
+    expect(await screen.findByTestId('chained-payment-status')).toHaveTextContent(/received 2,110 sats/)
+    expect(pay()).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'Pay with an asset' })).toBeNull()
+    expect(finishChainedPayment).not.toHaveBeenCalled()
+    expect(startChainedPayment).not.toHaveBeenCalled()
+  })
+
+  it('shows a known pre-submit funding refusal before allowing a fresh asset quote', async () => {
+    const message = 'The funding outputs cannot carry the asset change'
+    startChainedPayment.mockRejectedValueOnce(Object.assign(new Error(message), { name: 'PaymentNotSubmitted' }))
+    render(review(sendInfo, 600))
+    await reviewAsset()
+    fireEvent.click(button('Swap and pay'))
+    expect(await screen.findByText(message)).toBeVisible()
+    expect(button('Swap and pay')).toBeDisabled()
+    expect(button('Refresh quote')).toBeEnabled()
+    expect(finishChainedPayment).not.toHaveBeenCalled()
+    expect(quoteChainedPayment).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['converting', 'Waiting for the asset swap'],
+    ['recovery', 'The asset swap needs attention'],
+  ])('blocks either payment choice while the existing conversion is %s', async (phase, message) => {
+    getChainedPayment.mockResolvedValue({ ...converting, phase })
+    render(review(sendInfo, 5_000))
+    expect(await screen.findByTestId('chained-payment-status')).toHaveTextContent(message)
+    expect(screen.queryByRole('button', { name: 'Pay' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Pay with an asset' })).toBeNull()
+    expect(button('View activity')).toBeEnabled()
+    expect(acceptPaymentQuote).not.toHaveBeenCalled()
+    expect(finishChainedPayment).not.toHaveBeenCalled()
+    expect(startChainedPayment).not.toHaveBeenCalled()
+  })
+
+  it('retains the BTC when the reviewed Lightning quote expires during conversion', async () => {
+    render(review(sendInfo, 600))
+    await reviewAsset()
+    getChainedPayment.mockResolvedValue(converting)
+    fireEvent.click(button('Swap and pay'))
+    await waitFor(() => expect(startChainedPayment).toHaveBeenCalledTimes(1))
+    vi.setSystemTime((lightning.expiresAt + 1) * 1_000)
+    getChainedPayment.mockResolvedValue(credited)
+    await waitFor(() => expect(screen.getByTestId('chained-payment-status')).toHaveTextContent(/received 2,110 sats/), {
+      timeout: 2_000,
+    })
+    expect(finishChainedPayment).not.toHaveBeenCalled()
+    expect(startChainedPayment).toHaveBeenCalledTimes(1)
+    expect(setSendInfo).not.toHaveBeenCalled()
   })
 })

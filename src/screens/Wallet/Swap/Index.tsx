@@ -1,7 +1,7 @@
 import Decimal from 'decimal.js'
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion'
 import { fromAtomic, isNetwork, type OfferPlan } from '@arkade-os/solver-discovery'
-import { btcOn, type OpenRfqOffer, type Quote } from '@arkade-os/swap'
+import { btcOn, isBtcAsset, parseAssetId, type AssetId, type OpenRfqOffer, type Quote } from '@arkade-os/swap'
 import type { NetworkName } from '@arkade-os/sdk'
 import { useSolverQuote } from '../../../hooks/useSolverQuote'
 import {
@@ -36,6 +36,8 @@ import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
 import { swapRouteTicker } from '../../../lib/swapDisplay'
 import { BTC_ASSET_ID, findMarket, l1ScriptForAddress, validatePlan } from '@arkade-os/swap/protocol'
 import { marketLegId, preFeeDisplayRate, swapAssetId } from '../../../lib/swapMarkets'
+import { swapRouteEdges } from '../../../lib/swapRouteMarkets'
+import { swapRouteScope } from '../../../lib/swapRouteExecution'
 import { type AssetSwapQuoteSnapshot } from '../../../lib/swapRepository'
 import { Currencies, Unit } from '../../../lib/types'
 import { AspContext } from '../../../providers/asp'
@@ -54,6 +56,8 @@ import { l1NetworkOf } from '../../../lib/onchainPayout'
 import { getSolverRoutingVersion, isSolverEnabled, subscribeSolverRouting } from '../../../lib/solverRouting'
 import { readOpenOfferPolicy, readOpenOffersFirst } from '../../../lib/openOfferPolicy'
 import QuoteChoices, { formatQuoteAmount } from './QuoteChoices'
+import SwapRouteReview from './SwapRouteReview'
+import useSwapRouteReview from './useSwapRouteReview'
 
 type AssetTarget = 'from' | 'to'
 type DrawerState = 'to' | 'quotes' | 'refresh-quotes' | 'review' | null
@@ -72,6 +76,7 @@ interface SwapAsset {
   icon?: string
   usdPrice?: number
   external?: boolean
+  lightningFunding?: boolean
   receiveOnly?: boolean
   networkLabel?: string
 }
@@ -117,16 +122,39 @@ export default function WalletSwap() {
     allMarkets = [],
     discoveryReady,
     swapAvailable,
+    quoteSwapRoute,
   } = useContext(SwapsContext)
   const { config } = useContext(ConfigContext)
   const { fiatDecimals, fromFiatAmount, toFiat, toFiatAmount } = useContext(FiatContext)
   const { swapFromAssetId, setSwapFromAssetId } = useContext(FlowContext)
   const { goBack, navigate } = useContext(NavigationContext)
-  const { assetMetadataCache, availableAssetBalances, availableBalance, isVerifiedAsset } = useContext(WalletContext)
+  const { assetMetadataCache, availableAssetBalances, availableBalance, isVerifiedAsset, wallet } =
+    useContext(WalletContext)
   const { rows } = usePortfolioFiat()
   const prefersReduced = useReducedMotion()
   const { t } = useTranslation()
   const solverNetwork = isNetwork(aspInfo.network) ? aspInfo.network : undefined
+  const routeScope = solverNetwork && wallet.pubkey ? swapRouteScope(solverNetwork, wallet.pubkey) : undefined
+  const network = aspInfo.network as NetworkName
+  const lightningId = btcOn('bolt11', network)
+  const canFundWithLightning = Boolean(
+    routeScope &&
+      typeof quoteSwapRoute === 'function' &&
+      typeof navigator.locks?.request === 'function' &&
+      swapRouteEdges(allMarkets, network).some(({ from }) => from === lightningId),
+  )
+  const lightningSource = useMemo<SwapAsset | undefined>(() => {
+    if (!canFundWithLightning) return
+    return {
+      assetId: lightningId,
+      ticker: 'sats',
+      name: t('receive.methodLightning'),
+      decimals: 0,
+      balance: 0n,
+      lightningFunding: true,
+      networkLabel: t('swap.routeExternalFunding'),
+    }
+  }, [canFundWithLightning, lightningId, t])
 
   const btcUnit = normalizeBitcoinUnit(config.unit)
   const swapAssets = useMemo<SwapAsset[]>(() => {
@@ -284,6 +312,7 @@ export default function WalletSwap() {
   const submitting = useRef(false)
 
   const fromAsset =
+    (fromAssetId === lightningSource?.assetId ? lightningSource : undefined) ??
     swapAssets.find((asset) => asset.assetId === fromAssetId) ??
     firstPositiveBalanceAsset(swapAssets) ??
     swapAssets[0] ??
@@ -329,7 +358,7 @@ export default function WalletSwap() {
   }, [currencyConversionUseful, selectedAmountMode])
 
   const pair = toAsset ? findMarket(markets, fromAsset.assetId, toAsset.assetId) : undefined
-  const previewTargetId = toAsset?.external ? undefined : toAsset?.assetId
+  const previewTargetId = toAsset?.external || fromAsset.lightningFunding ? undefined : toAsset?.assetId
   const quoteMarkets = useMemo(() => {
     if (!previewTargetId) return []
     const precisionFor = (assetId: string) => {
@@ -382,6 +411,7 @@ export default function WalletSwap() {
   const quoteStale = Boolean(toAsset && Number(assetAmount) > 0 && !currentPlan)
   const planError = currentPlan ? validatePlan(currentPlan, assetBalanceAtomic(fromAsset), aspInfo.dust) : undefined
   const inputKey = `${aspInfo.network}:${fromAsset.assetId}:${fromAsset.decimals}:${toAsset?.assetId}:${toAsset?.decimals}:${amountAtomic}:${destination}`
+  const route = useSwapRouteReview(routeScope, inputKey)
   const chosen = selectedOffer?.inputKey === inputKey ? selectedOffer : undefined
   const firmHere = firmQuotes[inputKey]
   const selected: { quote: Quote; offer?: OpenRfqOffer; plan?: OfferPlan; destination?: string } | undefined =
@@ -404,7 +434,7 @@ export default function WalletSwap() {
     const timer = window.setInterval(() => setQuoteClock(Math.floor(Date.now() / 1000)), 1000)
     return () => window.clearInterval(timer)
   }, [selected])
-  const exceedsBalance = amountAtomic > assetBalanceAtomic(fromAsset)
+  const exceedsBalance = !fromAsset.lightningFunding && amountAtomic > assetBalanceAtomic(fromAsset)
   // a partial asset deposit leaves asset change, and that change needs a second
   // dust carrier; without one the SDK fails with a bare "Insufficient funds"
   const lacksChangeCarrier =
@@ -471,6 +501,15 @@ export default function WalletSwap() {
   const canViewQuotes = Boolean(
     toAsset && amountAtomic > 0n && !exceedsBalance && !lacksChangeCarrier && destinationValid,
   )
+  const routeRequest =
+    route.supported && toAsset && !toAsset.external && canViewQuotes
+      ? {
+          from: swapAssetId(network, fromAsset.assetId),
+          to: swapAssetId(network, toAsset.assetId),
+          amount: amountAtomic,
+          amountOn: 'give' as const,
+        }
+      : undefined
   const reviewNeedsQuotes =
     !awaitingFirm &&
     Boolean(chosen?.lost || (selectedExpired && selected?.offer) || ((!selected || selectedExpired) && !canContinue))
@@ -492,6 +531,15 @@ export default function WalletSwap() {
       : toAsset?.assetId === BTC_ASSET_ID
         ? fromAsset.assetId
         : undefined
+  const allowDirectOpenOffers =
+    openOfferPolicy !== 'off' &&
+    (!route.supported ||
+      Boolean(
+        pairedAssetId ||
+          toAsset?.external ||
+          (fromAsset.lightningFunding && toAsset?.assetId === BTC_ASSET_ID) ||
+          hasSavedSolver,
+      ))
   const openOffersFirst = Boolean(
     solverNetwork &&
       toAsset &&
@@ -508,7 +556,8 @@ export default function WalletSwap() {
       ),
   )
   const searchOpenByDefault = Boolean(
-    openOfferPolicy === 'when-needed' &&
+    allowDirectOpenOffers &&
+      openOfferPolicy === 'when-needed' &&
       canViewQuotes &&
       (openOffersFirst || (discoveryReady && (!hasSavedSolver || (currentPlan && solvable === false)))),
   )
@@ -542,14 +591,18 @@ export default function WalletSwap() {
   const stageTransition = prefersReduced ? { duration: 0 } : { duration: 0.28, ease: EASE_IN_OUT_QUINT_TUPLE }
 
   const isVerifiedPickerAsset = (asset: SwapAsset) =>
-    asset.assetId === BTC_ASSET_ID || asset.external === true || isVerifiedAsset(asset.assetId)
+    asset.assetId === BTC_ASSET_ID ||
+    asset.external === true ||
+    asset.lightningFunding === true ||
+    isVerifiedAsset(asset.assetId)
 
   useEffect(() => {
     if (swapAssets.length === 0) return
-    const currentAssetStillAvailable = swapAssets.some((asset) => asset.assetId === fromAssetId)
+    const currentAssetStillAvailable =
+      fromAssetId === lightningSource?.assetId || swapAssets.some((asset) => asset.assetId === fromAssetId)
     if (currentAssetStillAvailable) return
     setFromAssetId(resolveInitialFromAssetId(swapAssets, swapFromAssetId) ?? swapAssets[0]?.assetId ?? 'btc')
-  }, [fromAssetId, swapAssets, swapFromAssetId])
+  }, [fromAssetId, lightningSource?.assetId, swapAssets, swapFromAssetId])
 
   const focusFromAsset = useCallback((assetId: string) => {
     setFromAssetId(assetId)
@@ -615,7 +668,7 @@ export default function WalletSwap() {
   }
 
   const swapSides = () => {
-    if (!toAsset || toAsset.external || toAsset.receiveOnly) return
+    if (!toAsset || toAsset.external || toAsset.receiveOnly || fromAsset.lightningFunding) return
     hapticLight()
     setPreservedAmountPair(undefined)
     setAmount('0')
@@ -831,6 +884,24 @@ export default function WalletSwap() {
   }
 
   const receiveAssets = [...swapTargets.filter((asset) => asset.assetId !== fromAsset.assetId), ...onchainTargets]
+  const chooseRoute = () => {
+    if (!routeRequest || route.activeId) return
+    setDrawer(null)
+    route.quote(routeRequest)
+  }
+  const canChooseRoute = Boolean(
+    routeRequest &&
+      !route.activeId &&
+      !awaitingFirm &&
+      (!hasSavedSolver || firmError || (!canContinue && (status === 'success' || status === 'error'))),
+  )
+  const routeAssetLabel = (id: AssetId) => {
+    if (id === lightningId) return { name: t('receive.methodLightning'), ticker: t('common.sats'), decimals: 0 }
+    if (isBtcAsset(id)) return { name: t('send.bitcoin'), ticker: t('common.sats'), decimals: 0 }
+    const assetId = parseAssetId(id).assetReference
+    const asset = swapTargets.find((item) => item.assetId === assetId) ?? { ticker: assetId, decimals: 0 }
+    return { ...asset, unverified: !isVerifiedAsset(assetId), assetId }
+  }
 
   return (
     <>
@@ -838,6 +909,7 @@ export default function WalletSwap() {
       <Content className='asset-swap-content'>
         <Padded>
           <div className='asset-swap-lab'>
+            {route.activeId ? <Button label={t('swap.routeResume')} secondary onClick={route.resume} /> : null}
             <AnimatePresence mode='wait' initial={false}>
               {step === 'select-from' ? (
                 <motion.section
@@ -851,7 +923,7 @@ export default function WalletSwap() {
                   {swapAvailable ? (
                     <SwapAssetList
                       title={t('swap.chooseAssetToSwap')}
-                      assets={swapAssets}
+                      assets={lightningSource ? [...swapAssets, lightningSource] : swapAssets}
                       isVerified={isVerifiedPickerAsset}
                       onSelect={selectFromAsset}
                     />
@@ -947,8 +1019,11 @@ export default function WalletSwap() {
           destination={toAsset.external ? destination.trim() : undefined}
           automaticAmount={canContinue ? currentPlan?.receive.atomic : undefined}
           autoSearch={drawer === 'quotes' && searchOpenByDefault}
-          allowOpenOffers={openOfferPolicy !== 'off'}
+          allowOpenOffers={allowDirectOpenOffers}
           allowSmartRouting={!toAsset.external}
+          alternateRoutes={
+            canChooseRoute ? <Button label={t('swap.routeFind')} secondary onClick={chooseRoute} /> : undefined
+          }
           onOpenChange={(open) => {
             if (!open) setDrawer(null)
           }}
@@ -1011,12 +1086,22 @@ export default function WalletSwap() {
         onViewQuotes={
           reviewNeedsQuotes && canViewQuotes && !confirming ? () => openDrawer('refresh-quotes') : undefined
         }
+        onAlternateRoute={canChooseRoute && firmError ? chooseRoute : undefined}
         onOpenChange={(open) => {
           // keep the drawer up while the swap is being created so a late
           // failure still has a surface to report on
           if (!open && !confirming) setDrawer(null)
         }}
         onConfirm={confirmSwap}
+      />
+      <SwapRouteReview
+        review={route}
+        assetLabel={routeAssetLabel}
+        canStart={Boolean(routeRequest && !fundsShort && !route.activeId)}
+        onActivity={() => {
+          route.close()
+          navigate(Pages.Activity)
+        }}
       />
       <SwapSuccessOverlay quote={successQuote} onDone={handleSuccessDone} />
     </>
@@ -1173,36 +1258,44 @@ function SwapComposer({
           <TokenAvatar asset={fromAsset} size={36} />
           <div className='swap-input-card__asset-copy'>
             <span>{fromAsset.name}</span>
-            <div className='swap-input-card__balance-slot' aria-live='polite'>
-              <AnimatePresence mode='wait' initial={false}>
-                {balanceValidation === 'Insufficient balance' ? (
-                  <motion.button
-                    key='max'
-                    type='button'
-                    className='swap-input-card__balance swap-input-card__balance--max'
-                    onClick={onUseMaxBalance}
-                    aria-label={t('swap.useMaximum', { balance: formatAssetBalance(fromAsset) })}
-                    {...secondaryMotion}
-                  >
-                    {t('swap.max')} {formatAssetBalance(fromAsset)}
-                  </motion.button>
-                ) : balanceValidation ? (
-                  <motion.span key={balanceValidation} className='swap-input-card__balance-error' {...secondaryMotion}>
-                    {swapValidationText(balanceValidation, t)}
-                  </motion.span>
-                ) : (
-                  <motion.button
-                    key='balance'
-                    type='button'
-                    className='swap-input-card__balance'
-                    onClick={onUseMaxBalance}
-                    {...secondaryMotion}
-                  >
-                    {formatAssetBalance(fromAsset)}
-                  </motion.button>
-                )}
-              </AnimatePresence>
-            </div>
+            {fromAsset.lightningFunding ? (
+              <span className='swap-input-card__balance'>{fromAsset.networkLabel}</span>
+            ) : (
+              <div className='swap-input-card__balance-slot' aria-live='polite'>
+                <AnimatePresence mode='wait' initial={false}>
+                  {balanceValidation === 'Insufficient balance' ? (
+                    <motion.button
+                      key='max'
+                      type='button'
+                      className='swap-input-card__balance swap-input-card__balance--max'
+                      onClick={onUseMaxBalance}
+                      aria-label={t('swap.useMaximum', { balance: formatAssetBalance(fromAsset) })}
+                      {...secondaryMotion}
+                    >
+                      {t('swap.max')} {formatAssetBalance(fromAsset)}
+                    </motion.button>
+                  ) : balanceValidation ? (
+                    <motion.span
+                      key={balanceValidation}
+                      className='swap-input-card__balance-error'
+                      {...secondaryMotion}
+                    >
+                      {swapValidationText(balanceValidation, t)}
+                    </motion.span>
+                  ) : (
+                    <motion.button
+                      key='balance'
+                      type='button'
+                      className='swap-input-card__balance'
+                      onClick={onUseMaxBalance}
+                      {...secondaryMotion}
+                    >
+                      {formatAssetBalance(fromAsset)}
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
           </div>
         </div>
         <div className='swap-amount-stack'>
@@ -1289,7 +1382,7 @@ function SwapComposer({
         aria-label={t('swap.switchSwapDirection')}
         animate={{ rotate: swapTurn * 180 }}
         transition={prefersReduced ? { duration: 0 } : { duration: 0.22, ease: EASE_IN_OUT_QUINT_TUPLE }}
-        disabled={!toAsset || toAsset.external || toAsset.receiveOnly}
+        disabled={!toAsset || toAsset.external || toAsset.receiveOnly || fromAsset.lightningFunding}
         onClick={onSwapSides}
       >
         <SwapIcon />
@@ -1447,7 +1540,7 @@ function SwapAssetRow({ asset, active, onClick }: { asset: SwapAsset; active?: b
     <button
       type='button'
       className={active ? 'swap-token-row swap-token-row--active' : 'swap-token-row'}
-      data-testid={`swap-asset-row-${asset.ticker.toLowerCase()}`}
+      data-testid={asset.lightningFunding ? 'swap-asset-row-lightning' : `swap-asset-row-${asset.ticker.toLowerCase()}`}
       onClick={onClick}
     >
       <TokenAvatar asset={asset} size={40} />
@@ -1604,6 +1697,7 @@ function ReviewDrawer({
   quoteLoading,
   expiresIn,
   onViewQuotes,
+  onAlternateRoute,
   onOpenChange,
   onConfirm,
 }: {
@@ -1620,6 +1714,7 @@ function ReviewDrawer({
   quoteLoading: boolean
   expiresIn?: number
   onViewQuotes?: () => void
+  onAlternateRoute?: () => void
   onOpenChange: (open: boolean) => void
   onConfirm: () => void
 }) {
@@ -1682,6 +1777,9 @@ function ReviewDrawer({
             loading={confirming}
             onClick={onViewQuotes ?? onConfirm}
           />
+          {onAlternateRoute ? (
+            <Button label={t('swap.routeFind')} secondary disabled={confirming} onClick={onAlternateRoute} />
+          ) : null}
         </div>
       </DrawerContent>
     </Drawer>

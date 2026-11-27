@@ -32,6 +32,7 @@ interface QuoteChoicesProps {
   allowOpenOffers?: boolean
   payment?: PaymentQuoteRequest
   routes?: ReactNode
+  alternateRoutes?: ReactNode
   destination?: string
   description?: string
   onOpenChange: (open: boolean) => void
@@ -52,6 +53,7 @@ export default function QuoteChoices({
   allowOpenOffers = true,
   payment,
   routes,
+  alternateRoutes,
   destination,
   description,
   onOpenChange,
@@ -254,6 +256,7 @@ export default function QuoteChoices({
               </span>
             </button>
           ) : null}
+          {alternateRoutes}
           {allowOpenOffers ? (
             <section aria-label={t('swap.openOffers')}>
               <div className='flex min-h-11 items-center justify-between gap-3'>

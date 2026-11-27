@@ -45,7 +45,14 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { btcTarget, type Asset, type IntentFeeConfig, type NetworkName, type PaymentRouter } from '@arkade-os/sdk'
+import {
+  btcTarget,
+  type Asset,
+  type ExtendedVirtualCoin,
+  type IntentFeeConfig,
+  type NetworkName,
+  type PaymentRouter,
+} from '@arkade-os/sdk'
 import { generateSecretKey } from 'nostr-tools'
 import { BTC_ASSET_ID, findMarket, ONCHAIN_DUST_SATS } from '@arkade-os/swap/protocol'
 import {
@@ -53,6 +60,7 @@ import {
   btcOn,
   claimFeeSats,
   isSwapError,
+  parseAssetId,
   type AssetId,
   type AssetSwapId,
   type Outcome,
@@ -74,6 +82,7 @@ import {
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
 import { discoverMarkets, marketAssetDisplay, marketLegId, swapAssetId, watchSwapMarkets } from '../lib/swapMarkets'
+import { swapRouteEdges } from '../lib/swapRouteMarkets'
 import { getSolverCardsVersion, subscribeSolverCards } from '../lib/solverCards'
 import { createSendRouter, isLightningMarket } from '../lib/sendRouter'
 import { claimFeeRate } from '../lib/claimFee'
@@ -87,11 +96,13 @@ import { readOnchainSendPreference, readOpenOfferPolicy } from '../lib/openOffer
 import {
   assertAssetPaymentQuote,
   assertOpenPaymentQuote,
+  lookupLightningPaymentKey,
   paymentAttemptKey,
   paymentQuoteExpiry,
   paymentQuoteInput,
   quoteProviderMarket,
   type AssetPaymentRequest,
+  type LightningPaymentRequest,
   type PaymentQuoteRequest,
 } from '../lib/paymentQuotes'
 import {
@@ -102,11 +113,36 @@ import {
   PaymentNotSubmitted,
   PaymentRequiresNewInvoice,
   PaymentSubmissionPending,
+  type PaymentFundingAttempt,
   readPaymentFunding,
   releasePaymentFunding,
   withPaymentFundingCheckpoint,
   withPaymentFundingLock,
+  withPaymentFundingStatus,
 } from '../lib/paymentFunding'
+import {
+  assertConversionQuote,
+  conversionFundingKey,
+  conversionQuoteInput,
+  conversionStatus,
+  findConversionPayout,
+  selectConversionInputs,
+  type ChainedPaymentStatus,
+} from '../lib/chainedPayments'
+import { assertJoinedQuotes, planSwapRoute, type SwapRoutePlan, type SwapRouteRequest } from '../lib/swapRoutePlan'
+import {
+  findSwapRoutePayout,
+  routeFundingInvoice,
+  routeLegStatus,
+  routeQuoteLive,
+  selectRouteBitcoinInputs,
+  swapRouteFamily,
+  swapRouteFundingKey,
+  swapRouteLegKey,
+  swapRoutePointerKey,
+  swapRouteScope,
+  type SwapRouteProgress,
+} from '../lib/swapRouteExecution'
 import {
   DriverPromoted,
   DriverUnavailable,
@@ -170,6 +206,19 @@ interface SwapsContextProps {
   paymentRouteCandidates: (request: PaymentQuoteRequest) => Promise<{ id: string; name: string }[]>
   onchainPaymentRouteCandidates: (address: string, amount: number) => Promise<{ id: string; name: string }[]>
   acceptPaymentQuote: (quote: Quote, request: PaymentQuoteRequest, reviewId?: string) => Promise<Swap>
+  quoteChainedPayment: (assetId: string, lightning: Quote, request: LightningPaymentRequest) => Promise<Quote>
+  startChainedPayment: (
+    assetId: string,
+    conversion: Quote,
+    lightning: Quote,
+    request: LightningPaymentRequest,
+  ) => Promise<void>
+  getChainedPayment: (request: LightningPaymentRequest) => Promise<ChainedPaymentStatus | undefined>
+  finishChainedPayment: (lightning: Quote, request: LightningPaymentRequest) => Promise<Swap>
+  quoteSwapRoute: (request: SwapRouteRequest) => Promise<SwapRoutePlan>
+  startSwapRoute: (id: string) => Promise<SwapRouteProgress>
+  advanceSwapRoute: (id: string) => Promise<SwapRouteProgress>
+  getSwapRoute: (id: string) => Promise<{ plan: SwapRoutePlan; progress: SwapRouteProgress } | undefined>
   cancelSwap: (id: string) => Promise<void>
   /** Run a recovery round for a swept offer deposit. Resolves with whether THIS
    * deposit went home; throws `SwapDriveRefusedError` (by `name` across tabs) or
@@ -224,6 +273,14 @@ export const SwapsContext = createContext<SwapsContextProps>({
   paymentRouteCandidates: notInitialized,
   onchainPaymentRouteCandidates: notInitialized,
   acceptPaymentQuote: notInitialized,
+  quoteChainedPayment: notInitialized,
+  startChainedPayment: notInitialized,
+  getChainedPayment: async () => undefined,
+  finishChainedPayment: notInitialized,
+  quoteSwapRoute: notInitialized,
+  startSwapRoute: notInitialized,
+  advanceSwapRoute: notInitialized,
+  getSwapRoute: async () => undefined,
   cancelSwap: notInitialized,
   recoverSwap: notInitialized,
   quotePay: notInitialized,
@@ -362,6 +419,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
    * holding it would only grow the map.
    */
   const issued = useRef(new Map<string, Quote>())
+  const plannedRoutes = useRef(new Map<string, SwapRoutePlan>())
   const auctions = useRef(new Map<string, OpenRfqAuction>())
   const auctionRequests = useRef(new Map<string, AbortController>())
   useEffect(
@@ -370,6 +428,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       auctionRequests.current.clear()
       auctions.current.clear()
       issued.current.clear()
+      plannedRoutes.current.clear()
     },
     [aspInfo.network, svcWallet],
   )
@@ -783,6 +842,23 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
         return paymentRouteCandidatesHere(args[0] as PaymentQuoteRequest)
       case 'acceptPaymentQuote':
         return acceptPaymentQuoteHere(args[0] as string, args[1] as PaymentQuoteRequest, args[2] as string | undefined)
+      case 'quoteChainedPayment':
+        return quoteChainedPaymentHere(args[0] as string, args[1] as string, args[2] as LightningPaymentRequest)
+      case 'startChainedPayment':
+        return startChainedPaymentHere(
+          args[0] as string,
+          args[1] as string,
+          args[2] as string,
+          args[3] as LightningPaymentRequest,
+        )
+      case 'finishChainedPayment':
+        return finishChainedPaymentHere(args[0] as string, args[1] as LightningPaymentRequest)
+      case 'quoteSwapRoute':
+        return quoteSwapRouteHere(args[0] as SwapRouteRequest)
+      case 'startSwapRoute':
+        return runSwapRouteHere(args[0] as string, true)
+      case 'advanceSwapRoute':
+        return runSwapRouteHere(args[0] as string, false)
       case 'cancelSwap':
         return cancelSwapHere(args[0] as string)
       case 'recoverSwap':
@@ -939,6 +1015,19 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const acceptPaymentQuote = (quote: Quote, request: PaymentQuoteRequest, reviewId?: string): Promise<Swap> =>
     runOnDriver('acceptPaymentQuote', [quote.id, request, reviewId])
 
+  const quoteChainedPayment: SwapsContextProps['quoteChainedPayment'] = (assetId, lightning, request) =>
+    runOnDriver('quoteChainedPayment', [assetId, lightning.id, request])
+
+  const startChainedPayment: SwapsContextProps['startChainedPayment'] = (assetId, conversion, lightning, request) =>
+    runOnDriver('startChainedPayment', [assetId, conversion.id, lightning.id, request])
+
+  const finishChainedPayment: SwapsContextProps['finishChainedPayment'] = (lightning, request) =>
+    runOnDriver('finishChainedPayment', [lightning.id, request])
+
+  const quoteSwapRoute: SwapsContextProps['quoteSwapRoute'] = (request) => runOnDriver('quoteSwapRoute', [request])
+  const startSwapRoute: SwapsContextProps['startSwapRoute'] = (id) => runOnDriver('startSwapRoute', [id])
+  const advanceSwapRoute: SwapsContextProps['advanceSwapRoute'] = (id) => runOnDriver('advanceSwapRoute', [id])
+
   const acceptSwapQuoteHere = async (id: string, snapshot?: AssetSwapQuoteSnapshot): Promise<Swap> => {
     const client = await driving()
     const quote = issued.current.get(id)
@@ -1019,18 +1108,341 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     return quote
   }
 
+  const reviewedLightning = (id: string, request: LightningPaymentRequest, network: NetworkName) => {
+    const quote = issued.current.get(id)
+    if (!quote) throw new QuoteUnavailable()
+    assertPaymentQuote(quote, request, network)
+    return quote
+  }
+
+  const quoteSwapRouteHere = async (request: SwapRouteRequest) => {
+    if (!navigator.locks || !wallet.pubkey) throw new Error('Swap routes are unavailable for this wallet')
+    const network = aspInfo.network as NetworkName
+    const issuer = held.current
+    const client = await driving()
+    const plan = await planSwapRoute(newRequestId(), request, swapRouteEdges(allMarketsRef.current, network), (input) =>
+      client.quote(input),
+    )
+    if (held.current !== issuer) throw new QuoteUnavailable()
+    plan.quotes.forEach(remember)
+    const now = Math.floor(Date.now() / 1000)
+    for (const [id, previous] of plannedRoutes.current) {
+      if (previous.expiresAt <= now) plannedRoutes.current.delete(id)
+    }
+    plannedRoutes.current.set(plan.id, plan)
+    return plan
+  }
+
+  const routeKeys = (id: string) => {
+    if (!wallet.pubkey || !id) throw new Error('Swap route wallet is unavailable')
+    const scope = swapRouteScope(aspInfo.network, wallet.pubkey)
+    return { scope, key: swapRouteFundingKey(scope, id), ownerKey: swapRouteFundingKey(scope, 'active') }
+  }
+
+  const readSwapRouteProgress = async (key: string, plan: SwapRoutePlan, guarded: boolean) => {
+    for (let step = plan.quotes.length - 1; step >= 0; step -= 1) {
+      const quote = plan.quotes[step]
+      const attempt = await readPaymentFunding(swapRouteLegKey(key, step))
+      if (!attempt) continue
+      const record = await assetSwapRepository.getSwapRecord(quote.id)
+      let progress: SwapRouteProgress = { phase: 'waiting', step, swapId: attempt.swapId }
+      if (!record) {
+        if (canReplaceMissingPaymentRecord(attempt, guarded)) continue
+        if (!routeQuoteLive(quote))
+          return { progress: { ...progress, phase: 'stopped' as const, reason: 'recovery' as const } }
+        return { progress }
+      }
+      if (
+        record.id !== quote.id ||
+        record.take.asset !== quote.take.asset ||
+        record.take.amount !== String(quote.take.amount)
+      ) {
+        return { progress: { ...progress, phase: 'stopped' as const, reason: 'recovery' as const } }
+      }
+      const state = routeLegStatus(record)
+      if (state === 'waiting') {
+        if (record.family === 'rfq' && plan.expiresAt <= Math.floor(Date.now() / 1000)) {
+          return { progress: { ...progress, phase: 'stopped' as const, reason: 'expired' as const } }
+        }
+        if (record.family === 'offer' && !record.fundingTxid && !routeQuoteLive(quote)) {
+          return { progress: { ...progress, phase: 'stopped' as const, reason: 'recovery' as const } }
+        }
+        return { progress: { ...progress, invoice: routeFundingInvoice(record, plan) } }
+      }
+      if (state !== 'settled') return { progress: { ...progress, phase: 'stopped' as const, reason: state } }
+      const next = plan.quotes[step + 1]
+      if (!next) return { progress: { ...progress, phase: 'complete' as const } }
+      if (!routeQuoteLive(next)) {
+        return { progress: { ...progress, phase: 'stopped' as const, reason: 'expired' as const } }
+      }
+      const payout =
+        svcWallet && (await findSwapRoutePayout(svcWallet, record, next, aspInfo.vtxoMinAmount).catch(() => undefined))
+      if (payout) progress = { ...progress, phase: 'ready', step: step + 1 }
+      return { progress, predecessor: record }
+    }
+    const progress: SwapRouteProgress =
+      plan.expiresAt > Math.floor(Date.now() / 1000)
+        ? { phase: 'ready', step: 0 }
+        : { phase: 'stopped', step: 0, reason: 'expired' }
+    return { progress }
+  }
+
+  const getSwapRoute: SwapsContextProps['getSwapRoute'] = async (id) => {
+    const { key, ownerKey } = routeKeys(id)
+    return withPaymentFundingStatus(ownerKey, async (guarded) => {
+      const prior = await readPaymentFunding(key)
+      if (!prior?.route) {
+        if (!guarded && navigator.locks) throw new PaymentSubmissionPending(id)
+        return undefined
+      }
+      const plan = prior.route
+      const progress = prior.routeStop ?? (await readSwapRouteProgress(key, plan, guarded)).progress
+      return { plan, progress }
+    })
+  }
+
+  const runSwapRouteHere = async (id: string, start: boolean): Promise<SwapRouteProgress> => {
+    const { scope, key, ownerKey } = routeKeys(id)
+    return withPaymentFundingLock(ownerKey, async (guarded) => {
+      if (!guarded) throw new Error('Swap routes require browser support for coordinating wallet tabs')
+      const issuer = held.current
+      const client = await driving()
+      const previous = await readPaymentFunding(key)
+      let owner = await readPaymentFunding(ownerKey)
+      if (previous?.routeStop) return previous.routeStop
+      let plan = previous?.route
+      if (plan && owner?.quoteId !== id) return { phase: 'stopped', step: 0, reason: 'quote-unavailable' }
+      if (!plan) {
+        if (!start) throw new Error('Review and confirm the swap route before funding')
+        if (localStorage.getItem(swapRoutePointerKey(scope)) !== id) throw new QuoteUnavailable()
+        if (owner && owner.quoteId !== id) {
+          const otherKey = swapRouteFundingKey(scope, owner.quoteId)
+          const other = await readPaymentFunding(otherKey)
+          if (other?.route && !other.routeStop) {
+            const { progress } = await readSwapRouteProgress(otherKey, other.route, guarded)
+            if (progress.phase === 'ready' || progress.phase === 'waiting')
+              throw new PaymentSubmissionPending(owner.swapId)
+          }
+        }
+        plan = plannedRoutes.current.get(id)
+        if (!plan) throw new QuoteUnavailable()
+        assertJoinedQuotes(plan.quotes)
+        for (const quote of plan.quotes) {
+          const give = parseAssetId(quote.give.asset)
+          const take = parseAssetId(quote.take.asset)
+          if (
+            (take.assetNamespace === 'slip44' && quote.take.amount < aspInfo.dust) ||
+            (give.rail === 'arkade' && give.assetNamespace === 'slip44' && quote.give.amount < aspInfo.dust) ||
+            (give.rail === 'arkade' &&
+              give.assetNamespace !== 'slip44' &&
+              (!quote.carrierSats || quote.carrierSats < aspInfo.dust))
+          ) {
+            throw new Error('The swap route cannot fund one of its reviewed outputs')
+          }
+        }
+        const first = plan.quotes[0]
+        const swapId = assetSwapIdOf(swapRouteFamily(first), first.id)
+        const nextOwner = { quoteId: id, swapId, guarded: true as const }
+        const raced = await claimPaymentFunding(ownerKey, nextOwner, owner?.quoteId)
+        if (raced) throw new PaymentSubmissionPending(raced.swapId)
+        owner = nextOwner
+        const prior = await claimPaymentFunding(key, {
+          quoteId: id,
+          swapId,
+          route: plan,
+        })
+        if (prior) throw new PaymentSubmissionPending(prior.swapId)
+      }
+      const { progress, predecessor } = await readSwapRouteProgress(key, plan, guarded)
+      if (progress.phase !== 'ready') return progress
+      const reviewed = plan.quotes[progress.step]
+      const quote = issued.current.get(reviewed.id)
+      if (!quote || held.current !== issuer) {
+        const stop = { ...progress, phase: 'stopped', reason: 'quote-unavailable' } as const
+        if (owner?.quoteId === id)
+          await claimPaymentFunding(key, { quoteId: id, swapId: owner.swapId, route: plan, routeStop: stop }, id)
+        return stop
+      }
+      const legKey = swapRouteLegKey(key, progress.step)
+      if (quote.route.give.corridor === 'lightning') {
+        const previous = await readPaymentFunding(legKey)
+        const swapId = assetSwapIdOf('rfq', quote.id)
+        const raced = await claimPaymentFunding(legKey, { quoteId: quote.id, swapId, guarded: true }, previous?.quoteId)
+        if (raced) throw new PaymentSubmissionPending(raced.swapId)
+        const swap = await withPaymentFundingCheckpoint(legKey, quote.id, () => client.accept(quote))
+        announceHere(swap)
+      } else {
+        await acceptReservedQuote(quote.id, legKey, guarded, {
+          family: 'offer',
+          validUntil: progress.step === 0 ? plan.expiresAt : undefined,
+          validate: (candidate) => {
+            if (candidate !== quote || !routeQuoteLive(quote)) throw new QuoteUnavailable()
+          },
+          selectInputs: async () => {
+            if (!svcWallet) throw new Error('Swap funding wallet is unavailable')
+            if (progress.step !== 0) {
+              const payout =
+                predecessor && (await findSwapRoutePayout(svcWallet, predecessor, quote, aspInfo.vtxoMinAmount))
+              if (!payout) throw new Error('The prior swap output is not spendable')
+              return [payout]
+            }
+            const source = parseAssetId(quote.give.asset)
+            if (source.assetNamespace === 'slip44') {
+              return selectRouteBitcoinInputs(svcWallet, quote.give.amount, aspInfo.vtxoMinAmount)
+            }
+            if (!quote.carrierSats || quote.carrierSats < aspInfo.dust)
+              throw new Error('The asset deposit carrier is unavailable')
+            return selectConversionInputs(
+              svcWallet,
+              source.assetReference,
+              quote.give.amount,
+              quote.carrierSats,
+              aspInfo.dust,
+              aspInfo.vtxoMinAmount,
+            )
+          },
+        }).catch(async (error) => {
+          if (progress.step === 0 && error instanceof PaymentNotSubmitted) await releasePaymentFunding(key, id)
+          throw error
+        })
+      }
+      return (await readSwapRouteProgress(key, plan, guarded)).progress
+    })
+  }
+
+  const quoteChainedPaymentHere = async (assetId: string, lightningId: string, request: LightningPaymentRequest) => {
+    if (!navigator.locks) throw new Error('Asset payments require browser support for coordinating wallet tabs')
+    const network = aspInfo.network as NetworkName
+    const lightning = reviewedLightning(lightningId, request, network)
+    const issuer = held.current
+    const client = await driving()
+    const quote = await client.quote(conversionQuoteInput(assetId, lightning.give.amount, network))
+    if (held.current !== issuer) throw new QuoteUnavailable()
+    assertPaymentQuote(lightning, request, network)
+    assertConversionQuote(quote, assetId, lightning.give.amount, network, aspInfo.dust)
+    assertJoinedQuotes([quote, lightning])
+    remember(quote)
+    return quote
+  }
+
+  const readConversion = async (key: string, guarded: boolean) => {
+    // The invoice lock covers both the conversion and the Lightning payment it funds.
+    const attempt = await readPaymentFunding(conversionFundingKey(key))
+    const record = attempt && (await assetSwapRepository.getSwapRecord(attempt.quoteId))
+    return { attempt, record, status: conversionStatus(attempt, record, guarded) }
+  }
+
+  const getChainedPayment: SwapsContextProps['getChainedPayment'] = async (request) => {
+    const network = aspInfo.network as NetworkName
+    const key = lookupLightningPaymentKey(request, network, wallet.pubkey)
+    const { record, status } = await withPaymentFundingStatus(key, (guarded) => readConversion(key, guarded))
+    if (status?.phase !== 'credited' || record?.family !== 'offer' || !svcWallet) return status
+    const payout = await findConversionPayout(svcWallet, record, status.sats).catch(() => undefined)
+    return { ...status, spendable: Boolean(payout) }
+  }
+
+  const startChainedPaymentHere = async (
+    assetId: string,
+    conversionId: string,
+    lightningId: string,
+    request: LightningPaymentRequest,
+  ) => {
+    const network = aspInfo.network as NetworkName
+    const key = paymentAttemptKey(request, network, wallet.pubkey)
+    await withPaymentFundingLock(key, async (guarded) => {
+      if (!guarded) throw new Error('Asset payments require browser support for coordinating wallet tabs')
+      const { attempt, status } = await readConversion(key, guarded)
+      if (status) {
+        if (attempt?.quoteId === conversionId && attempt.chain?.lightningQuoteId === lightningId) return
+        throw new PaymentSubmissionPending(status.swapId)
+      }
+      const previous = await readPaymentFunding(key)
+      if (previous) {
+        const record = await assetSwapRepository.getSwapRecord(previous.quoteId)
+        if (record ? !fundingWasNotSubmitted(record) : !canReplaceMissingPaymentRecord(previous, guarded)) {
+          throw new PaymentSubmissionPending(previous.swapId)
+        }
+      }
+      const lightning = reviewedLightning(lightningId, request, network)
+      await acceptReservedQuote(conversionId, conversionFundingKey(key), guarded, {
+        family: 'offer',
+        chain: { lightningQuoteId: lightning.id, sats: lightning.give.amount },
+        validUntil: paymentQuoteExpiry(lightning),
+        validate: (quote) => {
+          assertPaymentQuote(lightning, request, network)
+          assertConversionQuote(quote, assetId, lightning.give.amount, network, aspInfo.dust)
+        },
+        selectInputs: async (quote) => {
+          if (!svcWallet || quote.carrierSats === undefined) throw new Error('Asset funding is unavailable')
+          return selectConversionInputs(
+            svcWallet,
+            assetId,
+            quote.give.amount,
+            quote.carrierSats,
+            aspInfo.dust,
+            aspInfo.vtxoMinAmount,
+          )
+        },
+      })
+    })
+  }
+
+  const finishChainedPaymentHere = async (id: string, request: LightningPaymentRequest) => {
+    const network = aspInfo.network as NetworkName
+    const key = paymentAttemptKey(request, network, wallet.pubkey)
+    return withPaymentFundingLock(key, async (guarded) => {
+      const { attempt, record, status } = await readConversion(key, guarded)
+      if (
+        !guarded ||
+        attempt?.chain?.lightningQuoteId !== id ||
+        status?.phase !== 'credited' ||
+        record?.family !== 'offer'
+      ) {
+        throw new Error('The reviewed asset conversion is not ready to fund this payment')
+      }
+      return acceptReservedQuote(id, key, guarded, {
+        family: 'rfq',
+        validate: (quote) => {
+          assertPaymentQuote(quote, request, network)
+          if (quote.give.amount !== status.sats) throw new Error('The Lightning debit changed')
+        },
+        selectInputs: async () => {
+          const payout = svcWallet && (await findConversionPayout(svcWallet, record, status.sats))
+          if (!payout) throw new Error('The Bitcoin from the conversion is not spendable')
+          return [payout]
+        },
+      })
+    })
+  }
+
   const acceptPaymentQuoteHere = async (id: string, request: PaymentQuoteRequest, reviewId?: string): Promise<Swap> => {
     const network = aspInfo.network as NetworkName
     const key = paymentAttemptKey(request, network, wallet.pubkey, reviewId)
-    return withPaymentFundingLock(key, (guarded) => acceptReservedPayment(id, request, network, key, guarded))
+    return withPaymentFundingLock(key, async (guarded) => {
+      if (request.kind === 'lightning') {
+        const { status } = await readConversion(key, guarded)
+        if (status?.phase === 'converting' || status?.phase === 'recovery') {
+          throw new PaymentSubmissionPending(status.swapId)
+        }
+      }
+      return acceptReservedQuote(id, key, guarded, {
+        family: request.kind === 'asset' ? 'offer' : 'rfq',
+        validate: (quote) => assertPaymentQuote(quote, request, network),
+      })
+    })
   }
 
-  const acceptReservedPayment = async (
+  const acceptReservedQuote = async (
     id: string,
-    request: PaymentQuoteRequest,
-    network: NetworkName,
     key: string,
     guarded: boolean,
+    options: {
+      family: 'offer' | 'rfq'
+      validate: (quote: Quote) => void
+      chain?: PaymentFundingAttempt['chain']
+      validUntil?: number
+      selectInputs?: (quote: Quote) => Promise<ExtendedVirtualCoin[]>
+    },
   ): Promise<Swap> => {
     const issuer = held.current
     const client = await driving()
@@ -1058,17 +1470,24 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     const quote = issued.current.get(id)
     if (!quote) throw new QuoteUnavailable()
     try {
-      assertPaymentQuote(quote, request, network)
+      options.validate(quote)
     } catch (error) {
       throw new PaymentNotSubmitted(error)
     }
-    const swapId = assetSwapIdOf(request.kind === 'asset' ? 'offer' : 'rfq', id)
-    const attempt = { quoteId: id, swapId, ...(guarded ? { guarded: true as const } : {}) }
+    const swapId = assetSwapIdOf(options.family, id)
+    const attempt: PaymentFundingAttempt = {
+      quoteId: id,
+      swapId,
+      ...(guarded ? { guarded: true } : {}),
+      ...(options.chain ? { chain: options.chain } : {}),
+    }
     const raced = await claimPaymentFunding(key, attempt, previous?.quoteId)
     if (raced) throw new PaymentSubmissionPending(raced.swapId)
+    let selectedVtxos: ExtendedVirtualCoin[] | undefined
     try {
+      selectedVtxos = await options.selectInputs?.(quote)
       if (held.current !== issuer) throw new QuoteUnavailable()
-      assertPaymentQuote(quote, request, network)
+      options.validate(quote)
     } catch (error) {
       await releasePaymentFunding(key, id)
       if (error instanceof QuoteUnavailable) throw error
@@ -1081,7 +1500,10 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
         // A record the client already stored is funded without being written again, so the
         // checkpoint has to run here instead: an unreached one must stay proof of non-submission.
         if (await assetSwapRepository.getSwapRecord(id)) await checkpointPaymentRecord(id)
-        return client.accept(quote, { validUntil: paymentQuoteExpiry(quote) })
+        return client.accept(quote, {
+          validUntil: Math.min(paymentQuoteExpiry(quote), options.validUntil ?? Infinity),
+          ...(selectedVtxos ? { selectedVtxos, maxChangeFee: 0 } : {}),
+        })
       })
     } catch (error) {
       const stored = await assetSwapRepository
@@ -1356,6 +1778,14 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       paymentRouteCandidates,
       onchainPaymentRouteCandidates,
       acceptPaymentQuote,
+      quoteChainedPayment,
+      startChainedPayment,
+      getChainedPayment,
+      finishChainedPayment,
+      quoteSwapRoute,
+      startSwapRoute,
+      advanceSwapRoute,
+      getSwapRoute,
       cancelSwap,
       recoverSwap,
       quotePay,
