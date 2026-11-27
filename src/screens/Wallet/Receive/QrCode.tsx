@@ -553,18 +553,14 @@ export default function ReceiveQRCode() {
   const amountLabel = hasAmount ? t('receive.editAmount') : t('receive.addAmount')
   const unitLabel = assetMeta ? assetPresentation.ticker : 'sats'
 
-  const decodedInvoice = (() => {
-    if (!satoshis || !invoice) return undefined
+  const invoiceMinutes = (() => {
+    if (!satoshis || !invoice) return 0
     try {
-      return decodeInvoice(invoice)
+      return Math.floor((decodeInvoice(invoice).expiresAt * 1000 - Date.now()) / 60_000)
     } catch {
-      return undefined
+      return 0
     }
   })()
-  const invoiceMinutes = decodedInvoice ? Math.floor((decodedInvoice.expiresAt * 1000 - Date.now()) / 60_000) : 0
-  // Both rails credit the amount asked for and put the swap's fee on the invoice, so the payer pays it.
-  // Rounded up, so a fraction of a sat on the invoice never hides part of the fee.
-  const lightningFee = decodedInvoice ? Math.ceil(decodedInvoice.milliSats / 1000) - satoshis : 0
   const formatInfo: Record<Exclude<ReceiveMethod, 'token'>, Omit<FormatRow, 'id'>> = {
     full: {
       icon: <ScanIcon />,
@@ -648,8 +644,8 @@ export default function ReceiveQRCode() {
       }[shown]
   // Where a Lightning wallet can pay, the fee follows the caption on the same line.
   const feeNote =
-    lightningFee > 0 && (shown === 'lightning' || shown === 'full')
-      ? t('receive.lightningPayerPays', { amount: prettySats(satoshis + lightningFee), fee: prettySats(lightningFee) })
+    lnurlRails.lightningFee && lnurlRails.lightningFee > 0 && (shown === 'lightning' || shown === 'full')
+      ? t('receive.lightningDepositFee', { fee: prettySats(lnurlRails.lightningFee) })
       : ''
   // Only a registered asset gets an official logo: a self-reported ticker could claim any.
   const assetRow = (id: string): FormatRow => {

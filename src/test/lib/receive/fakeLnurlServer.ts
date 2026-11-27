@@ -155,10 +155,8 @@ export function fakeLnurlServer(opts: {
   paymentURI?: string
   payRequestFail?: boolean
   registrationError?: string
-  /** Advertises `receiveAmountAllowed` and prices a `receiveAmount` request with this solver fee on top. */
-  receiveFeeSat?: number
-  /** Replaces a receive quote's receive.amount, in millisats, as a misbehaving server might. */
-  quotedReceiveMsat?: number
+  /** Quotes this solver fee beside a Lightning invoice, which pays the receiver that much less. */
+  solverFeeSat?: number
 }) {
   const addresses = [...(opts.addresses ?? [])]
   let rejected = 0
@@ -213,7 +211,6 @@ export function fakeLnurlServer(opts: {
           ...(opts.simulated ? [SIM_SOLANA_OPTION] : []),
         ],
         ...(opts.tokens || opts.simulated ? { units: TOKEN_UNITS } : {}),
-        ...(opts.receiveFeeSat !== undefined ? { receiveAmountAllowed: true } : {}),
       })
     }
     if (path.startsWith('/callback/')) {
@@ -247,26 +244,21 @@ export function fakeLnurlServer(opts: {
         return json(200, { status: 'OK', paymentOption: rail, paymentDestination: destinations[rail] })
       }
       if (opts.invoiceError) return json(200, { status: 'ERROR', reason: opts.invoiceError })
-      const receiveMsat = Number(url.searchParams.get('receiveAmount'))
-      if (opts.receiveFeeSat !== undefined && receiveMsat) {
-        const msat = (amount: number) => ({ amount: String(amount), unit: 'msat' })
-        const feeMsat = opts.receiveFeeSat * 1000
-        // As lnurl-server does, refuse a quote whose payment passes the payer's ceiling, `amount`.
-        if (receiveMsat + feeMsat > Number(url.searchParams.get('amount'))) {
-          return json(200, { status: 'ERROR', reason: 'Unable to create offline invoice' })
-        }
-        return json(200, {
-          pr: fakeInvoice(receiveMsat + feeMsat),
-          routes: [],
+      const amountMsat = Number(url.searchParams.get('amount'))
+      const feeMsat = (opts.solverFeeSat ?? 0) * 1000
+      const msat = (amount: number) => ({ amount: String(amount), unit: 'msat' })
+      return json(200, {
+        pr: fakeInvoice(amountMsat),
+        routes: [],
+        ...(feeMsat && {
           paymentQuote: {
-            requested: msat(receiveMsat),
-            payment: msat(receiveMsat + feeMsat),
-            receive: msat(opts.quotedReceiveMsat ?? receiveMsat),
+            requested: msat(amountMsat),
+            payment: msat(amountMsat),
+            receive: msat(amountMsat - feeMsat),
             fees: [{ name: 'solver', amount: msat(feeMsat) }],
           },
-        })
-      }
-      return json(200, { pr: fakeInvoice(Number(url.searchParams.get('amount'))), routes: [] })
+        }),
+      })
     }
     if (path.endsWith('/arkade') && method === 'POST') {
       if (bindsFailed < (opts.bindFails ?? 0)) {

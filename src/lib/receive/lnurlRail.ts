@@ -3,7 +3,6 @@ import { useTranslation } from '../../providers/language'
 import {
   arkadeLnurl,
   bootstrapReceiver,
-  lnurlRailLimits,
   resolveLnurlRails,
   type ArkadeLnurl,
   type ArkadeSigner,
@@ -67,21 +66,6 @@ type PerRail = Partial<Record<LnurlRailType, string>>
 
 const lnurlClient = createLnurlClient()
 
-/** Asks for the Lightning leg as the amount the receiver nets, where the server can price that (LUD-XX
- *  `receiveAmount`). The payer then pays the solver's fee on top, up to the rail's maximum, as on the swap
- *  rail. Otherwise, or with no Lightning maximum to cap the payer, it asks plainly, as before: the invoice
- *  is for the amount and the fee comes out of what arrives. */
-const netAmountClient: Pick<LnurlClient, 'requestInvoice'> = {
-  requestInvoice: (payRequest, opts) => {
-    const max = lnurlRailLimits(payRequest).find((rail) => rail.type === 'lightning')?.max
-    const lightning = (opts.paymentOption ?? 'lightning') === 'lightning'
-    if (!payRequest.receiveAmountAllowed || !lightning || !max || opts.amountSat === undefined) {
-      return lnurlClient.requestInvoice(payRequest, opts)
-    }
-    return lnurlClient.requestInvoice(payRequest, { ...opts, amountSat: max, receiveAmountSat: opts.amountSat })
-  },
-}
-
 /** `resolveLnurlRails` for the amount being requested, asked again whenever it changes. Lightning
  *  always goes through the LNURL; the Arkade and on-chain legs only when `allRails` is set. */
 export function useLnurlRails(
@@ -94,10 +78,12 @@ export function useLnurlRails(
   const [targets, setTargets] = useState<PerRail>({})
   const [errors, setErrors] = useState<PerRail>({})
   const [generating, setGenerating] = useState(false)
+  const [lightningFee, setLightningFee] = useState<number>()
 
   useEffect(() => {
     setTargets({})
     setErrors({})
+    setLightningFee(undefined)
     setGenerating(Boolean(receiver) && amountSat > 0)
     if (!receiver || amountSat <= 0) return
     // A leg whose own address hasn't loaded yet would be refused as foreign; ask for it once it has.
@@ -107,7 +93,19 @@ export function useLnurlRails(
       ...(allRails && ownOnchain ? (['onchain'] as const) : []),
     ]
     let stale = false
-    resolveLnurlRails(receiver, amountSat, rails, { arkade: ownArkade, onchain: ownOnchain }, netAmountClient)
+    let fee: number | undefined
+    // The solver's fee comes out of the invoice's amount; the server can quote it beside the invoice.
+    const client: Pick<LnurlClient, 'requestInvoice'> = {
+      requestInvoice: async (payRequest, opts) => {
+        const result = await lnurlClient.requestInvoice(payRequest, opts)
+        const { payment, receive } = (result.kind === 'bolt11' && result.paymentQuote) || {}
+        if (payment?.unit === 'msat' && receive?.unit === 'msat') {
+          fee = Math.ceil((Number(payment.amount) - Number(receive.amount)) / 1000)
+        }
+        return result
+      },
+    }
+    resolveLnurlRails(receiver, amountSat, rails, { arkade: ownArkade, onchain: ownOnchain }, client)
       .then((results) => {
         if (stale) return
         const resolved: PerRail = {}
@@ -121,6 +119,7 @@ export function useLnurlRails(
         })
         setTargets(resolved)
         setErrors(failed)
+        setLightningFee(fee)
       })
       .catch((err) => {
         if (stale) return
@@ -135,7 +134,7 @@ export function useLnurlRails(
     }
   }, [receiver, amountSat, allRails, ownArkade, ownOnchain])
 
-  return { targets, errors, generating }
+  return { targets, errors, generating, lightningFee }
 }
 
 // Literal t() calls, so the i18n check sees each key in use.
