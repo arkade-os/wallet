@@ -544,6 +544,26 @@ describe('signing an on-chain send', () => {
       expect(sent).not.toHaveBeenCalled()
     })
 
+    it("takes a picked solver's fee out of a send-max", async () => {
+      const sent = vi.fn()
+      const harbor = { providerName: 'Harbor', providerId: 'harbor' }
+      onchainPaymentRouteCandidates.mockResolvedValue([{ id: harbor.providerId, name: harbor.providerName }])
+      renderBoarded(100_000, 100_000, (req) => [
+        solverOption({ amount: req.amount!, total: req.amount! + 5_000, meta: harbor }, sent),
+      ])
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Change route' }))
+      const picker = within(await screen.findByRole('dialog', { name: 'Change route' }))
+      fireEvent.click(await picker.findByRole('button', { name: harbor.providerName }))
+
+      await waitFor(() => expect(screen.getByTestId('Network fees')).toHaveTextContent(/5.?000/))
+      expect(screen.getByTestId('Total')).toHaveTextContent(/100.?000/)
+      await sign()
+
+      await waitFor(() => expect(sent).toHaveBeenCalledOnce())
+      expect(collaborativeExitWithFees).not.toHaveBeenCalled()
+    })
+
     it('refuses a specific amount before signing, with the fee and the most it can send', async () => {
       renderBoarded(99_999, 100_000)
 

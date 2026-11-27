@@ -300,10 +300,14 @@ export default function SendDetails() {
       ...(exitOnly ? { exitOnly: true } : {}),
     })
       .then(async (router): Promise<Priced | undefined> => {
+        const sendMax = !exactOnchainRequest && satoshis === availableBalance
         // Send-max is priced on the exit unless a route was picked: a solver charging more than the balance must not block it.
-        const method =
-          exitOnly || (!overrideMethod && satoshis === availableBalance) ? WALLET_EXIT_RAIL : overrideMethod
-        const cost = await prepareOnchainSend(router, details.destination!, asked, method)
+        const method = exitOnly || (sendMax && !overrideMethod) ? WALLET_EXIT_RAIL : overrideMethod
+        let cost = await prepareOnchainSend(router, details.destination!, asked, method)
+        // A picked route dearer than the exit, such as a solver, takes the excess out of a send-max.
+        if (sendMax && cost && cost.total > availableBalance) {
+          cost = await prepareOnchainSend(router, details.destination!, asked - (cost.total - availableBalance), method)
+        }
         if (cost || !svcWallet) return cost && { cost }
         if (overrideMethod) return undefined
         const most = (await maxCollaborativeExit(svcWallet, intentFee(), Number(aspInfo.dust))) - calcOnchainOutputFee()
@@ -314,7 +318,7 @@ export default function SendDetails() {
             : undefined
         if (!atMost) return undefined
         // Max asks for the whole balance, so the fees can only come out of the amount, as the exit fee does.
-        if (!exactOnchainRequest && satoshis === availableBalance) return { cost: atMost }
+        if (sendMax) return { cost: atMost }
         // Any other amount stays as asked, at the fee of spending every coin: more than they hold.
         return { cost: { ...atMost, amount: asked, total: asked + atMost.fee }, most }
       })
