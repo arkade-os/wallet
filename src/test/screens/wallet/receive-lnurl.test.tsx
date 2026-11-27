@@ -90,6 +90,7 @@ const svcWallet = {
   ...mockSvcWallet,
   identity: SingleKey.fromHex('03'.repeat(32)),
   getAddress: async () => DECODABLE_ARK,
+  getOwnAddress: async () => DECODABLE_ARK,
   getBoardingAddress: async () => WALLET_BOARDING_ADDRESS,
 }
 const atMarket = (sats: number) => (sats * BTC_USD) / 1e8
@@ -248,16 +249,16 @@ describe('Receive screen, rail composition', () => {
   it('refreshes cached receive addresses before rebinding the LNURL and preserves its amount', async () => {
     serve({ modes: ['self'], addresses: [namedAddress('alice')] })
     let release!: () => void
-    const getAddress = vi.spyOn(svcWallet, 'getAddress').mockImplementation(
+    const getOwnAddress = vi.spyOn(svcWallet, 'getOwnAddress').mockImplementation(
       () =>
         new Promise<string>((resolve) => {
           release = () => resolve(DECODABLE_ARK)
         }),
     )
-    onTestFinished(() => getAddress.mockRestore())
+    onTestFinished(() => getOwnAddress.mockRestore())
     renderReceive(20_000, {}, { offchainAddr: LNURL_DESTINATIONS.arkade }, true)
 
-    await waitFor(() => expect(getAddress).toHaveBeenCalledOnce())
+    await waitFor(() => expect(getOwnAddress).toHaveBeenCalledOnce())
     expect(server.calls('POST', '/lnurl/address/alice/arkade')).toHaveLength(0)
     await act(async () => release())
 
@@ -286,7 +287,7 @@ describe('Receive screen, rail composition', () => {
     const replacement = {
       ...svcWallet,
       identity: SingleKey.fromHex('04'.repeat(32)),
-      getAddress: () => new Promise<string>((resolve) => (release = () => resolve(DECODABLE_ARK))),
+      getOwnAddress: () => new Promise<string>((resolve) => (release = () => resolve(DECODABLE_ARK))),
     }
     const before = qrValues.length
 
@@ -542,9 +543,11 @@ describe('Receive screen, lnurl onboarding', () => {
     expect(await qrLightning()).toMatch(/^lnurl1/i)
   })
 
-  it('binds the wallet own Ark address, not the displayed renewal contract', async () => {
+  it('binds the wallet own Ark address, not the Executor twin getAddress() answers', async () => {
     serve({ modes: ['self', 'session'] })
-    const executorSettled = async () => ({ status: 'success' as const, renewalAddress: 'tark1renewalcontract' })
+    const getAddress = vi.spyOn(svcWallet, 'getAddress').mockResolvedValue('tark1renewalcontract')
+    onTestFinished(() => getAddress.mockRestore())
+    const executorSettled = async () => ({ status: 'success' as const })
     // the screen reads the addresses from the wallet, as it does at runtime
     renderReceive(0, {}, { offchainAddr: '', boardingAddr: '' }, true, { executorSettled })
 

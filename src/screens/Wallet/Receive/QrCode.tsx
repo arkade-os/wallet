@@ -137,8 +137,8 @@ export default function ReceiveQRCode() {
 
   const [sharing, setSharing] = useState(false)
   const [addressesLoaded, setAddressesLoaded] = useState(false)
-  // `offchainAddr` is the wallet's own Ark address, which the LNURL receiver binds. `displayAddr` is what Receive shows:
-  // the Executor renewal contract on a registered static wallet, else the same address.
+  // `offchainAddr` is the wallet's own Ark address, which the LNURL receiver binds. `displayAddr` is `getAddress()`, what
+  // Receive shows: the Executor renewal contract on any wallet with renewal registered, else the same address.
   const [addresses, setAddresses] = useState<{
     wallet: typeof svcWallet
     offchainAddr: string
@@ -219,7 +219,7 @@ export default function ReceiveQRCode() {
   const lnurlRail = useLnurlRail({
     enabled: lnurlConfigured && !isAssetReceive,
     identity: svcWallet?.identity,
-    // The wallet's own address, never the display renewal address: the bound arkadeAddress must not change
+    // The wallet's own address, never the Executor twin `getAddress()` answers: the bound arkadeAddress must not change
     arkadeAddress: ownAddresses?.offchainAddr,
     boardingAddress: ownAddresses?.boardingAddr,
     primary: config.lnurlPrimary,

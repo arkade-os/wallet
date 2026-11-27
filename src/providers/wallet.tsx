@@ -31,7 +31,7 @@ import {
   type TransactionActivityMetadata,
 } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
-import { getBalance, getUnrolledVtxos, getVtxos, settleVtxos } from '../lib/asp'
+import { getBalance, getUnrolledVtxos, getVtxos, ownAddress, settleVtxos } from '../lib/asp'
 import { resolveExits, subtractExitedAssets, type ExitRecord } from '../lib/exitHistory'
 import { AspContext } from './asp'
 import { AssetsContext } from './assets'
@@ -102,11 +102,9 @@ export type WalletAuthState = 'unknown' | 'passwordless' | 'locked' | 'authentic
  * service worker has no executor manager"; `failure` means at least one of the two registrations threw. */
 export type ExecutorStatus = 'no-executor' | 'pending' | 'success' | 'failure'
 
-/** What `executorSettled` resolves with. `renewalAddress` is the Executor renewal contract (an Ark address) and is
- * only ever set on static wallets: on an HD wallet a coin there would rotate the boarding address. */
+/** What `executorSettled` resolves with. */
 export interface ExecutorSettlement {
   status: Exclude<ExecutorStatus, 'pending'>
-  renewalAddress?: string
 }
 
 const noExecutorSettlement: ExecutorSettlement = { status: 'no-executor' }
@@ -164,9 +162,6 @@ interface WalletContextProps {
   /** Bumped when a registration settles, for consumers that stopped waiting and need to read again. */
   executorSettledCount: number
   executorStatus: ExecutorStatus
-  /** The Executor renewal contract of a static wallet, once registered. Display only: it is not the wallet's own
-   * address, and every other Ark-address use stays on `getAddress()`. */
-  executorRenewalAddress?: string
   /** The worker's first contract sync since setup has not landed: balances and history are stored data. */
   syncing?: boolean
   satsPreview?: number
@@ -329,7 +324,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     resolve: (settlement: ExecutorSettlement) => void
   } | null>(null)
   const [executorStatus, setExecutorStatus] = useState<ExecutorStatus>('no-executor')
-  const [executorRenewalAddress, setExecutorRenewalAddress] = useState<string>()
   const [executorSettledCount, setExecutorSettledCount] = useState(0)
   // Stable identity: consumers put it in effect dependencies. Reads the live session, so a promise created after
   // the consumer rendered is still the one it gets.
@@ -380,7 +374,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     executorSessionRef.current?.resolve(noExecutorSettlement)
     executorSessionRef.current = null
     setExecutorStatus('no-executor')
-    setExecutorRenewalAddress(undefined)
   }
 
   const beginExecutorSession = (signal: AbortSignal) => {
@@ -389,7 +382,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const session = { signal, promise, resolve }
     executorSessionRef.current = session
     setExecutorStatus('pending')
-    setExecutorRenewalAddress(undefined)
     return session
   }
 
@@ -950,7 +942,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         const settle = (settlement: ExecutorSettlement) => {
           if (!isCurrent()) return
           setExecutorStatus(settlement.status)
-          setExecutorRenewalAddress(settlement.renewalAddress)
           setExecutorSettledCount((n) => n + 1)
           session.resolve(settlement)
         }
@@ -974,20 +965,14 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           }
           // Boarding cannot be cancelled: a lock, reset or newer init may have ended this session while it ran.
           if (!isCurrent()) return
-          // Only a static wallet shows the renewal contract as its Ark address. On an HD wallet a coin there
-          // rotates the boarding address, and `registerRenewal().address` is exactly that contract.
-          let renewalAddress: string | undefined
           try {
-            const renewal = await executor.registerRenewal(params, options)
-            if (mode === 'static') renewalAddress = renewal?.address || undefined
+            await executor.registerRenewal(params, options)
             if (isCurrent()) reloadWallet(svcWallet).catch(consoleError)
           } catch (err) {
-            // It can throw after registering the displayed key (an older key's renewal failing), without
-            // returning its address: the wallet then keeps showing its own, until an unlock where it succeeds.
             failed = true
             consoleError(err, 'Executor renewal registration failed')
           }
-          settle({ status: failed ? 'failure' : 'success', renewalAddress })
+          settle({ status: failed ? 'failure' : 'success' })
         })().catch((err) => {
           consoleError(err, 'Executor registration failed')
           settle({ status: 'failure' })
@@ -1003,7 +988,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           .catch(() => 0)
           .then(async () => {
             if (signal.aborted) return 0
-            const arkadeAddress = await svcWallet.getAddress()
+            const arkadeAddress = await ownAddress(svcWallet)
             if (signal.aborted) return 0
             const boardingAddress = await svcWallet.getBoardingAddress().catch(() => undefined)
             if (signal.aborted) return 0
@@ -1389,7 +1374,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         executorSettled,
         executorSettledCount,
         executorStatus,
-        executorRenewalAddress,
         satsPreview,
         booting,
         syncing,
