@@ -1,6 +1,6 @@
 import { ReactNode, createContext, useContext, useEffect, useRef } from 'react'
 import { WalletContext } from './wallet'
-import { AspContext } from './asp'
+import { OperatorContext } from './operator'
 
 enum TxType {
   utxo = 'utxo',
@@ -29,7 +29,7 @@ export const LimitsContext = createContext<LimitsContextProps>({
 })
 
 export const LimitsProvider = ({ children }: { children: ReactNode }) => {
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const { svcWallet } = useContext(WalletContext)
 
   const limits = useRef<LimitTxTypes>({
@@ -37,20 +37,20 @@ export const LimitsProvider = ({ children }: { children: ReactNode }) => {
     vtxo: { min: 0, max: -1 },
   })
 
-  // update limits when aspInfo or svcWallet changes
+  // update limits when operatorInfo or svcWallet changes
   useEffect(() => {
-    if (!aspInfo.network || !svcWallet) return
+    if (!operatorInfo.network || !svcWallet) return
 
     limits.current.utxo = {
-      min: Number(import.meta.env.VITE_UTXO_MIN_AMOUNT || aspInfo.utxoMinAmount || aspInfo.dust || -1),
-      max: Number(import.meta.env.VITE_UTXO_MAX_AMOUNT || aspInfo.utxoMaxAmount || -1),
+      min: Number(import.meta.env.VITE_UTXO_MIN_AMOUNT || operatorInfo.utxoMinAmount || operatorInfo.dust || -1),
+      max: Number(import.meta.env.VITE_UTXO_MAX_AMOUNT || operatorInfo.utxoMaxAmount || -1),
     }
 
     limits.current.vtxo = {
-      min: Number(import.meta.env.VITE_VTXO_MIN_AMOUNT || aspInfo.vtxoMinAmount || aspInfo.dust || -1),
-      max: Number(import.meta.env.VITE_VTXO_MAX_AMOUNT || aspInfo.vtxoMaxAmount || -1),
+      min: Number(import.meta.env.VITE_VTXO_MIN_AMOUNT || operatorInfo.vtxoMinAmount || operatorInfo.dust || -1),
+      max: Number(import.meta.env.VITE_VTXO_MAX_AMOUNT || operatorInfo.vtxoMaxAmount || -1),
     }
-  }, [aspInfo.network, svcWallet])
+  }, [operatorInfo.network, svcWallet])
 
   /**
    * Calculates the maximum allowed amount based on UTXO and VTXO limits.

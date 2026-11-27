@@ -35,4 +35,4 @@ describe('the on-chain claim endpoint', () => {
   })
 })
 
-vi.mock('../../lib/asp', () => ({ collaborativeExitWithFees: vi.fn(), sendAssets: vi.fn() }))
+vi.mock('../../lib/operator', () => ({ collaborativeExitWithFees: vi.fn(), sendAssets: vi.fn() }))

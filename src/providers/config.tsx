@@ -1,6 +1,6 @@
 import { ReactNode, createContext, useEffect, useState } from 'react'
 import { readConfigFromStorage, saveConfigToStorage } from '../lib/storage'
-import { defaultArkServer, devServer, isExecutorEnabled } from '../lib/constants'
+import { defaultOperatorUrl, devServer, isExecutorEnabled } from '../lib/constants'
 import { Config, Currencies, Themes, Unit } from '../lib/types'
 import { normalizeBitcoinUnit } from '../lib/format'
 import { setHapticsEnabled } from '../lib/haptics'
@@ -10,7 +10,7 @@ import { setDocumentThemeColor } from '../lib/documentSurface'
 const defaultConfig: Config = {
   announcementsSeen: [],
   apps: { assets: { enabled: false } },
-  aspUrl: defaultArkServer(),
+  operatorUrl: defaultOperatorUrl(),
   dismissedBanners: [],
   executor: isExecutorEnabled(),
   currency: getCurrency(navigator.language),
@@ -79,8 +79,8 @@ const updateDefaultConfig = (config: Partial<Config>): Config => {
   return updatedConfig
 }
 
-const shouldUseDevEnvArkServer = (aspUrl: string) =>
-  import.meta.env.DEV && import.meta.env.VITE_ARK_SERVER && aspUrl === devServer
+const shouldUseDevEnvOperator = (operatorUrl: string) =>
+  import.meta.env.DEV && import.meta.env.VITE_ARK_SERVER && operatorUrl === devServer
 
 export const resolveTheme = (theme: Themes): Themes.Dark | Themes.Light => {
   if (theme === Themes.Auto) {
@@ -121,10 +121,10 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
   const updateConfig = async (incoming: Config, save = true) => {
     // merge with defaults so newly added fields are always present
     const config = updateDefaultConfig(incoming)
-    // add protocol to aspUrl if missing
-    if (!config.aspUrl.startsWith('http://') && !config.aspUrl.startsWith('https://')) {
-      const protocol = config.aspUrl.startsWith('localhost') ? 'http://' : 'https://'
-      config.aspUrl = protocol + config.aspUrl
+    // add protocol to operatorUrl if missing
+    if (!config.operatorUrl.startsWith('http://') && !config.operatorUrl.startsWith('https://')) {
+      const protocol = config.operatorUrl.startsWith('localhost') ? 'http://' : 'https://'
+      config.operatorUrl = protocol + config.operatorUrl
     }
     setConfig(config)
     applyTheme(config.theme)
@@ -135,15 +135,15 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (configLoaded) return
     if (window.location.hash === '#localhost') {
-      defaultConfig.aspUrl = 'http://localhost:7070'
+      defaultConfig.operatorUrl = 'http://localhost:7070'
       window.location.hash = ''
     }
     let config = readConfigFromStorage() ?? { ...defaultConfig }
     // merge with defaults to ensure all fields are present
     config = updateDefaultConfig(config)
-    const devArkServer = import.meta.env.VITE_ARK_SERVER
-    if (shouldUseDevEnvArkServer(config.aspUrl) && devArkServer) {
-      config.aspUrl = devArkServer
+    const devOperatorUrl = import.meta.env.VITE_ARK_SERVER
+    if (shouldUseDevEnvOperator(config.operatorUrl) && devOperatorUrl) {
+      config.operatorUrl = devOperatorUrl
     }
     updateConfig(config)
     setConfigLoaded(true)

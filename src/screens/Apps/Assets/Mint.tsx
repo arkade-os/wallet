@@ -194,7 +194,7 @@ export default function AppAssetMint() {
         }
         await runNewAssetMint(
           svcWallet,
-          config.aspUrl,
+          config.operatorUrl,
           recovery.pending
             ? null
             : { amount: supply, metadata, controlAmount: BigInt(ctrlAmount), controlMetadata: ctrlMeta },

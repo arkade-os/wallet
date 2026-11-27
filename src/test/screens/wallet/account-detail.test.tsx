@@ -7,12 +7,12 @@ import { FlowContext } from '../../../providers/flow'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import { Currencies } from '../../../lib/types'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { AssetsContext } from '../../../providers/assets'
 import { MUTINYNET_DEPIX_ASSET_ID, MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
 import {
   mockConfigContextValue,
-  mockAspContextValue,
+  mockOperatorContextValue,
   mockFiatContextValue,
   mockFlowContextValue,
   mockNavigationContextValue,
@@ -35,10 +35,10 @@ describe('Account detail screen', () => {
     )
 
     render(
-      <AspContext.Provider
+      <OperatorContext.Provider
         value={{
-          ...mockAspContextValue,
-          aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet' },
+          ...mockOperatorContextValue,
+          operatorInfo: { ...mockOperatorContextValue.operatorInfo, network: 'mutinynet' },
         }}
       >
         <AssetsContext.Provider value={{ isRegistered: (assetId) => assetId === sourceAssetId }}>
@@ -90,7 +90,7 @@ describe('Account detail screen', () => {
             </FiatContext.Provider>
           </ConfigContext.Provider>
         </AssetsContext.Provider>
-      </AspContext.Provider>,
+      </OperatorContext.Provider>,
     )
 
     expect(screen.getByRole('heading', { name: 'BRL' })).toBeInTheDocument()
@@ -113,10 +113,10 @@ describe('Account detail screen', () => {
     )
 
     render(
-      <AspContext.Provider
+      <OperatorContext.Provider
         value={{
-          ...mockAspContextValue,
-          aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet' },
+          ...mockOperatorContextValue,
+          operatorInfo: { ...mockOperatorContextValue.operatorInfo, network: 'mutinynet' },
         }}
       >
         <AssetsContext.Provider value={{ isRegistered: (assetId) => assetId === sourceAssetId }}>
@@ -176,7 +176,7 @@ describe('Account detail screen', () => {
             </FiatContext.Provider>
           </ConfigContext.Provider>
         </AssetsContext.Provider>
-      </AspContext.Provider>,
+      </OperatorContext.Provider>,
     )
 
     expect(screen.getByRole('heading', { name: 'USD' })).toBeInTheDocument()

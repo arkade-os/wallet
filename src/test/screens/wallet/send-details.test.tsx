@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import SendDetails from '../../../screens/Wallet/Send/Details'
 import { MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
 import { Currencies } from '../../../lib/types'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { FlowContext, type SendInfo } from '../../../providers/flow'
@@ -14,7 +14,7 @@ import { BackupContext } from '../../../providers/backup'
 import { readContacts } from '../../../lib/contacts'
 import fixtures from '../../fixtures.json'
 import {
-  mockAspContextValue,
+  mockOperatorContextValue,
   mockConfigContextValue,
   mockFiatContextValue,
   mockFlowContextValue,
@@ -39,10 +39,10 @@ describe('Send details amount hierarchy', () => {
                 currency === Currencies.EUR ? satoshis * 0.000875 : currency === Currencies.USD ? satoshis / 1_000 : 0,
             }}
           >
-            <AspContext.Provider
+            <OperatorContext.Provider
               value={{
-                ...mockAspContextValue,
-                aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet' },
+                ...mockOperatorContextValue,
+                operatorInfo: { ...mockOperatorContextValue.operatorInfo, network: 'mutinynet' },
               }}
             >
               <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo }}>
@@ -69,7 +69,7 @@ describe('Send details amount hierarchy', () => {
                   </LimitsContext.Provider>
                 </WalletContext.Provider>
               </FlowContext.Provider>
-            </AspContext.Provider>
+            </OperatorContext.Provider>
           </FiatContext.Provider>
         </ConfigContext.Provider>
       </NavigationContext.Provider>,
@@ -109,7 +109,7 @@ describe('Send details refresh', () => {
       <NavigationContext.Provider value={mockNavigationContextValue}>
         <ConfigContext.Provider value={mockConfigContextValue}>
           <FiatContext.Provider value={mockFiatContextValue}>
-            <AspContext.Provider value={mockAspContextValue}>
+            <OperatorContext.Provider value={mockOperatorContextValue}>
               <BackupContext.Provider value={{ backupContacts } as any}>
                 <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo }}>
                   <WalletContext.Provider
@@ -126,7 +126,7 @@ describe('Send details refresh', () => {
                   </WalletContext.Provider>
                 </FlowContext.Provider>
               </BackupContext.Provider>
-            </AspContext.Provider>
+            </OperatorContext.Provider>
           </FiatContext.Provider>
         </ConfigContext.Provider>
       </NavigationContext.Provider>,

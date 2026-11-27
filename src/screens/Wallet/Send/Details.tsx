@@ -7,14 +7,14 @@ import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Details, { DetailsProps } from '../../../components/Details'
 import ErrorMessage from '../../../components/Error'
 import { WalletContext } from '../../../providers/wallet'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { SwapsContext } from '../../../providers/swaps'
 import Header from '../../../components/Header'
 import { defaultFee } from '../../../lib/constants'
 import { prettyNumber } from '../../../lib/format'
 import Content from '../../../components/Content'
 import FlexCol from '../../../components/FlexCol'
-import { InsufficientFundsError, maxCollaborativeExit, sendOffChain } from '../../../lib/asp'
+import { InsufficientFundsError, maxCollaborativeExit, sendOffChain } from '../../../lib/operator'
 import {
   ASSET_RAIL,
   LNURL_ARKADE_RAIL,
@@ -51,7 +51,7 @@ export default function SendDetails() {
   const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { assetMetadataCache, availableBalance, balance, reloadWallet, svcWallet } = useContext(WalletContext)
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const { sendRouter } = useContext(SwapsContext)
   const { backupContacts } = useContext(BackupContext)
   const { t } = useTranslation()
@@ -185,7 +185,8 @@ export default function SendDetails() {
       .then(async (router): Promise<Priced | undefined> => {
         const cost = await previewOnchainCost(router, details.destination!, asked)
         if (cost || !svcWallet) return cost && { cost }
-        const most = (await maxCollaborativeExit(svcWallet, intentFee(), Number(aspInfo.dust))) - calcOnchainOutputFee()
+        const most =
+          (await maxCollaborativeExit(svcWallet, intentFee(), Number(operatorInfo.dust))) - calcOnchainOutputFee()
         const atMost =
           most > 0 && most < asked ? await previewOnchainCost(router, details.destination!, most) : undefined
         if (!atMost) return undefined

@@ -1,6 +1,6 @@
 import { HDKey } from '@scure/bip32'
 import { Vtxo } from './types'
-import { AspInfo } from '../providers/asp'
+import { OperatorInfo } from '../providers/operator'
 import { getConfirmedAndNotExpiredUtxos } from './utxo'
 import { IWallet } from '@arkade-os/sdk'
 import { Indexer } from './indexer'
@@ -13,13 +13,13 @@ export const deriveKeyFromSeed = (seed: Uint8Array): Uint8Array => {
   return key.privateKey!
 }
 
-export const calcNextRollover = async (vtxos: Vtxo[], wallet: IWallet, aspInfo: AspInfo): Promise<number> => {
+export const calcNextRollover = async (vtxos: Vtxo[], wallet: IWallet, operatorInfo: OperatorInfo): Promise<number> => {
   if (vtxos.length === 0) {
     const utxos = await getConfirmedAndNotExpiredUtxos(wallet)
     if (utxos.length === 0) return 0
     const minBlockTime = Math.min(...utxos.map((u) => u.status.block_time || 0))
     if (minBlockTime === 0) return 0
-    const expiration = Number(aspInfo.boardingExitDelay)
+    const expiration = Number(operatorInfo.boardingExitDelay)
     return minBlockTime + expiration
   }
   return vtxos.reduce((acc: number, cur) => {

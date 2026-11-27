@@ -5,14 +5,14 @@ import Restore from '../../screens/Init/Restore'
 import { ConfigContext } from '../../providers/config'
 import { NavigationContext } from '../../providers/navigation'
 import { FlowContext } from '../../providers/flow'
-import { AspContext } from '../../providers/asp'
+import { OperatorContext } from '../../providers/operator'
 import { DevModeContext } from '../../providers/devMode'
 import { BackupContext } from '../../providers/backup'
 import {
   mockConfigContextValue,
   mockNavigationContextValue,
   mockFlowContextValue,
-  mockAspContextValue,
+  mockOperatorContextValue,
   mockDevModeContextValue,
 } from './mocks'
 
@@ -27,7 +27,7 @@ function renderRestore(devMode: boolean) {
   const view = render(
     <DevModeContext.Provider value={{ ...mockDevModeContextValue, devMode }}>
       <ConfigContext.Provider value={mockConfigContextValue as any}>
-        <AspContext.Provider value={mockAspContextValue as any}>
+        <OperatorContext.Provider value={mockOperatorContextValue as any}>
           <NavigationContext.Provider value={mockNavigationContextValue as any}>
             <FlowContext.Provider value={mockFlowContextValue as any}>
               <BackupContext.Provider value={backupContextValue as any}>
@@ -35,7 +35,7 @@ function renderRestore(devMode: boolean) {
               </BackupContext.Provider>
             </FlowContext.Provider>
           </NavigationContext.Provider>
-        </AspContext.Provider>
+        </OperatorContext.Provider>
       </ConfigContext.Provider>
     </DevModeContext.Provider>,
   )

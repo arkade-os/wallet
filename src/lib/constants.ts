@@ -16,9 +16,9 @@ export const enableChainSwapsReceive = import.meta.env.VITE_CHAIN_SWAPS_RECEIVE_
 export const fromRuntimeEnv = (value: string | undefined): string | undefined =>
   value && !value.startsWith('__VITE_') ? value : undefined
 
-export const defaultArkServer = () => {
-  const arkServer = fromRuntimeEnv(import.meta.env.VITE_ARK_SERVER)
-  if (arkServer) return arkServer
+export const defaultOperatorUrl = () => {
+  const operatorUrl = fromRuntimeEnv(import.meta.env.VITE_ARK_SERVER)
+  if (operatorUrl) return operatorUrl
   for (const domain of testDomains) {
     if (window.location.hostname.includes(domain)) {
       return window.location.hostname.includes('localhost') ? devServer : testServer

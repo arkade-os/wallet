@@ -5,10 +5,10 @@ import { gatedContracts, type Contract } from '@arkade-os/sdk'
 import { activitiesToTxs } from '../../lib/activityHistory'
 import { ASSET_SWAP_ACTIVITY_KIND } from '../../lib/swapRecords'
 import { usePortfolioFiat } from '../../hooks/usePortfolioFiat'
-import { AspContext } from '../../providers/asp'
+import { OperatorContext } from '../../providers/operator'
 import { FiatContext } from '../../providers/fiat'
 import { WalletContext } from '../../providers/wallet'
-import { mockAspContextValue, mockFiatContextValue, mockWalletContextValue } from '../screens/mocks'
+import { mockOperatorContextValue, mockFiatContextValue, mockWalletContextValue } from '../screens/mocks'
 import type { WalletAssetSwap } from '../../lib/swapRepository'
 
 // The operator's mutinynet report: 110_000 sats held, 50_000 committed to a
@@ -61,7 +61,7 @@ const empty = { swaps: [], metadata: {} }
 
 function portfolioWrapper({ children }: { children: ReactNode }) {
   return (
-    <AspContext.Provider value={mockAspContextValue as never}>
+    <OperatorContext.Provider value={mockOperatorContextValue as never}>
       <FiatContext.Provider value={{ ...mockFiatContextValue, toFiat: (sats?: number) => sats ?? 0 } as never}>
         <WalletContext.Provider
           value={
@@ -77,7 +77,7 @@ function portfolioWrapper({ children }: { children: ReactNode }) {
           {children}
         </WalletContext.Provider>
       </FiatContext.Provider>
-    </AspContext.Provider>
+    </OperatorContext.Provider>
   )
 }
 

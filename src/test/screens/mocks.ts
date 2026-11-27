@@ -1,19 +1,19 @@
-import { emptyAspInfo } from '../../lib/asp'
+import { emptyOperatorInfo } from '../../lib/operator'
 import { Pages } from '../../providers/navigation'
 import type { AppIntentState } from '../../lib/appIntent'
 import { emptyInitInfo, emptyNoteInfo, emptyRecvInfo, emptySendInfo } from '../../providers/flow'
-import { AspInfo } from '../../providers/asp'
+import { OperatorInfo } from '../../providers/operator'
 import { SingleKey, IVtxoManager } from '@arkade-os/sdk'
 import { Currencies, SettingsOptions, Themes, Unit } from '../../lib/types'
 import { AssetIconApprovalManager } from '../../lib/assetIconApproval'
 
-const mockAspInfo: AspInfo = {
-  ...emptyAspInfo,
+const mockOperatorInfo: OperatorInfo = {
+  ...emptyOperatorInfo,
   boardingExitDelay: BigInt(1024),
   checkpointTapscript: '',
   dust: BigInt(333),
   network: 'regtest',
-  url: 'http://asp.local',
+  url: 'http://operator.local',
   signerPubkey: 'mock_signer_pubkey',
   forfeitAddress: 'mock_forfeit_address',
   sessionDuration: BigInt(1024 * 60 * 17), // 17 minutes
@@ -47,11 +47,11 @@ export const mockIssuanceTxInfo = {
   type: 'sent',
 }
 
-export const mockAspContextValue = {
-  aspInfo: mockAspInfo,
+export const mockOperatorContextValue = {
+  operatorInfo: mockOperatorInfo,
   calcBestMarketHour: () => undefined,
   calcNextMarketHour: () => undefined,
-  setAspInfo: () => {},
+  setOperatorInfo: () => {},
 }
 
 export const mockBackupContextValue = {
@@ -68,7 +68,7 @@ export const mockConfigContextValue = {
   config: {
     announcementsSeen: [],
     apps: { assets: { enabled: true } },
-    aspUrl: 'http://asp.local',
+    operatorUrl: 'http://operator.local',
     dismissedBanners: [],
     executor: import.meta.env.VITE_EXECUTOR_ENABLED !== 'false',
     currency: Currencies.EUR,

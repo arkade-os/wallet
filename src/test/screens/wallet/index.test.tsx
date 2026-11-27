@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import Wallet from '../../../screens/Wallet/Index'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import {
-  mockAspContextValue,
+  mockOperatorContextValue,
   mockConfigContextValue,
   mockNavigationContextValue,
   mockWalletContextValue,
@@ -13,7 +13,7 @@ import { ConfigContext } from '../../../providers/config'
 import { WalletContext } from '../../../providers/wallet'
 import { SwapsContext } from '../../../providers/swaps'
 import { AssetsContext } from '../../../providers/assets'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { MUTINYNET_USDT_ASSET_ID } from '../../../lib/accountAssets'
 
 describe('Wallet screen', () => {
@@ -65,11 +65,11 @@ describe('Wallet screen', () => {
 
   it('shows the verified Mutinynet USDT asset as the USD account', () => {
     render(
-      <AspContext.Provider
+      <OperatorContext.Provider
         value={
           {
-            ...mockAspContextValue,
-            aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet' },
+            ...mockOperatorContextValue,
+            operatorInfo: { ...mockOperatorContextValue.operatorInfo, network: 'mutinynet' },
           } as any
         }
       >
@@ -91,7 +91,7 @@ describe('Wallet screen', () => {
             </WalletContext.Provider>
           </ConfigContext.Provider>
         </AssetsContext.Provider>
-      </AspContext.Provider>,
+      </OperatorContext.Provider>,
     )
 
     expect(screen.getByText('USD')).toBeInTheDocument()

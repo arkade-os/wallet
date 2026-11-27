@@ -1,5 +1,5 @@
 import { useContext, useState, useEffect, useRef, useSyncExternalStore, type RefObject } from 'react'
-import { AspContext } from '../../providers/asp'
+import { OperatorContext } from '../../providers/operator'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
 import Header from './Header'
@@ -154,7 +154,7 @@ function Editor({
   onChange?: () => void
   fallbackFocus: RefObject<HTMLButtonElement>
 }) {
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const { t } = useTranslation()
 
   const [error, setError] = useState<string>('')
@@ -182,7 +182,7 @@ function Editor({
       return
     }
     const input: LocalCardInput = {
-      network: aspInfo.network as Network,
+      network: operatorInfo.network as Network,
       label: card.name,
       card,
     }
@@ -510,7 +510,7 @@ function CardLine({
 }
 
 export default function Solvers() {
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const { allMarkets = [] } = useContext(SwapsContext)
   const { backupSolverCards } = useContext(BackupContext)
   const { t } = useTranslation()
@@ -533,16 +533,16 @@ export default function Solvers() {
 
   // fetch local cards whenever the network changes
   useEffect(() => {
-    if (!aspInfo.network) return
-    setLocalCards(getCardsForNetwork(aspInfo.network as Network))
-  }, [aspInfo.network])
+    if (!operatorInfo.network) return
+    setLocalCards(getCardsForNetwork(operatorInfo.network as Network))
+  }, [operatorInfo.network])
 
   const handleChange = () => {
-    setLocalCards(getCardsForNetwork(aspInfo.network as Network))
+    setLocalCards(getCardsForNetwork(operatorInfo.network as Network))
   }
 
-  const bundledCards = BUNDLED_CARDS.filter((c) => (c.network ?? 'bitcoin') === aspInfo.network)
-  const listedCards = registryCards(allMarkets, aspInfo.network)
+  const bundledCards = BUNDLED_CARDS.filter((c) => (c.network ?? 'bitcoin') === operatorInfo.network)
+  const listedCards = registryCards(allMarkets, operatorInfo.network)
 
   const storedCount = localCards?.length ?? 0
 
@@ -598,7 +598,7 @@ export default function Solvers() {
               getLabel={(option) => t(option === 'priority' ? 'solvers.priorityTab' : 'solvers.cardsTab')}
             />
             {view === 'cards' ? <TextSecondary>{t('solvers.pauseHint')}</TextSecondary> : null}
-            {view === 'priority' ? <SolverRouting network={aspInfo.network} /> : null}
+            {view === 'priority' ? <SolverRouting network={operatorInfo.network} /> : null}
             {showEditor ? (
               <Editor toClose={() => setShowEditor(false)} onChange={handleChange} fallbackFocus={addButtonRef} />
             ) : null}

@@ -38,7 +38,7 @@ import {
   LNURL_LIGHTNING_RAIL,
   lnurlRails,
 } from '@arkade-os/lnurl-client/arkade'
-import { collaborativeExitWithFees, planCollaborativeExit, sendAssets } from './asp'
+import { collaborativeExitWithFees, planCollaborativeExit, sendAssets } from './operator'
 import { decodeInvoice } from './bolt11'
 import { consoleError } from './logs'
 import { prettyNumber } from './format'

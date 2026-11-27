@@ -1,14 +1,14 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import Transaction from '../../../screens/Wallet/Transaction'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { FlowContext } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import { NavigationContext } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import type { Tx } from '../../../lib/types'
 import {
-  mockAspContextValue,
+  mockOperatorContextValue,
   mockFlowContextValue,
   mockLimitsContextValue,
   mockNavigationContextValue,
@@ -31,7 +31,7 @@ const receivedTx: Tx = {
 const renderReceipt = (tx: Tx) =>
   render(
     <NavigationContext.Provider value={mockNavigationContextValue}>
-      <AspContext.Provider value={mockAspContextValue}>
+      <OperatorContext.Provider value={mockOperatorContextValue}>
         <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: tx }}>
           <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [tx] }}>
             <LimitsContext.Provider value={mockLimitsContextValue}>
@@ -39,7 +39,7 @@ const renderReceipt = (tx: Tx) =>
             </LimitsContext.Provider>
           </WalletContext.Provider>
         </FlowContext.Provider>
-      </AspContext.Provider>
+      </OperatorContext.Provider>
     </NavigationContext.Provider>,
   )
 

@@ -47,7 +47,7 @@ describe('discoveryOptions', () => {
   })
 
   it('offers no card on a network solver discovery has no name for', () => {
-    // Settings stamps `aspInfo.network` on the cards it stores, so a card added
+    // Settings stamps `operatorInfo.network` on the cards it stores, so a card added
     // while on testnet carries `network: 'testnet'`. The filter used to compare
     // that raw name while `network` fell back to DEFAULT_NETWORK — so the card
     // passed, and was then discovered as a mainnet market.

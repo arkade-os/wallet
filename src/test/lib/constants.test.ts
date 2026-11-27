@@ -20,7 +20,7 @@ describe('isMainnet', () => {
     expect(isMainnet('regtest')).toBe(false)
   })
 
-  it('returns false for an empty network (unreachable ASP or not yet loaded)', () => {
+  it('returns false for an empty network (unreachable operator or not yet loaded)', () => {
     expect(isMainnet('')).toBe(false)
   })
 })

@@ -6,12 +6,12 @@ import { FiatContext } from '../../providers/fiat'
 import { FlowContext } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { WalletContext } from '../../providers/wallet'
-import { AspContext } from '../../providers/asp'
+import { OperatorContext } from '../../providers/operator'
 import { AssetsContext } from '../../providers/assets'
 import { Currencies, Tx, Unit } from '../../lib/types'
 import { MUTINYNET_DEPIX_ASSET_ID, MUTINYNET_USDT_ASSET_ID } from '../../lib/accountAssets'
 import {
-  mockAspContextValue,
+  mockOperatorContextValue,
   mockConfigContextValue,
   mockFiatContextValue,
   mockFlowContextValue,
@@ -218,8 +218,13 @@ describe('TransactionsList', () => {
     }
 
     render(
-      <AspContext.Provider
-        value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet' } } as any}
+      <OperatorContext.Provider
+        value={
+          {
+            ...mockOperatorContextValue,
+            operatorInfo: { ...mockOperatorContextValue.operatorInfo, network: 'mutinynet' },
+          } as any
+        }
       >
         <AssetsContext.Provider value={{ isRegistered: () => true } as any}>
           <NavigationContext.Provider value={mockNavigationContextValue}>
@@ -248,7 +253,7 @@ describe('TransactionsList', () => {
             </ConfigContext.Provider>
           </NavigationContext.Provider>
         </AssetsContext.Provider>
-      </AspContext.Provider>,
+      </OperatorContext.Provider>,
     )
 
     expect(screen.getByText('- €2,000.00')).toBeInTheDocument()
@@ -271,7 +276,7 @@ describe('TransactionsList', () => {
     }
 
     render(
-      <AspContext.Provider value={mockAspContextValue}>
+      <OperatorContext.Provider value={mockOperatorContextValue}>
         <AssetsContext.Provider value={{ isRegistered: () => true } as any}>
           <NavigationContext.Provider value={mockNavigationContextValue}>
             <ConfigContext.Provider
@@ -289,7 +294,7 @@ describe('TransactionsList', () => {
             </ConfigContext.Provider>
           </NavigationContext.Provider>
         </AssetsContext.Provider>
-      </AspContext.Provider>,
+      </OperatorContext.Provider>,
     )
 
     expect(screen.getByText('Exited')).toBeInTheDocument()
@@ -312,7 +317,7 @@ describe('TransactionsList', () => {
     }
 
     render(
-      <AspContext.Provider value={mockAspContextValue}>
+      <OperatorContext.Provider value={mockOperatorContextValue}>
         <AssetsContext.Provider value={{ isRegistered: () => true } as any}>
           <NavigationContext.Provider value={mockNavigationContextValue}>
             <ConfigContext.Provider
@@ -333,7 +338,7 @@ describe('TransactionsList', () => {
             </ConfigContext.Provider>
           </NavigationContext.Provider>
         </AssetsContext.Provider>
-      </AspContext.Provider>,
+      </OperatorContext.Provider>,
     )
 
     expect(screen.getByText('+ €1,600.00')).toBeInTheDocument()
@@ -526,10 +531,10 @@ describe('TransactionsList', () => {
     render(
       <NavigationContext.Provider value={mockNavigationContextValue}>
         <ConfigContext.Provider value={mockConfigContextValue}>
-          <AspContext.Provider
+          <OperatorContext.Provider
             value={{
-              ...mockAspContextValue,
-              aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet' },
+              ...mockOperatorContextValue,
+              operatorInfo: { ...mockOperatorContextValue.operatorInfo, network: 'mutinynet' },
             }}
           >
             <FiatContext.Provider value={fiatContextValue}>
@@ -539,7 +544,7 @@ describe('TransactionsList', () => {
                 </WalletContext.Provider>
               </FlowContext.Provider>
             </FiatContext.Provider>
-          </AspContext.Provider>
+          </OperatorContext.Provider>
         </ConfigContext.Provider>
       </NavigationContext.Provider>,
     )

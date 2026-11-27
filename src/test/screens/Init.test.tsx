@@ -1,12 +1,17 @@
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Init from '../../screens/Init/Init'
-import { AspContext } from '../../providers/asp'
+import { OperatorContext } from '../../providers/operator'
 import { FlowContext } from '../../providers/flow'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { WalletContext } from '../../providers/wallet'
 import { DevModeProvider } from '../../providers/devMode'
-import { mockAspContextValue, mockFlowContextValue, mockNavigationContextValue, mockWalletContextValue } from './mocks'
+import {
+  mockOperatorContextValue,
+  mockFlowContextValue,
+  mockNavigationContextValue,
+  mockWalletContextValue,
+} from './mocks'
 import { createPasskeyWallet, loginWithPasskey, PasskeyNotConfirmed, type PasskeyWallet } from '../../lib/passkey'
 import { translations } from '@/lib/i18n'
 
@@ -20,13 +25,13 @@ const tr = translations.en
 
 function withContexts(children: React.ReactNode) {
   return (
-    <AspContext.Provider value={mockAspContextValue as any}>
+    <OperatorContext.Provider value={mockOperatorContextValue as any}>
       <NavigationContext.Provider value={mockNavigationContextValue as any}>
         <FlowContext.Provider value={mockFlowContextValue as any}>
           <WalletContext.Provider value={mockWalletContextValue as any}>{children}</WalletContext.Provider>
         </FlowContext.Provider>
       </NavigationContext.Provider>
-    </AspContext.Provider>
+    </OperatorContext.Provider>
   )
 }
 
@@ -68,7 +73,7 @@ describe('Init screen — passkey wallets', () => {
     const updateWallet = vi.fn()
     const { unmount } = render(
       <DevModeProvider>
-        <AspContext.Provider value={mockAspContextValue as any}>
+        <OperatorContext.Provider value={mockOperatorContextValue as any}>
           <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate } as any}>
             <FlowContext.Provider value={{ ...mockFlowContextValue, setInitInfo } as any}>
               <WalletContext.Provider value={{ ...mockWalletContextValue, updateWallet } as any}>
@@ -76,7 +81,7 @@ describe('Init screen — passkey wallets', () => {
               </WalletContext.Provider>
             </FlowContext.Provider>
           </NavigationContext.Provider>
-        </AspContext.Provider>
+        </OperatorContext.Provider>
       </DevModeProvider>,
     )
     return { navigate, setInitInfo, updateWallet, unmount }

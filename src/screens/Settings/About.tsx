@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from 'react'
-import { AspContext } from '../../providers/asp'
-import { aspErrorText } from '../../lib/asp'
+import { OperatorContext } from '../../providers/operator'
+import { operatorErrorText } from '../../lib/operator'
 import Header from './Header'
 import Table, { TableData } from '../../components/Table'
 import Padded from '../../components/Padded'
@@ -13,25 +13,25 @@ import { ConfigContext } from '@/providers/config'
 import { useTranslation } from '../../providers/language'
 
 export default function About() {
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const { config } = useContext(ConfigContext)
   const { t } = useTranslation()
 
   const [error, setError] = useState(false)
 
   useEffect(() => {
-    setError(aspInfo.unreachable)
-  }, [aspInfo.unreachable])
+    setError(operatorInfo.unreachable)
+  }, [operatorInfo.unreachable])
 
   const data: TableData = [
-    [t('settings.serverUrl'), aspInfo.url],
-    [t('settings.serverPubkey'), aspInfo.signerPubkey],
-    [t('settings.forfeitAddress'), aspInfo.forfeitAddress],
-    [t('common.network'), aspInfo.network],
-    [t('settings.dust'), `${aspInfo.dust} sats`],
-    [t('settings.sessionDuration'), localizedDelta(Number(aspInfo.sessionDuration), t)],
-    [t('settings.boardingExitDelay'), localizedDelta(Number(aspInfo.boardingExitDelay), t)],
-    [t('settings.unilateralExitDelay'), localizedDelta(Number(aspInfo.unilateralExitDelay), t)],
+    [t('settings.serverUrl'), operatorInfo.url],
+    [t('settings.serverPubkey'), operatorInfo.signerPubkey],
+    [t('settings.forfeitAddress'), operatorInfo.forfeitAddress],
+    [t('common.network'), operatorInfo.network],
+    [t('settings.dust'), `${operatorInfo.dust} sats`],
+    [t('settings.sessionDuration'), localizedDelta(Number(operatorInfo.sessionDuration), t)],
+    [t('settings.boardingExitDelay'), localizedDelta(Number(operatorInfo.boardingExitDelay), t)],
+    [t('settings.unilateralExitDelay'), localizedDelta(Number(operatorInfo.unilateralExitDelay), t)],
     [t('settings.walletMode'), config.walletMode],
     [t('settings.gitCommitHash'), gitCommit],
   ]
@@ -44,7 +44,7 @@ export default function About() {
           <FlexCol>
             <ErrorMessage
               error={error}
-              text={aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))}
+              text={operatorErrorText(operatorInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))}
             />
             <Table data={data} variant='receipt' />
           </FlexCol>

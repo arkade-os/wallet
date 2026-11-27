@@ -1,9 +1,9 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Solvers from '../../../screens/Settings/Solvers'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { BackupContext } from '../../../providers/backup'
-import { mockAspContextValue, mockWalletContextValue } from '../mocks'
+import { mockOperatorContextValue, mockWalletContextValue } from '../mocks'
 import { WalletContext } from '../../../providers/wallet'
 import { readSolverCards } from '../../../lib/solverCards'
 import { prettyLongText } from '../../../lib/format'
@@ -100,8 +100,10 @@ function renderSolvers(
   }
 
   const tree = (swaps = ReactSwapsDefault.swaps) => (
-    <AspContext.Provider
-      value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network } } as any}
+    <OperatorContext.Provider
+      value={
+        { ...mockOperatorContextValue, operatorInfo: { ...mockOperatorContextValue.operatorInfo, network } } as any
+      }
     >
       <BackupContext.Provider value={backupContextValue as any}>
         <WalletContext.Provider value={{ ...mockWalletContextValue, ...wallet } as any}>
@@ -110,7 +112,7 @@ function renderSolvers(
           </SwapsContext.Provider>
         </WalletContext.Provider>
       </BackupContext.Provider>
-    </AspContext.Provider>
+    </OperatorContext.Provider>
   )
   const result = render(tree())
   if (view === 'cards') fireEvent.click(screen.getByRole('tab', { name: 'Cards' }))

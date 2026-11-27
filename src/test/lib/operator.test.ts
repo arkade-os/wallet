@@ -4,12 +4,12 @@ const { captureException } = vi.hoisted(() => ({ captureException: vi.fn() }))
 vi.mock('@sentry/react', () => ({ captureException }))
 
 // Keep the real SDK (so ArkError stays a real class for the instanceof check in
-// getAspInfo) and only override RestArkProvider to control what getInfo throws.
+// getOperatorInfo) and only override RestOperatorProvider to control what getInfo throws.
 vi.mock('@arkade-os/sdk', async (importOriginal) => {
   const actual = (await importOriginal()) as any
   return {
     ...actual,
-    RestArkProvider: class {
+    RestOperatorProvider: class {
       constructor(public url: string) {}
       async getInfo() {
         // arkd's real guard error reaches us WITHOUT metadata (empty details[]),
@@ -31,12 +31,12 @@ vi.mock('@arkade-os/sdk', async (importOriginal) => {
 import { ArkNote } from '@arkade-os/sdk'
 import {
   EXECUTOR_SETTLE_TIMEOUT_MS,
-  getAspInfo,
+  getOperatorInfo,
   getDisplayAddresses,
   ownAddress,
   getReceivingAddresses,
-  aspErrorText,
-  emptyAspInfo,
+  operatorErrorText,
+  emptyOperatorInfo,
   byExpiryAsc,
   collaborativeExitWithFees,
   getTxHistory,
@@ -46,7 +46,7 @@ import {
   planCollaborativeExit,
   redeemNotes,
   settleVtxos,
-} from '../../lib/asp'
+} from '../../lib/operator'
 import { saveTransactionActivityMetadata } from '../../lib/storage'
 import { walletFingerprint } from '../../lib/sentry'
 import fixtures from '../fixtures.json'
@@ -95,30 +95,30 @@ describe('byExpiryAsc', () => {
   })
 })
 
-describe('aspErrorText', () => {
+describe('operatorErrorText', () => {
   it('returns the update-required message when outdated', () => {
-    expect(aspErrorText({ ...emptyAspInfo, outdated: true, minBuildVersion: '0.9.10' }, 'x')).toBe(
+    expect(operatorErrorText({ ...emptyOperatorInfo, outdated: true, minBuildVersion: '0.9.10' }, 'x')).toBe(
       'Your wallet is outdated and needs to be updated to be compatible with the latest Arkade version.',
     )
   })
 })
 
-describe('getAspInfo', () => {
+describe('getOperatorInfo', () => {
   it('flags outdated (not just unreachable) on BUILD_VERSION_TOO_OLD', async () => {
-    const info = await getAspInfo('too-old.example.com')
+    const info = await getOperatorInfo('too-old.example.com')
     expect(info.unreachable).toBe(true)
     expect(info.outdated).toBe(true)
     expect(info.minBuildVersion).toBe('0.9.10')
   })
 
   it('extracts the min version from the message when metadata is absent', async () => {
-    const info = await getAspInfo('nometa.example.com')
+    const info = await getOperatorInfo('nometa.example.com')
     expect(info.outdated).toBe(true)
     expect(info.minBuildVersion).toBe('0.9.10')
   })
 
   it('flags unreachable but not outdated on a generic failure', async () => {
-    const info = await getAspInfo('down.example.com')
+    const info = await getOperatorInfo('down.example.com')
     expect(info.unreachable).toBe(true)
     expect(info.outdated).toBeFalsy()
   })

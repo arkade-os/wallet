@@ -15,12 +15,12 @@ import { extractError } from '../../../lib/error'
 import FlexCol from '../../../components/FlexCol'
 import { consoleError } from '../../../lib/logs'
 import { SettingsOptions } from '../../../lib/types'
-import { aspErrorText } from '../../../lib/asp'
-import { AspContext } from '../../../providers/asp'
+import { operatorErrorText } from '../../../lib/operator'
+import { OperatorContext } from '../../../providers/operator'
 import { useTranslation } from '../../../providers/language'
 
 export default function NotesForm() {
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const { showConfig, toggleShowConfig } = useContext(ConfigContext)
   const { setNoteInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
@@ -33,9 +33,11 @@ export default function NotesForm() {
 
   useEffect(() => {
     setError(
-      aspInfo.unreachable ? aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet')) : '',
+      operatorInfo.unreachable
+        ? operatorErrorText(operatorInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))
+        : '',
     )
-  }, [aspInfo.unreachable, aspInfo.outdated, t])
+  }, [operatorInfo.unreachable, operatorInfo.outdated, t])
 
   useEffect(() => {
     if (!note) return

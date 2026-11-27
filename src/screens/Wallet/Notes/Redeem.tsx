@@ -7,18 +7,18 @@ import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Button from '../../../components/Button'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { extractError } from '../../../lib/error'
-import { aspErrorText, redeemNotes } from '../../../lib/asp'
+import { operatorErrorText, redeemNotes } from '../../../lib/operator'
 import LoadingLogo from '../../../components/LoadingLogo'
 import Header from '../../../components/Header'
 import FlexCol from '../../../components/FlexCol'
 import { consoleError } from '../../../lib/logs'
 import { WalletContext } from '../../../providers/wallet'
 import Details, { DetailsProps } from '../../../components/Details'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { useTranslation } from '../../../providers/language'
 
 export default function NotesRedeem() {
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const { noteInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { svcWallet } = useContext(WalletContext)
@@ -32,11 +32,11 @@ export default function NotesRedeem() {
 
   useEffect(() => {
     setError(
-      aspInfo.unreachable
-        ? aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))
+      operatorInfo.unreachable
+        ? operatorErrorText(operatorInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))
         : (noteInfo.error ?? ''),
     )
-  }, [aspInfo.unreachable, aspInfo.outdated, noteInfo.error, t])
+  }, [operatorInfo.unreachable, operatorInfo.outdated, noteInfo.error, t])
 
   useEffect(() => {
     setButtonLabel(redeeming ? t('notes.redeeming') : defaultButtonLabel)

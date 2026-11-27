@@ -1,7 +1,7 @@
 import { ReactNode, createContext, useContext } from 'react'
 import type { IntentFeeConfig } from '@arkade-os/sdk'
 import { Vtxo } from '../lib/types'
-import { AspContext } from './asp'
+import { OperatorContext } from './operator'
 
 interface FeesContextProps {
   calcOffchainInputFee: (vtxo: Vtxo) => number
@@ -21,15 +21,15 @@ export const FeesContext = createContext<FeesContextProps>({
 })
 
 export const FeesProvider = ({ children }: { children: ReactNode }) => {
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
 
   /**
    * Calculates the offchain input fee for a given vtxo.
    * @returns
    */
   const calcOffchainInputFee = (): number => {
-    if (!aspInfo.fees?.intentFee?.offchainInput) return 0
-    return parseInt(aspInfo.fees?.intentFee?.offchainInput ?? '0', 10) // TODO
+    if (!operatorInfo.fees?.intentFee?.offchainInput) return 0
+    return parseInt(operatorInfo.fees?.intentFee?.offchainInput ?? '0', 10) // TODO
   }
 
   /**
@@ -37,8 +37,8 @@ export const FeesProvider = ({ children }: { children: ReactNode }) => {
    * @returns
    */
   const calcOffchainOutputFee = (): number => {
-    if (!aspInfo.fees?.intentFee?.offchainOutput) return 0
-    return parseInt(aspInfo.fees.intentFee.offchainOutput, 10)
+    if (!operatorInfo.fees?.intentFee?.offchainOutput) return 0
+    return parseInt(operatorInfo.fees.intentFee.offchainOutput, 10)
   }
 
   /**
@@ -46,8 +46,8 @@ export const FeesProvider = ({ children }: { children: ReactNode }) => {
    * @returns
    */
   const calcOnchainInputFee = (): number => {
-    if (!aspInfo.fees?.intentFee?.onchainInput) return 0
-    return parseInt(aspInfo.fees?.intentFee?.onchainInput ?? '0', 10) // TODO
+    if (!operatorInfo.fees?.intentFee?.onchainInput) return 0
+    return parseInt(operatorInfo.fees?.intentFee?.onchainInput ?? '0', 10) // TODO
   }
 
   /**
@@ -55,11 +55,11 @@ export const FeesProvider = ({ children }: { children: ReactNode }) => {
    * @returns
    */
   const calcOnchainOutputFee = (): number => {
-    if (!aspInfo.fees?.intentFee?.onchainOutput) return 0
-    return parseInt(aspInfo.fees?.intentFee?.onchainOutput ?? '0', 10) // TODO
+    if (!operatorInfo.fees?.intentFee?.onchainOutput) return 0
+    return parseInt(operatorInfo.fees?.intentFee?.onchainOutput ?? '0', 10) // TODO
   }
 
-  const intentFee = () => aspInfo.fees?.intentFee
+  const intentFee = () => operatorInfo.fees?.intentFee
 
   return (
     <FeesContext.Provider

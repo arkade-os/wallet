@@ -16,7 +16,7 @@ import SegmentedControl from '../../components/SegmentedControl'
 import { DevModeContext } from '../../providers/devMode'
 import { OnboardStaggerContainer, OnboardStaggerChild } from '../../components/OnboardLoadIn'
 import { deriveNostrKeyFromMnemonic } from '../../lib/mnemonic'
-import { AspContext } from '../../providers/asp'
+import { OperatorContext } from '../../providers/operator'
 import InputNsec from '../../components/InputNsec'
 import { getRecoveryWord, parseRecoveryInput } from '../../lib/recoveryInput'
 import { BackupContext } from '@/providers/backup'
@@ -42,7 +42,7 @@ export default function InitRestore() {
   const { setInitInfo } = useContext(FlowContext)
   const { devMode } = useContext(DevModeContext)
   const { restore } = useContext(BackupContext)
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const { t } = useTranslation()
 
   const buttonLabel = t('common.continue')
@@ -97,10 +97,10 @@ export default function InitRestore() {
         walletMode: ROTATION_TO_MODE[rotationChoice],
       })
       const isNet =
-        aspInfo.network !== 'testnet' &&
-        aspInfo.network !== 'mutinynet' &&
-        aspInfo.network !== 'signet' &&
-        aspInfo.network !== 'regtest'
+        operatorInfo.network !== 'testnet' &&
+        operatorInfo.network !== 'mutinynet' &&
+        operatorInfo.network !== 'signet' &&
+        operatorInfo.network !== 'regtest'
       seckey = deriveNostrKeyFromMnemonic(mnemonic, isNet)
     } else {
       setInitInfo({ privateKey, password: defaultPassword, restoring: true })

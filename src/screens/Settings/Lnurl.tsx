@@ -23,7 +23,7 @@ import { lnurlTokenRails, type LnurlTokenRail } from '../../lib/receive/lnurlTok
 import { prettyNumber } from '../../lib/format'
 import { consoleError } from '../../lib/logs'
 import { extractError } from '../../lib/error'
-import { ownAddress } from '../../lib/asp'
+import { ownAddress } from '../../lib/operator'
 import ErrorMessage from '../../components/Error'
 import { NameForm } from '../Wallet/Receive/LnurlRail'
 import type { AddressListEntry } from '@arkade-os/lnurl-client'

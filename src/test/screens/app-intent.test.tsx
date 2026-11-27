@@ -4,13 +4,13 @@ import { redirectToCallback, type AppIntentState } from '../../lib/appIntent'
 import AppIntentScreen from '../../screens/AppIntent/Index'
 import SendSuccess from '../../screens/Wallet/Send/Success'
 import { FlowContext } from '../../providers/flow'
-import { AspContext } from '../../providers/asp'
+import { OperatorContext } from '../../providers/operator'
 import { ConfigContext } from '../../providers/config'
 import { FiatContext } from '../../providers/fiat'
 import { NavigationContext, Pages } from '../../providers/navigation'
 import { WalletContext } from '../../providers/wallet'
 import {
-  mockAspContextValue,
+  mockOperatorContextValue,
   mockConfigContextValue,
   mockFiatContextValue,
   mockFlowContextValue,
@@ -62,7 +62,7 @@ const renderSendSuccess = (appIntent: AppIntentState) => {
     <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate }}>
       <ConfigContext.Provider value={mockConfigContextValue}>
         <FiatContext.Provider value={mockFiatContextValue}>
-          <AspContext.Provider value={mockAspContextValue}>
+          <OperatorContext.Provider value={mockOperatorContextValue}>
             <FlowContext.Provider
               value={
                 {
@@ -77,7 +77,7 @@ const renderSendSuccess = (appIntent: AppIntentState) => {
                 <SendSuccess />
               </WalletContext.Provider>
             </FlowContext.Provider>
-          </AspContext.Provider>
+          </OperatorContext.Provider>
         </FiatContext.Provider>
       </ConfigContext.Provider>
     </NavigationContext.Provider>,

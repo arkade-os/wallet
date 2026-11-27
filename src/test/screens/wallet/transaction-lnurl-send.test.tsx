@@ -1,7 +1,7 @@
 import { act, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Transaction from '../../../screens/Wallet/Transaction'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { FlowContext } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import { NavigationContext } from '../../../providers/navigation'
@@ -11,7 +11,7 @@ import { mergeSentPayment, type SentPayment } from '@arkade-os/lnurl-client/arka
 import { LNURL_SENDS_STORAGE_KEY } from '../../../lib/storageKeys'
 import { markLnurlReceiverConfirmed } from '../../../lib/lnurlSends'
 import {
-  mockAspContextValue,
+  mockOperatorContextValue,
   mockFlowContextValue,
   mockLimitsContextValue,
   mockNavigationContextValue,
@@ -48,7 +48,7 @@ const recordSent = (over: Partial<SentPayment> = {}): void => {
 const renderReceipt = (tx: Tx) =>
   render(
     <NavigationContext.Provider value={mockNavigationContextValue}>
-      <AspContext.Provider value={mockAspContextValue}>
+      <OperatorContext.Provider value={mockOperatorContextValue}>
         <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: tx }}>
           <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [tx] }}>
             <LimitsContext.Provider value={mockLimitsContextValue}>
@@ -56,7 +56,7 @@ const renderReceipt = (tx: Tx) =>
             </LimitsContext.Provider>
           </WalletContext.Provider>
         </FlowContext.Provider>
-      </AspContext.Provider>
+      </OperatorContext.Provider>
     </NavigationContext.Provider>,
   )
 

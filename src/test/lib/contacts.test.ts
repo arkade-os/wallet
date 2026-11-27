@@ -140,8 +140,8 @@ describe('contacts', () => {
   })
 
   it('shows the full address for an unnamed contact', () => {
-    expect(contactDisplayName({ address: 'user@asp.example.com', sendCount: 0, lastSentAt: 0 })).toBe(
-      'user@asp.example.com',
+    expect(contactDisplayName({ address: 'user@pay.example.com', sendCount: 0, lastSentAt: 0 })).toBe(
+      'user@pay.example.com',
     )
   })
 

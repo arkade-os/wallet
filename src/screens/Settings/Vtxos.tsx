@@ -15,9 +15,9 @@ import { extractError } from '../../lib/error'
 import ErrorMessage from '../../components/Error'
 import Info from '../../components/Info'
 import LoadingIcon from '../../icons/Loading'
-import { AspContext } from '../../providers/asp'
+import { OperatorContext } from '../../providers/operator'
 import Reminder from '../../components/Reminder'
-import { aspErrorText, getInputsToSettle, settleVtxos } from '../../lib/asp'
+import { operatorErrorText, getInputsToSettle, settleVtxos } from '../../lib/operator'
 import LoadingLogo from '../../components/LoadingLogo'
 import { LimitsContext } from '../../providers/limits'
 import { EmptyCoinsList } from '../../components/Empty'
@@ -39,7 +39,7 @@ import ExternalLinkIcon from '../../icons/ExternalLink'
 import { useTranslation } from '../../providers/language'
 
 export default function Vtxos() {
-  const { aspInfo, calcBestMarketHour } = useContext(AspContext)
+  const { operatorInfo, calcBestMarketHour } = useContext(OperatorContext)
   const { config } = useContext(ConfigContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { assetMetadataCache, reloadWallet, vtxos, vtxoManager, wallet, svcWallet } = useContext(WalletContext)
@@ -64,12 +64,14 @@ export default function Vtxos() {
   const [hasVtxosToSettle, setHasVtxosToSettle] = useState(false)
   const [hasBoardingUtxosToSettle, setHasBoardingUtxosToSettle] = useState(false)
 
-  // Update error state if aspInfo.unreachable changes
+  // Update error state if operatorInfo.unreachable changes
   useEffect(() => {
     setError(
-      aspInfo.unreachable ? aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet')) : '',
+      operatorInfo.unreachable
+        ? operatorErrorText(operatorInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))
+        : '',
     )
-  }, [aspInfo.unreachable, aspInfo.outdated, t])
+  }, [operatorInfo.unreachable, operatorInfo.outdated, t])
 
   // Update label based on rolling over state and dust status
   useEffect(() => {
@@ -100,7 +102,7 @@ export default function Vtxos() {
 
   // Fetch all VTXOs and all UTXOs
   useEffect(() => {
-    if (!aspInfo || !svcWallet) return
+    if (!operatorInfo || !svcWallet) return
     // get all VTXOs including recoverable ones
     const fetchData = async () => {
       try {
@@ -122,11 +124,11 @@ export default function Vtxos() {
       }
     }
     fetchData()
-  }, [aspInfo, vtxos, svcWallet, wallet.thresholdMs, t])
+  }, [operatorInfo, vtxos, svcWallet, wallet.thresholdMs, t])
 
   // Fetch inputs to settle
   useEffect(() => {
-    if (!aspInfo || !svcWallet || !vtxoManager) return
+    if (!operatorInfo || !svcWallet || !vtxoManager) return
     let cancelled = false
     const fetchInputs = async () => {
       try {
@@ -136,7 +138,7 @@ export default function Vtxos() {
         setHasInputsToSettle(inputs.length > 0)
         setHasVtxosToSettle(vtxos.length > 0)
         const amount = inputs.reduce((a, v) => a + v.value, 0) || 0
-        setAboveDust(amount > aspInfo.dust)
+        setAboveDust(amount > operatorInfo.dust)
       } catch (err) {
         if (cancelled) return
         consoleError(err)
@@ -146,7 +148,7 @@ export default function Vtxos() {
     return () => {
       cancelled = true
     }
-  }, [allUtxos, allVtxos, aspInfo, svcWallet, vtxoManager, wallet.thresholdMs])
+  }, [allUtxos, allVtxos, operatorInfo, svcWallet, vtxoManager, wallet.thresholdMs])
 
   // Automatically reset `success` after 5s, with cleanup on unmount or re-run
   useEffect(() => {
@@ -163,7 +165,7 @@ export default function Vtxos() {
   const handleRollover = async () => {
     try {
       setRollingover(true)
-      await settleVtxos(svcWallet, vtxoManager, aspInfo.dust, wallet.thresholdMs, aspInfo.fees?.intentFee)
+      await settleVtxos(svcWallet, vtxoManager, operatorInfo.dust, wallet.thresholdMs, operatorInfo.fees?.intentFee)
       await reloadWallet()
       setRollingover(false)
       setSuccess(true)
@@ -300,7 +302,7 @@ export default function Vtxos() {
     const expiry = expiryMs ? localizedAgo(expiryMs, t) : t('common.unknown')
     const tags = (
       <FlexRow centered>
-        {isSubdust(vtxo, aspInfo.dust)
+        {isSubdust(vtxo, operatorInfo.dust)
           ? Tags.subdust
           : canRecoverOnchain(vtxo, now)
             ? Tags.recoverable
@@ -324,12 +326,12 @@ export default function Vtxos() {
   }
 
   const UtxoLine = ({ utxo }: { utxo: ExtendedCoin }) => {
-    const expiration = Number(aspInfo.boardingExitDelay)
+    const expiration = Number(operatorInfo.boardingExitDelay)
     const amount = config.showBalance ? prettyNumber(utxo.value) : prettyHide(utxo.value)
     const expiry = utxo.status.block_time ? localizedAgo(utxo.status.block_time + expiration, t) : ''
     const tags = (
       <FlexRow centered>
-        {!utxo.status.block_time ? Tags.unconfirmed : isSubdust(utxo, aspInfo.dust) ? Tags.subdust : null}
+        {!utxo.status.block_time ? Tags.unconfirmed : isSubdust(utxo, operatorInfo.dust) ? Tags.subdust : null}
       </FlexRow>
     )
     return <CoinLine amount={`${amount} ${t('common.sats')}`} expiry={expiry} onchain tags={tags} txid={utxo.txid} />

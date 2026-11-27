@@ -3,10 +3,10 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { OpenRfqAuction, Outcome, Quote, Swap, SwapUpdate } from '@arkade-os/swap'
-import { AspContext } from '../../providers/asp'
+import { OperatorContext } from '../../providers/operator'
 import { WalletContext } from '../../providers/wallet'
 import { SwapsContext, SwapsProvider } from '../../providers/swaps'
-import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
+import { mockOperatorContextValue, mockWalletContextValue } from '../screens/mocks'
 import { MUTINYNET_USDT_ASSET_ID } from '../../lib/accountAssets'
 import { createSendRouter } from '../../lib/sendRouter'
 import { makeSwapClient } from '../../lib/swapClient'
@@ -63,8 +63,8 @@ vi.mock('../../lib/swapClient', async (importOriginal) => ({
   })),
 }))
 
-vi.mock('../../lib/asp', async (original) => ({
-  ...(await original<typeof import('../../lib/asp')>()),
+vi.mock('../../lib/operator', async (original) => ({
+  ...(await original<typeof import('../../lib/operator')>()),
   collaborativeExitWithFees: offboard,
 }))
 vi.mock('../../lib/claimFee', async (original) => ({
@@ -208,11 +208,11 @@ function Harness({ tab = 'a' }: { tab?: string }) {
 let reloadWallet = vi.fn()
 
 const wrap = (children: React.ReactNode, network = 'mutinynet') => (
-  <AspContext.Provider
+  <OperatorContext.Provider
     value={
       {
-        ...mockAspContextValue,
-        aspInfo: { ...mockAspContextValue.aspInfo, network, url: 'http://ark.local' },
+        ...mockOperatorContextValue,
+        operatorInfo: { ...mockOperatorContextValue.operatorInfo, network, url: 'http://ark.local' },
       } as never
     }
   >
@@ -230,7 +230,7 @@ const wrap = (children: React.ReactNode, network = 'mutinynet') => (
     >
       {children}
     </WalletContext.Provider>
-  </AspContext.Provider>
+  </OperatorContext.Provider>
 )
 
 const renderProvider = () =>

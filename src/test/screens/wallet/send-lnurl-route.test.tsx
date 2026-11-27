@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeHandle } from '@arkade-os/sdk'
 import type { VerifyExpectation } from '@arkade-os/lnurl-client'
 import SendDetails from '../../../screens/Wallet/Send/Details'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { ConfigContext } from '../../../providers/config'
 import { FeesContext } from '../../../providers/fees'
 import { FiatContext } from '../../../providers/fiat'
@@ -16,7 +16,7 @@ import { Language } from '../../../lib/types'
 import { LNURL_ARKADE_RAIL, LNURL_LIGHTNING_RAIL } from '../../../lib/sendRouter'
 import { lnurlSends } from '../../../lib/lnurlSends'
 import {
-  mockAspContextValue,
+  mockOperatorContextValue,
   mockConfigContextValue,
   mockFiatContextValue,
   mockFlowContextValue,
@@ -74,7 +74,7 @@ const renderSign = (sendInfo: SendInfo, limits = mockLimitsContextValue, languag
       <NavigationContext.Provider value={mockNavigationContextValue}>
         <ConfigContext.Provider value={mockConfigContextValue}>
           <FiatContext.Provider value={mockFiatContextValue}>
-            <AspContext.Provider value={mockAspContextValue}>
+            <OperatorContext.Provider value={mockOperatorContextValue}>
               <FeesContext.Provider value={{ calcOnchainOutputFee: () => 500 } as never}>
                 <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo, setSendInfo }}>
                   <WalletContext.Provider
@@ -86,7 +86,7 @@ const renderSign = (sendInfo: SendInfo, limits = mockLimitsContextValue, languag
                   </WalletContext.Provider>
                 </FlowContext.Provider>
               </FeesContext.Provider>
-            </AspContext.Provider>
+            </OperatorContext.Provider>
           </FiatContext.Provider>
         </ConfigContext.Provider>
       </NavigationContext.Provider>

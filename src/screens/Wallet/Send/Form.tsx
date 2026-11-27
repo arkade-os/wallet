@@ -12,7 +12,7 @@ import {
   isURLWithLightningQueryString,
   haveSameServerPubKey,
 } from '../../../lib/address'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { isArkNote } from '../../../lib/arknote'
 import InputAmount, { type InputAmountMode } from '../../../components/InputAmount'
 import InputAddress from '../../../components/InputAddress'
@@ -38,7 +38,7 @@ import Scanner from '../../../components/Scanner'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { consoleError } from '../../../lib/logs'
 import { Addresses, AssetOption, Themes, Unit } from '../../../lib/types'
-import { aspErrorText, getReceivingAddresses } from '../../../lib/asp'
+import { operatorErrorText, getReceivingAddresses } from '../../../lib/operator'
 import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
@@ -154,12 +154,12 @@ export const brantaCard = (result: VerifyResult): { payment: Payment; verifyUrl?
 }
 
 function AssetIcon({ asset }: { asset: AssetOption | null }) {
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const { isVerifiedAsset } = useContext(WalletContext)
   // official token logos are pinned to verified asset IDs, not self-reported
   // tickers; designated assets wear their currency account's flag
   const verified = Boolean(asset) && isVerifiedAsset(asset!.assetId)
-  const currency = verified ? designatedAccountCurrency(aspInfo.network, asset!.assetId) : undefined
+  const currency = verified ? designatedAccountCurrency(operatorInfo.network, asset!.assetId) : undefined
   const tokenTicker = !asset
     ? 'BTC'
     : currency
@@ -188,7 +188,7 @@ function AssetIcon({ asset }: { asset: AssetOption | null }) {
 }
 
 export default function SendForm() {
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const { config, effectiveTheme, useFiat } = useContext(ConfigContext)
   const { calcOnchainOutputFee } = useContext(FeesContext)
   const { toFiat, fromFiat, fiatDecimals } = useContext(FiatContext)
@@ -286,8 +286,8 @@ export default function SendForm() {
     const str = typeof input === 'string' ? input : extractError(input)
     setError(
       str === ''
-        ? aspInfo.unreachable
-          ? aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))
+        ? operatorInfo.unreachable
+          ? operatorErrorText(operatorInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))
           : ''
         : str,
     )
@@ -736,18 +736,18 @@ export default function SendForm() {
 
   // manage server unreachable error
   useEffect(() => {
-    const errTxt = aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))
-    if (!aspInfo.unreachable) {
+    const errTxt = operatorErrorText(operatorInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))
+    if (!operatorInfo.unreachable) {
       // Server reachable again: clear either unavailable variant we may have
       // shown (generic unreachable or the outdated-client message) without
       // clobbering unrelated errors.
-      const outdatedTxt = aspErrorText({ ...aspInfo, outdated: true }, errTxt, t('errors.outdatedWallet'))
+      const outdatedTxt = operatorErrorText({ ...operatorInfo, outdated: true }, errTxt, t('errors.outdatedWallet'))
       setError((prev) => (prev === errTxt || prev === outdatedTxt ? '' : prev))
       return
     }
     setError(errTxt)
     setLabel(t('send.serverUnreachable'))
-  }, [aspInfo.unreachable, aspInfo.outdated, t])
+  }, [operatorInfo.unreachable, operatorInfo.outdated, t])
 
   // proceed to next step
   useEffect(() => {
@@ -764,7 +764,7 @@ export default function SendForm() {
       if (!svcWallet) return handleError('Wallet not ready')
       // For the refusal message only — the rail ranks off the client's own
       // snapshot; a second read let a cold cache throw on the error path.
-      const markets = await discoverMarkets(aspInfo.network as NetworkName)
+      const markets = await discoverMarkets(operatorInfo.network as NetworkName)
       const router = await sendRouter()
       const options = await router.options(lnSendRequest(sendInfo.invoice!, sendInfo.satoshis))
       const route = options.find((option) => option.railId === LIGHTNING_RAIL)
@@ -772,7 +772,11 @@ export default function SendForm() {
         return handleError(
           lnSendRefusal(
             markets.filter((market) =>
-              isSolverEnabled(market, marketCorridor(market, 'base') === 'arkade' ? 'base' : 'quote', aspInfo.network),
+              isSolverEnabled(
+                market,
+                marketCorridor(market, 'base') === 'arkade' ? 'base' : 'quote',
+                operatorInfo.network,
+              ),
             ),
             sendInfo.satoshis,
           ),
@@ -1079,7 +1083,7 @@ export default function SendForm() {
     activeAsset &&
     assetAmt > BigInt(0) &&
     assetAmt < activeAsset.balance &&
-    availableBalance < 2 * Number(aspInfo.dust)
+    availableBalance < 2 * Number(operatorInfo.dust)
       ? t('send.partialSendError')
       : ''
 
@@ -1088,7 +1092,7 @@ export default function SendForm() {
       (activeAsset ? assetAmt > activeAsset.balance : true) ||
       Boolean(recipientError) ||
       Boolean(carrierError) ||
-      aspInfo.unreachable ||
+      operatorInfo.unreachable ||
       Boolean(error) ||
       processing
     : !((address || arkAddress || lnUrl || invoice) && satoshis && satoshis > 0) ||
@@ -1100,7 +1104,7 @@ export default function SendForm() {
       amountIsAboveMaxLimit(satoshis) ||
       amountIsBelowMinLimit(satoshis) ||
       satoshis > liquidBalance ||
-      aspInfo.unreachable ||
+      operatorInfo.unreachable ||
       Boolean(error) ||
       satoshis < 1 ||
       processing
@@ -1113,7 +1117,7 @@ export default function SendForm() {
   // with the amounts on the right, and long asset names collide with the
   // balance column on narrow screens
   const assetLabelFor = (asset: AssetOption) =>
-    verifiedDesignatedCurrency(aspInfo.network, asset.assetId, isVerifiedAsset) ?? asset.ticker
+    verifiedDesignatedCurrency(operatorInfo.network, asset.assetId, isVerifiedAsset) ?? asset.ticker
   const selectedAssetLabel = activeAsset ? assetLabelFor(activeAsset) : t('send.bitcoin')
   const selectedAssetBalance = activeAsset
     ? t('send.available', {
@@ -1376,7 +1380,7 @@ export default function SendForm() {
         <FlexCol gap='1rem'>
           <Text bold>{t('send.balanceReserve')}</Text>
           <Text color='neutral-500' small wrap>
-            {t('send.balanceReserveText', { dust: aspInfo.dust.toString(), max: prettyNumber(liquidBalance) })}
+            {t('send.balanceReserveText', { dust: operatorInfo.dust.toString(), max: prettyNumber(liquidBalance) })}
           </Text>
           <FlexCol gap='0.5rem'>
             <Button onClick={confirmSendAll} label={t('send.sendMax')} />

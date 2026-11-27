@@ -2,10 +2,10 @@ import { useContext, useState } from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { OpenRfqAuction, OpenRfqOffer, Quote, Swap } from '@arkade-os/swap'
-import { AspContext } from '../../providers/asp'
+import { OperatorContext } from '../../providers/operator'
 import { WalletContext } from '../../providers/wallet'
 import { SwapsContext, SwapsProvider } from '../../providers/swaps'
-import { mockAspContextValue, mockWalletContextValue } from '../screens/mocks'
+import { mockOperatorContextValue, mockWalletContextValue } from '../screens/mocks'
 import * as lnSwap from '../../lib/lnSwap'
 import * as constants from '../../lib/constants'
 import { saveSolverCards } from '../../lib/solverCards'
@@ -209,8 +209,8 @@ function Harness() {
   )
 }
 
-const providerTree = (wallet = {}, children = <Harness />, asp = mockAspContextValue) => (
-  <AspContext.Provider value={asp}>
+const providerTree = (wallet = {}, children = <Harness />, operator = mockOperatorContextValue) => (
+  <OperatorContext.Provider value={operator}>
     <WalletContext.Provider
       value={
         {
@@ -224,7 +224,7 @@ const providerTree = (wallet = {}, children = <Harness />, asp = mockAspContextV
     >
       <SwapsProvider>{children}</SwapsProvider>
     </WalletContext.Provider>
-  </AspContext.Provider>
+  </OperatorContext.Provider>
 )
 
 const renderProvider = (wallet = {}, children = <Harness />) => render(providerTree(wallet, children))
@@ -291,8 +291,8 @@ describe('SwapsProvider', () => {
     act(() => publish[0]([btcUsdt]))
     view.rerender(
       providerTree({}, <Harness />, {
-        ...mockAspContextValue,
-        aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet' },
+        ...mockOperatorContextValue,
+        operatorInfo: { ...mockOperatorContextValue.operatorInfo, network: 'mutinynet' },
       }),
     )
     expect(screen.getByTestId('discovery-ready')).toHaveTextContent('false')
@@ -641,7 +641,7 @@ describe('SwapsProvider', () => {
       min_quote_amount: '1000',
       max_quote_amount: '2000',
     }) as DiscoveredMarket
-    const network = mockAspContextValue.aspInfo.network
+    const network = mockOperatorContextValue.operatorInfo.network
     saveSolverRouting(network, solverDirectionKey(wide, operation === 'send' ? 'base' : 'quote', network), {
       disabled: [solverId(wide, network)],
     })

@@ -20,10 +20,10 @@ import InputContainer from '../../components/InputContainer'
 import SheetModal from '../../components/SheetModal'
 import VtxosIcon from '../../icons/Vtxos'
 import CheckMarkIcon from '../../icons/CheckMark'
-import { AspContext } from '../../providers/asp'
+import { OperatorContext } from '../../providers/operator'
 import Reminder from '../../components/Reminder'
 import { LimitsContext } from '../../providers/limits'
-import { getInputsToSettle } from '../../lib/asp'
+import { getInputsToSettle } from '../../lib/operator'
 import SwapTransactionSummary from '../../components/SwapTransactionSummary'
 import {
   formatSwapAssetAmount,
@@ -59,7 +59,7 @@ export default function Transaction() {
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { txInfo } = useContext(FlowContext)
   const { cancelSwap, recoverSwap, swaps } = useContext(SwapsContext)
-  const { aspInfo, calcBestMarketHour } = useContext(AspContext)
+  const { operatorInfo, calcBestMarketHour } = useContext(OperatorContext)
   const { assetMetadataCache, isVerifiedAsset, settlePreconfirmed, vtxos, vtxoManager, wallet, svcWallet } =
     useContext(WalletContext)
   const { language, t } = useTranslation()
@@ -100,7 +100,7 @@ export default function Transaction() {
   const exitTx = tx?.type === 'exit'
   const boardingTx = Boolean(tx?.boardingTxid)
   const defaultButtonLabel = boardingTx ? t('transaction.completeBoarding') : t('transaction.settleTransaction')
-  const boardingExitDelay = Number(aspInfo?.boardingExitDelay || 0)
+  const boardingExitDelay = Number(operatorInfo?.boardingExitDelay || 0)
   const unconfirmedBoardingTx = boardingTx && !tx?.createdAt
   const expiredBoardingTx =
     !tx?.settled && boardingTx && tx?.createdAt && Date.now() / 1000 - tx?.createdAt > boardingExitDelay
@@ -146,13 +146,13 @@ export default function Transaction() {
   }, [wallet.nextRollover])
 
   useEffect(() => {
-    if (!aspInfo || !svcWallet || !vtxoManager) return
+    if (!operatorInfo || !svcWallet || !vtxoManager) return
     getInputsToSettle(svcWallet, vtxoManager, wallet.thresholdMs).then(({ inputs }) => {
       setHasInputsToSettle(inputs.length > 0)
       const totalAmount = inputs.reduce((a, v) => a + v.value, 0) || 0
-      setAmountAboveDust(totalAmount > aspInfo.dust)
+      setAmountAboveDust(totalAmount > operatorInfo.dust)
     })
-  }, [aspInfo, vtxos, svcWallet, vtxoManager, wallet.thresholdMs])
+  }, [operatorInfo, vtxos, svcWallet, vtxoManager, wallet.thresholdMs])
 
   const handleSettle = async () => {
     setError('')

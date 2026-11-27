@@ -5,8 +5,8 @@ import { PasskeyCancelled, PrfUnavailable, type ServiceWorkerWalletMode } from '
 import Button from '../../components/Button'
 import ButtonsOnBottom from '../../components/ButtonsOnBottom'
 import { NavigationContext, Pages } from '../../providers/navigation'
-import { AspContext } from '../../providers/asp'
-import { aspErrorText } from '../../lib/asp'
+import { OperatorContext } from '../../providers/operator'
+import { operatorErrorText } from '../../lib/operator'
 import ErrorMessage from '../../components/Error'
 import { FlowContext } from '../../providers/flow'
 import Content from '../../components/Content'
@@ -59,7 +59,7 @@ function BulletPoint({ icon, text }: { icon: ReactElement; text: string }) {
 }
 
 export default function Init() {
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const { setInitInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
   const { authState, wallet } = useContext(WalletContext)
@@ -90,15 +90,15 @@ export default function Init() {
     setSunriseVisible(true)
   }, [])
 
-  const aspReady = !!aspInfo.signerPubkey || aspInfo.unreachable
+  const operatorReady = !!operatorInfo.signerPubkey || operatorInfo.unreachable
 
   useEffect(() => {
     if (wallet.pubkey && authState === 'authenticated') navigate(Pages.Wallet)
   }, [wallet.pubkey, authState])
 
   useEffect(() => {
-    setError(aspInfo.unreachable)
-  }, [aspInfo.unreachable])
+    setError(operatorInfo.unreachable)
+  }, [operatorInfo.unreachable])
 
   const createWallet = (mode: ServiceWorkerWalletMode) => {
     abandonPasskeyAttempt()
@@ -151,7 +151,7 @@ export default function Init() {
     setPasskeyStep('waiting')
     const attempt = ++passkeyAttempt.current
     try {
-      const made = await createPasskeyWallet(isMainnet(aspInfo.network))
+      const made = await createPasskeyWallet(isMainnet(operatorInfo.network))
       if (attempt !== passkeyAttempt.current) return
       if (made.prf) return finishPasskeyWallet(made)
       // Never fall back silently: this passkey can't restore the wallet anywhere else.
@@ -173,7 +173,7 @@ export default function Init() {
     setPasskeyError('')
     const attempt = ++passkeyAttempt.current
     try {
-      const found = await loginWithPasskey(isMainnet(aspInfo.network))
+      const found = await loginWithPasskey(isMainnet(operatorInfo.network))
       if (attempt !== passkeyAttempt.current) return
       const { passkeyId, passkeyRpId } = found
       setInitInfo({
@@ -303,7 +303,11 @@ export default function Init() {
                 <OnboardStaggerChild>
                   <ErrorMessage
                     error={error}
-                    text={aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))}
+                    text={operatorErrorText(
+                      operatorInfo,
+                      t('init.arkadeServerUnreachable'),
+                      t('errors.outdatedWallet'),
+                    )}
                   />
                 </OnboardStaggerChild>
               </motion.div>
@@ -314,7 +318,7 @@ export default function Init() {
       {isBiometricsSupported() && showPasskeyUI ? (
         <ButtonsOnBottom>
           <Button
-            disabled={error || !aspReady}
+            disabled={error || !operatorReady}
             onClick={() => setPasskeyStep('intro')}
             label={t('init.createWithPasskey')}
           />
@@ -338,7 +342,7 @@ export default function Init() {
         </ButtonsOnBottom>
       ) : (
         <ButtonsOnBottom>
-          <Button disabled={error || !aspReady} onClick={handleNewWallet} label={t('init.createWallet')} />
+          <Button disabled={error || !operatorReady} onClick={handleNewWallet} label={t('init.createWallet')} />
           <Button disabled={error} onClick={handleOldWallet} label={t('init.restoreWallet')} secondary />
           {isBiometricsSupported() ? (
             <div style={{ padding: '1rem 0' }}>

@@ -3,7 +3,7 @@ import './tokens.css'
 import './app.css'
 import './index.css'
 import App from './App'
-import { AspProvider } from './providers/asp'
+import { OperatorProvider } from './providers/operator'
 import { ConfigProvider } from './providers/config'
 import { FiatProvider } from './providers/fiat'
 import { FlowProvider } from './providers/flow'
@@ -53,7 +53,7 @@ root.render(
       <ConfigProvider>
         <LanguageProvider>
           <BackupProvider>
-            <AspProvider>
+            <OperatorProvider>
               <AssetsProvider>
                 <NotificationsProvider>
                   <FiatProvider>
@@ -81,7 +81,7 @@ root.render(
                   </FiatProvider>
                 </NotificationsProvider>
               </AssetsProvider>
-            </AspProvider>
+            </OperatorProvider>
           </BackupProvider>
         </LanguageProvider>
       </ConfigProvider>

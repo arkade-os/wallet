@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import SendForm from '../../../screens/Wallet/Send/Form'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { ConfigContext } from '../../../providers/config'
 import { FeesContext } from '../../../providers/fees'
 import { FiatContext } from '../../../providers/fiat'
@@ -14,7 +14,7 @@ import { WalletContext } from '../../../providers/wallet'
 import fixtures from '../../fixtures.json'
 import { decodeInvoice } from '../../../lib/bolt11'
 import {
-  mockAspContextValue,
+  mockOperatorContextValue,
   mockConfigContextValue,
   mockFiatContextValue,
   mockFlowContextValue,
@@ -56,7 +56,7 @@ const swaps = { sendRouter: async () => ({ options: async () => [] }) }
 const renderForm = () =>
   render(
     <NavigationContext.Provider value={mockNavigationContextValue}>
-      <AspContext.Provider value={mockAspContextValue}>
+      <OperatorContext.Provider value={mockOperatorContextValue}>
         <ConfigContext.Provider value={mockConfigContextValue as never}>
           <FiatContext.Provider value={rate as never}>
             <OptionsContext.Provider value={mockOptionsContextValue as never}>
@@ -83,7 +83,7 @@ const renderForm = () =>
             </OptionsContext.Provider>
           </FiatContext.Provider>
         </ConfigContext.Provider>
-      </AspContext.Provider>
+      </OperatorContext.Provider>
     </NavigationContext.Provider>,
   )
 

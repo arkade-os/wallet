@@ -5,7 +5,7 @@ import { useState, type Dispatch, type ReactNode, type SetStateAction } from 're
 import { encodeLnurl } from '@arkade-os/lnurl-client/arkade'
 import { FlowContext, type RecvInfo } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { WalletContext } from '../../../providers/wallet'
 import { NavigationContext } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
@@ -16,7 +16,7 @@ import { BackupContext } from '../../../providers/backup'
 import { ToastProvider } from '../../../components/Toast'
 import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
 import {
-  mockAspContextValue,
+  mockOperatorContextValue,
   mockConfigContextValue,
   mockFiatContextValue,
   mockFlowContextValue,
@@ -121,7 +121,7 @@ const receiveTree = (
 ) => (
   <ToastProvider>
     <NavigationContext.Provider value={mockNavigationContextValue}>
-      <AspContext.Provider value={mockAspContextValue as never}>
+      <OperatorContext.Provider value={mockOperatorContextValue as never}>
         <ConfigContext.Provider
           value={
             {
@@ -171,7 +171,7 @@ const receiveTree = (
             </NotificationsContext.Provider>
           </FiatContext.Provider>
         </ConfigContext.Provider>
-      </AspContext.Provider>
+      </OperatorContext.Provider>
     </NavigationContext.Provider>
   </ToastProvider>
 )

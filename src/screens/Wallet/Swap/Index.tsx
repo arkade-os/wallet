@@ -28,7 +28,7 @@ import { BTC_ASSET_ID, findMarket, l1ScriptForAddress, validatePlan } from '@ark
 import { marketLegId, preFeeDisplayRate } from '../../../lib/swapMarkets'
 import { type AssetSwapQuoteSnapshot } from '../../../lib/swapRepository'
 import { Currencies, Unit } from '../../../lib/types'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { SwapsContext } from '../../../providers/swaps'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
@@ -96,7 +96,7 @@ const validAssetDecimals = (value: unknown): value is number =>
   typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 36
 
 export default function WalletSwap() {
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const {
     quoteExchange,
     acceptSwapQuote,
@@ -113,7 +113,7 @@ export default function WalletSwap() {
   const { rows } = usePortfolioFiat()
   const prefersReduced = useReducedMotion()
   const { t } = useTranslation()
-  const solverNetwork = isNetwork(aspInfo.network) ? aspInfo.network : undefined
+  const solverNetwork = isNetwork(operatorInfo.network) ? operatorInfo.network : undefined
 
   const btcUnit = normalizeBitcoinUnit(config.unit)
   const swapAssets = useMemo<SwapAsset[]>(() => {
@@ -168,7 +168,7 @@ export default function WalletSwap() {
       const cachedTicker = typeof cached?.ticker === 'string' && cached.ticker.trim() ? cached.ticker.trim() : undefined
       // spendable, not owned: the composer offers this as a max
       const spendable = availableAssetBalances.find((balance) => balance.assetId === asset.id)
-      const designatedCurrency = verifiedDesignatedCurrency(aspInfo.network, asset.id, isVerifiedAsset)
+      const designatedCurrency = verifiedDesignatedCurrency(operatorInfo.network, asset.id, isVerifiedAsset)
       return {
         assetId: asset.id,
         name: row?.name ?? designatedCurrency ?? cachedName ?? asset.name,
@@ -189,8 +189,8 @@ export default function WalletSwap() {
     })
   }, [
     assetMetadataCache,
-    aspInfo.dust,
-    aspInfo.network,
+    operatorInfo.dust,
+    operatorInfo.network,
     availableAssetBalances,
     availableBalance,
     btcUnit,
@@ -219,7 +219,7 @@ export default function WalletSwap() {
       const row = rows.find((candidate) => (candidate.sourceAsset?.assetId ?? candidate.assetId) === assetId)
       const decimals = row?.sourceAsset?.decimals ?? row?.decimals ?? metadata.decimals
       if (!validAssetDecimals(decimals)) continue
-      const currency = verifiedDesignatedCurrency(aspInfo.network, assetId, isVerifiedAsset)
+      const currency = verifiedDesignatedCurrency(operatorInfo.network, assetId, isVerifiedAsset)
       targets.set(assetId, {
         assetId,
         name: row?.name ?? currency ?? metadata.name.trim(),
@@ -232,7 +232,7 @@ export default function WalletSwap() {
       })
     }
     return [...targets.values()]
-  }, [assetMetadataCache, aspInfo.network, isVerifiedAsset, rows, swapAssets])
+  }, [assetMetadataCache, operatorInfo.network, isVerifiedAsset, rows, swapAssets])
   const initialFromAssetId = resolveInitialFromAssetId(swapAssets, swapFromAssetId)
   const openedWithPreselectedAsset = useRef(Boolean(swapFromAssetId))
   const [step, setStep] = useState<SwapStep>(swapFromAssetId && initialFromAssetId ? 'compose' : 'select-from')
@@ -275,7 +275,7 @@ export default function WalletSwap() {
     firstPositiveBalanceAsset(swapAssets) ??
     swapAssets[0] ??
     emptySwapAsset
-  const onchainId = btcOn('bitcoin', aspInfo.network as NetworkName)
+  const onchainId = btcOn('bitcoin', operatorInfo.network as NetworkName)
   const onchainTargets: SwapAsset[] =
     fromAsset.assetId === BTC_ASSET_ID
       ? [
@@ -286,7 +286,7 @@ export default function WalletSwap() {
             decimals: btcUnit === Unit.BTC ? 8 : 0,
             balance: 0n,
             external: true,
-            networkLabel: aspInfo.network === 'bitcoin' ? t('swap.bitcoinMainnet') : aspInfo.network,
+            networkLabel: operatorInfo.network === 'bitcoin' ? t('swap.bitcoinMainnet') : operatorInfo.network,
           },
         ]
       : []
@@ -298,12 +298,12 @@ export default function WalletSwap() {
   const destinationValid = useMemo(() => {
     if (!toAsset?.external) return true
     try {
-      l1ScriptForAddress(destination.trim(), l1NetworkOf(aspInfo.network))
+      l1ScriptForAddress(destination.trim(), l1NetworkOf(operatorInfo.network))
       return true
     } catch {
       return false
     }
-  }, [aspInfo.network, destination, toAsset?.external])
+  }, [operatorInfo.network, destination, toAsset?.external])
   const unitOfAccountUsd = toFiatAmount(fromFiatAmount(1, config.currency), Currencies.USD)
   const currencyConversionUseful = hasDistinctCurrencyConversion(fromAsset, config.currency, unitOfAccountUsd)
   const amountMode = currencyConversionUseful ? selectedAmountMode : 'asset'
@@ -343,8 +343,8 @@ export default function WalletSwap() {
     quoteMarkets,
     fromAsset.assetId,
     previewTargetId,
-    aspInfo.network,
-    aspInfo.dust,
+    operatorInfo.network,
+    operatorInfo.dust,
   )
   const preservedAmounts = preservedAmountPair?.assetId === fromAsset.assetId ? preservedAmountPair : undefined
   const assetAmount =
@@ -367,8 +367,10 @@ export default function WalletSwap() {
   )
   const currentPlan = status === 'success' && planMatchesAssetAmount ? plan : null
   const quoteStale = Boolean(toAsset && Number(assetAmount) > 0 && !currentPlan)
-  const planError = currentPlan ? validatePlan(currentPlan, assetBalanceAtomic(fromAsset), aspInfo.dust) : undefined
-  const inputKey = `${aspInfo.network}:${fromAsset.assetId}:${fromAsset.decimals}:${toAsset?.assetId}:${toAsset?.decimals}:${amountAtomic}:${destination}`
+  const planError = currentPlan
+    ? validatePlan(currentPlan, assetBalanceAtomic(fromAsset), operatorInfo.dust)
+    : undefined
+  const inputKey = `${operatorInfo.network}:${fromAsset.assetId}:${fromAsset.decimals}:${toAsset?.assetId}:${toAsset?.decimals}:${amountAtomic}:${destination}`
   const chosen = selectedOffer?.inputKey === inputKey ? selectedOffer : undefined
   const firmHere = firmQuotes[inputKey]
   const selected: { quote: Quote; offer?: OpenRfqOffer; plan?: OfferPlan; destination?: string } | undefined =
@@ -397,7 +399,7 @@ export default function WalletSwap() {
   const lacksChangeCarrier =
     fromAsset.assetId !== BTC_ASSET_ID &&
     amountAtomic < assetBalanceAtomic(fromAsset) &&
-    availableBalance < 2 * Number(aspInfo.dust)
+    availableBalance < 2 * Number(operatorInfo.dust)
   // Not keyed by input: another tab can spend these funds while a cached quote is in review.
   const fundsShort = exceedsBalance || lacksChangeCarrier
   const validationMessage = swapValidationMessage({
@@ -470,7 +472,7 @@ export default function WalletSwap() {
         )
           return false
         const route = findMarket([market], fromAsset.assetId, toAsset.assetId)
-        return route?.market && isSolverEnabled(market, route.give, aspInfo.network)
+        return route?.market && isSolverEnabled(market, route.give, operatorInfo.network)
       }),
   )
   const searchOpenByDefault = Boolean(
@@ -902,7 +904,7 @@ export default function WalletSwap() {
       {toAsset ? (
         <QuoteChoices
           open={drawer === 'quotes' || drawer === 'refresh-quotes'}
-          network={aspInfo.network}
+          network={operatorInfo.network}
           from={fromAsset}
           to={toAsset}
           amount={amountAtomic}
@@ -930,8 +932,8 @@ export default function WalletSwap() {
                 verifiedQuote.take.asset !== toAsset.assetId
               )
                 throw new Error(t('swap.destinationChanged'))
-              const expectedScript = l1ScriptForAddress(destination.trim(), l1NetworkOf(aspInfo.network))
-              const preparedScript = l1ScriptForAddress(take.instrument.address, l1NetworkOf(aspInfo.network))
+              const expectedScript = l1ScriptForAddress(destination.trim(), l1NetworkOf(operatorInfo.network))
+              const preparedScript = l1ScriptForAddress(take.instrument.address, l1NetworkOf(operatorInfo.network))
               if (
                 expectedScript.length !== preparedScript.length ||
                 !expectedScript.every((value, index) => value === preparedScript[index])

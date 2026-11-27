@@ -5,7 +5,7 @@ import { getEmulatorPubkeyForNetwork } from '../../../lib/constants'
 import { makeHandle } from '@arkade-os/sdk'
 import SendDetails from '../../../screens/Wallet/Send/Details'
 import SendForm from '../../../screens/Wallet/Send/Form'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { ConfigContext } from '../../../providers/config'
 import { FeesContext } from '../../../providers/fees'
 import { FiatContext } from '../../../providers/fiat'
@@ -18,7 +18,7 @@ import { WalletContext } from '../../../providers/wallet'
 import fixtures from '../../fixtures.json'
 import { decodeInvoice } from '../../../lib/bolt11'
 import {
-  mockAspContextValue,
+  mockOperatorContextValue,
   mockConfigContextValue,
   mockFiatContextValue,
   mockFlowContextValue,
@@ -87,7 +87,7 @@ const renderSign = (sendInfo: SendInfo) =>
     <NavigationContext.Provider value={mockNavigationContextValue}>
       <ConfigContext.Provider value={mockConfigContextValue}>
         <FiatContext.Provider value={mockFiatContextValue}>
-          <AspContext.Provider value={mockAspContextValue}>
+          <OperatorContext.Provider value={mockOperatorContextValue}>
             <FeesContext.Provider value={{ calcOnchainOutputFee: () => 500 } as never}>
               <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo, setSendInfo }}>
                 <WalletContext.Provider
@@ -101,7 +101,7 @@ const renderSign = (sendInfo: SendInfo) =>
                 </WalletContext.Provider>
               </FlowContext.Provider>
             </FeesContext.Provider>
-          </AspContext.Provider>
+          </OperatorContext.Provider>
         </FiatContext.Provider>
       </ConfigContext.Provider>
     </NavigationContext.Provider>,
@@ -215,7 +215,7 @@ const formWallet = { ...mockSvcWallet, getAddress: async () => 'ark1self', getBo
 const renderForm = (sendInfo: SendInfo) =>
   render(
     <NavigationContext.Provider value={mockNavigationContextValue}>
-      <AspContext.Provider value={mockAspContextValue}>
+      <OperatorContext.Provider value={mockOperatorContextValue}>
         <ConfigContext.Provider value={mockConfigContextValue as never}>
           <FiatContext.Provider value={mockFiatContextValue as never}>
             <OptionsContext.Provider value={mockOptionsContextValue as never}>
@@ -240,7 +240,7 @@ const renderForm = (sendInfo: SendInfo) =>
             </OptionsContext.Provider>
           </FiatContext.Provider>
         </ConfigContext.Provider>
-      </AspContext.Provider>
+      </OperatorContext.Provider>
     </NavigationContext.Provider>,
   )
 

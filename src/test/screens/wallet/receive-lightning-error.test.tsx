@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach, beforeAll } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { FlowContext } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { WalletContext } from '../../../providers/wallet'
 import { NavigationContext } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
@@ -14,7 +14,7 @@ import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
 import { LockupRegistrationFailed } from '@arkade-os/swap'
 import { SwapsHeldElsewhere } from '../../../lib/swapClient'
 import {
-  mockAspContextValue,
+  mockOperatorContextValue,
   mockConfigContextValue,
   mockFiatContextValue,
   mockFlowContextValue,
@@ -65,7 +65,7 @@ vi.mock('../../../lib/share', () => ({
 const tree = (satoshis: number) => (
   <ToastProvider>
     <NavigationContext.Provider value={mockNavigationContextValue}>
-      <AspContext.Provider value={mockAspContextValue as never}>
+      <OperatorContext.Provider value={mockOperatorContextValue as never}>
         <ConfigContext.Provider value={mockConfigContextValue as never}>
           <FiatContext.Provider value={mockFiatContextValue as never}>
             <NotificationsContext.Provider
@@ -104,7 +104,7 @@ const tree = (satoshis: number) => (
             </NotificationsContext.Provider>
           </FiatContext.Provider>
         </ConfigContext.Provider>
-      </AspContext.Provider>
+      </OperatorContext.Provider>
     </NavigationContext.Provider>
   </ToastProvider>
 )

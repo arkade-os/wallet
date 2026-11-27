@@ -1,7 +1,7 @@
 import {
   IWallet,
   ArkNote,
-  RestArkProvider,
+  RestOperatorProvider,
   ExtendedCoin,
   ServiceWorkerWallet,
   ExtendedVirtualCoin,
@@ -16,7 +16,7 @@ import {
   IntentFeeConfig,
 } from '@arkade-os/sdk'
 import { Addresses, Tx, Vtxo } from './types'
-import { AspInfo } from '../providers/asp'
+import { OperatorInfo } from '../providers/operator'
 import { consoleError } from './logs'
 import { getConfirmedAndNotExpiredUtxos } from './utxo'
 import * as Sentry from '@sentry/react'
@@ -31,7 +31,7 @@ const emptyFees: FeeInfo = {
   txFeeRate: '',
 }
 
-export const emptyAspInfo: AspInfo = {
+export const emptyOperatorInfo: OperatorInfo = {
   boardingExitDelay: BigInt(0),
   checkpointTapscript: '',
   deprecatedSigners: [],
@@ -72,7 +72,7 @@ const BUILD_VERSION_TOO_OLD = 'BUILD_VERSION_TOO_OLD'
 // to each caller's existing wording for the non-outdated case. `outdatedText`
 // lets callers localize the update-required message; it defaults to English so
 // existing callers and tests keep working unchanged.
-export const aspErrorText = (info: AspInfo, fallback: string, outdatedText?: string): string =>
+export const operatorErrorText = (info: OperatorInfo, fallback: string, outdatedText?: string): string =>
   info.outdated
     ? (outdatedText ??
       'Your wallet is outdated and needs to be updated to be compatible with the latest Arkade version.')
@@ -227,16 +227,16 @@ export const collaborativeExitWithFees = async (
   }
 }
 
-export const getAspInfo = async (url: string): Promise<AspInfo> => {
+export const getOperatorInfo = async (url: string): Promise<OperatorInfo> => {
   let fullUrl = url
   if (url.startsWith('localhost') || url.startsWith('127.0.0.1')) fullUrl = 'http://' + url
   else if (!url.startsWith('http')) fullUrl = 'https://' + url
-  const provider = new RestArkProvider(fullUrl)
+  const provider = new RestOperatorProvider(fullUrl)
   try {
     const infos = await provider.getInfo()
     return { ...infos, unreachable: false, url }
   } catch (err) {
-    consoleError(err, 'error getting asp info')
+    consoleError(err, 'error getting operator info')
     // A too-old client is rejected with a structured BUILD_VERSION_TOO_OLD error
     // (handleError in the SDK surfaces it as a typed ArkError). Surface it as an
     // actionable "update your wallet" state instead of a generic unreachable.
@@ -245,9 +245,9 @@ export const getAspInfo = async (url: string): Promise<AspInfo> => {
       // since arkd's guard error reaches us without populated metadata.
       const minBuildVersion =
         err.metadata?.min_version ?? err.metadata?.minVersion ?? err.message.match(/>=\s*v?([\d.]+)/)?.[1]
-      return { ...emptyAspInfo, unreachable: true, outdated: true, minBuildVersion, url }
+      return { ...emptyOperatorInfo, unreachable: true, outdated: true, minBuildVersion, url }
     }
-    return { ...emptyAspInfo, unreachable: true, url }
+    return { ...emptyOperatorInfo, unreachable: true, url }
   }
 }
 
