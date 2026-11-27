@@ -17,7 +17,7 @@ import LoadingLogo from '../../../components/LoadingLogo'
 import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
 import { atomicToUnits, unitsToAtomic } from '../../../lib/assets'
 import ErrorMessage from '../../../components/Error'
-import { getDisplayAddresses } from '../../../lib/asp'
+import { getDisplayAddresses } from '../../../lib/operator'
 import { extractError } from '../../../lib/error'
 import InputAmount, { type InputAmountMode } from '../../../components/InputAmount'
 import Keyboard, { KeyboardInputMode } from '../../../components/Keyboard'
@@ -42,7 +42,7 @@ import { EASE_OUT_QUINT } from '../../../lib/animations'
 import { walletAssetPresentationForId } from '../../../lib/accountAssets'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { AssetsContext } from '../../../providers/assets'
 import { useSwapRail } from '../../../lib/receive/swapRail'
 import SwapRailStatus from './SwapRail'
@@ -106,7 +106,7 @@ const CloseIcon = () => (
 )
 
 export default function ReceiveQRCode() {
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const { isRegistered } = useContext(AssetsContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { fromFiat, toFiat, toFiatAmount, fiatDecimals } = useContext(FiatContext)
@@ -487,7 +487,7 @@ export default function ReceiveQRCode() {
   }
 
   const assetPresentation = walletAssetPresentationForId(
-    aspInfo.network,
+    operatorInfo.network,
     assetId,
     isRegistered,
     assetMeta?.metadata,
@@ -643,7 +643,7 @@ export default function ReceiveQRCode() {
   // Only a registered asset gets an official logo: a self-reported ticker could claim any.
   const assetRow = (id: string): FormatRow => {
     const p = id
-      ? walletAssetPresentationForId(aspInfo.network, id, isRegistered, assetMetadataCache.get(id)?.metadata, '')
+      ? walletAssetPresentationForId(operatorInfo.network, id, isRegistered, assetMetadataCache.get(id)?.metadata, '')
       : { name: t('send.bitcoin'), ticker: 'BTC' }
     const logo = !id ? 'BTC' : isRegistered(id) ? tokenLogoTickerForTicker(p.ticker) : undefined
     return {

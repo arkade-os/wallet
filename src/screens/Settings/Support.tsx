@@ -7,8 +7,8 @@ import Text, { TextSecondary } from '../../components/Text'
 import Button from '../../components/Button'
 import { WalletContext } from '../../providers/wallet'
 import { ConfigContext } from '../../providers/config'
-import { AspContext } from '../../providers/asp'
-import { DisplayAddresses, getDisplayAddresses } from '../../lib/asp'
+import { OperatorContext } from '../../providers/operator'
+import { DisplayAddresses, getDisplayAddresses } from '../../lib/operator'
 import { getWebExplorerURL } from '../../lib/explorers'
 import { buildVersion, sdkVersion, NetworkName } from '@arkade-os/sdk'
 import ChatwootWidget from '../../components/ChatWoot'
@@ -20,7 +20,7 @@ import { gitCommit } from '../../_gitCommit'
 import { useTranslation } from '../../providers/language'
 
 export default function Support() {
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const { config } = useContext(ConfigContext)
   const { wallet, svcWallet, executorSettled, executorSettledCount } = useContext(WalletContext)
   const { language, t } = useTranslation()
@@ -93,7 +93,7 @@ export default function Support() {
     const userIdentifier = wallet.pubkey.substring(0, 16)
     window.$chatwoot.setUser(userIdentifier, { name: `User ${userIdentifier}` })
 
-    const defaultAddress = getDefaultAddress(wallet.pubkey, aspInfo)
+    const defaultAddress = getDefaultAddress(wallet.pubkey, operatorInfo)
 
     // Set custom attributes including addresses and service URLs
     window.$chatwoot.setCustomAttributes({
@@ -103,9 +103,9 @@ export default function Support() {
       default_address: defaultAddress,
       ark_address: addresses.displayOffchainAddr || 'not available',
       wallet_ark_address: addresses.ownAddr || 'not available',
-      indexer_url: aspInfo.url || config.aspUrl || 'not available',
+      indexer_url: operatorInfo.url || config.operatorUrl || 'not available',
       btc_boarding_address: addresses.boardingAddr || 'not available',
-      ark_server_url: aspInfo.url || config.aspUrl || 'not available',
+      operator_url: operatorInfo.url || config.operatorUrl || 'not available',
       app_version: import.meta.env.VITE_APP_VERSION || 'not available',
       explorer_url: wallet.network ? getWebExplorerURL(wallet.network as NetworkName) : 'not available',
       build_version: buildVersion,

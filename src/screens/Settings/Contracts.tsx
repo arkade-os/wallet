@@ -24,7 +24,7 @@ import ChevronDownIcon from '../../icons/ChevronDown'
 import ChevronUpIcon from '../../icons/ChevronUp'
 import ExternalLinkIcon from '../../icons/ExternalLink'
 import { WalletContext } from '../../providers/wallet'
-import { AspContext } from '../../providers/asp'
+import { OperatorContext } from '../../providers/operator'
 import { isUnixTimestamp, localizedAgo, prettyDate, prettyLongText } from '../../lib/format'
 import { getVmempoolURL, getWebExplorerURL } from '../../lib/explorers'
 import { isBTCAddress } from '../../lib/address'
@@ -235,7 +235,7 @@ function ContractCard({ item, open, onToggle }: { item: ContractView; open: bool
 
 export default function Contracts() {
   const { svcWallet } = useContext(WalletContext)
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const { t } = useTranslation()
   const [contracts, setContracts] = useState<Contract[]>([])
   const [loading, setLoading] = useState(true)
@@ -245,19 +245,19 @@ export default function Contracts() {
   const [openSet, setOpenSet] = useState<Set<string>>(new Set())
   const parentRef = useRef<HTMLDivElement>(null)
 
-  const network = aspInfo?.network ?? ''
+  const network = operatorInfo?.network ?? ''
 
   // Build the operator's signer set once; each card classifies against it.
   // Guard the empty/unreachable default — signerSetFromInfo throws on a blank
   // signer pubkey.
   const signerSet = useMemo<SignerSet | null>(() => {
-    if (!aspInfo?.signerPubkey) return null
+    if (!operatorInfo?.signerPubkey) return null
     try {
-      return signerSetFromInfo(aspInfo)
+      return signerSetFromInfo(operatorInfo)
     } catch {
       return null
     }
-  }, [aspInfo])
+  }, [operatorInfo])
 
   useEffect(() => {
     if (!svcWallet) return

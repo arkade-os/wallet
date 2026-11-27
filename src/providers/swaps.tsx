@@ -66,7 +66,7 @@ import {
   type DiscoveredMarket,
   type OfferPlan,
 } from '@arkade-os/solver-discovery'
-import { AspContext } from './asp'
+import { OperatorContext } from './operator'
 import { WalletContext } from './wallet'
 import { discoverMarkets, marketAssetDisplay, marketLegId, watchSwapMarkets } from '../lib/swapMarkets'
 import { getSolverCardsVersion, subscribeSolverCards } from '../lib/solverCards'
@@ -239,7 +239,7 @@ const ENDED: Partial<Record<Outcome, 'received' | 'returned' | 'lost'>> = {
 }
 
 export const SwapsProvider = ({ children }: { children: ReactNode }) => {
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const {
     dataReady,
     svcWallet,
@@ -254,11 +254,14 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
   const [markets, setMarkets] = useState<DiscoveredMarket[]>([])
   const cardsVersion = useSyncExternalStore(subscribeSolverCards, getSolverCardsVersion, getSolverCardsVersion)
-  const discoveryScope = useMemo(() => ({ network: aspInfo.network, cardsVersion }), [aspInfo.network, cardsVersion])
+  const discoveryScope = useMemo(
+    () => ({ network: operatorInfo.network, cardsVersion }),
+    [operatorInfo.network, cardsVersion],
+  )
   const discoveryScopeRef = useRef(discoveryScope)
   discoveryScopeRef.current = discoveryScope
   const [settledDiscoveryScope, setSettledDiscoveryScope] = useState<typeof discoveryScope>()
-  const discoveryReady = Boolean(aspInfo.network && settledDiscoveryScope === discoveryScope)
+  const discoveryReady = Boolean(operatorInfo.network && settledDiscoveryScope === discoveryScope)
   const [emulatorPubkey, setEmulatorPubkey] = useState<Uint8Array>()
   const [swaps, setSwaps] = useState<WalletAssetSwap[]>([])
   const [outcomes, setOutcomes] = useState<Map<string, Outcome>>(new Map())
@@ -321,7 +324,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       auctions.current.clear()
       issued.current.clear()
     },
-    [aspInfo.network, svcWallet],
+    [operatorInfo.network, svcWallet],
   )
 
   /** Re-read the client's records. Cheap, and the only way a record written
@@ -378,8 +381,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const runDiscovery = (useCache = true) => {
-    if (!aspInfo.network) return
-    const network = aspInfo.network as NetworkName
+    if (!operatorInfo.network) return
+    const network = operatorInfo.network as NetworkName
     const scope = discoveryScope
     const request = ++discoveryRequest.current
     setSettledDiscoveryScope(undefined)
@@ -394,13 +397,13 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   }
 
   useEffect(() => {
-    if (discoveryNetworkRef.current !== aspInfo.network) {
-      discoveryNetworkRef.current = aspInfo.network
+    if (discoveryNetworkRef.current !== operatorInfo.network) {
+      discoveryNetworkRef.current = operatorInfo.network
       setEmulatorPubkey(undefined)
       setAllMarkets([])
     }
-    if (!aspInfo.network) return
-    const network = aspInfo.network as NetworkName
+    if (!operatorInfo.network) return
+    const network = operatorInfo.network as NetworkName
     const scope = discoveryScope
     let active = true
     setEmulatorPubkey(getEmulatorPubkeyForNetwork(network))
@@ -446,7 +449,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     const unknown = { id: display, name: display.slice(0, 8), ticker: display.slice(0, 8), decimals: 0 }
     return marketAssetDisplay(
       leg ?? unknown,
-      aspInfo.network,
+      operatorInfo.network,
       (id) => assetMetadataCache.get(id)?.metadata,
       isVerifiedAsset,
     ).ticker
@@ -531,8 +534,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   // ------------------------------------------------------------ the client
 
   useEffect(() => {
-    if (!svcWallet || !aspInfo.url || !aspInfo.network) return
-    const network = aspInfo.network as NetworkName
+    if (!svcWallet || !operatorInfo.url || !operatorInfo.network) return
+    const network = operatorInfo.network as NetworkName
     let stopped = false
     // The lock is released by RETURNING from the callback, never by aborting:
     // per the spec a signal drops a lock request only while it is still
@@ -643,7 +646,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     // and its cache writes overwrite the entry the market read above serves
     // from. Rebuilding is the same stop and restore an unlock goes through.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [svcWallet, aspInfo.url, aspInfo.network, cardsVersion])
+  }, [svcWallet, operatorInfo.url, operatorInfo.network, cardsVersion])
 
   /**
    * The client, for the tab that holds it.
@@ -784,7 +787,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     try {
       const client = await driving()
       controller.signal.throwIfAborted()
-      const network = aspInfo.network as NetworkName
+      const network = operatorInfo.network as NetworkName
       const serves = (market: DiscoveredMarket) => Boolean(findMarket([market], from, to)?.market)
       // The pair's own cards go first so unrelated ones cannot use up the 16 slots.
       const cards = [...allMarketsRef.current.filter(serves), ...allMarketsRef.current.filter((m) => !serves(m))]
@@ -872,7 +875,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   // deadline. Reuse live quotes because older solvers can refuse duplicate terms.
   const quoteExchangeHere = async (plan: OfferPlan): Promise<Quote> => {
     if (!emulatorPubkey) throw new Error('swap service unavailable')
-    const network = aspInfo.network as NetworkName
+    const network = operatorInfo.network as NetworkName
     const issuer = held.current
     const client = await driving()
     const give = assetIdFor(network, plan.deposit.asset.id)
@@ -948,7 +951,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const assertWithinBounds = (sats: number, payout: 'bolt11' | 'arkade') => {
     const bounds = allMarketsRef.current.filter(isLightningMarket).flatMap((market) => {
       const side = marketCorridor(market, 'base') === payout ? 'base' : 'quote'
-      if (!isSolverEnabled(market, side === 'base' ? 'quote' : 'base', aspInfo.network)) return []
+      if (!isSolverEnabled(market, side === 'base' ? 'quote' : 'base', operatorInfo.network)) return []
       const limits = sideLimits(market, side)
       return limits ? [limits] : []
     })
@@ -966,7 +969,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
    */
   const quotePay = (destination: string): Promise<Quote> => {
     if (destination.toLowerCase().startsWith('ln')) {
-      assertWithinBounds(toInvoiceFacts(destination, aspInfo.network as NetworkName).amountSats, 'bolt11')
+      assertWithinBounds(toInvoiceFacts(destination, operatorInfo.network as NetworkName).amountSats, 'bolt11')
     }
     return runOnDriver('quotePay', [destination])
   }
@@ -979,7 +982,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     // override — and they are what the bounds check reads the amount from,
     // which is why an invoice is decoded here and nowhere else.
     if (destination.toLowerCase().startsWith('ln')) {
-      assertWithinBounds(toInvoiceFacts(destination, aspInfo.network as NetworkName).amountSats, 'bolt11')
+      assertWithinBounds(toInvoiceFacts(destination, operatorInfo.network as NetworkName).amountSats, 'bolt11')
     }
     const quote = await client.quote({ to: destination })
     remember(quote)
@@ -1057,12 +1060,12 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       return createSendRouter({ wallet: svcWallet!, client, ...deps })
     }
     const client = await driving()
-    const claimFeeRateSatVb = await claimFeeRate(onchainClaimEndpoint(aspInfo.network as NetworkName))
+    const claimFeeRateSatVb = await claimFeeRate(onchainClaimEndpoint(operatorInfo.network as NetworkName))
     return createSendRouter({
       wallet: svcWallet!,
       client,
       claimFeeRateSatVb,
-      dust: () => Number(aspInfo.dust),
+      dust: () => Number(operatorInfo.dust),
       ...deps,
     })
   }
@@ -1074,7 +1077,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     const side = marketCorridor(card, 'base') === 'arkade' ? 'base' : 'quote'
     if (marketCorridor(card, side) !== 'arkade') return false
     const from = side === 'base' ? card.base_asset.id : card.quote_asset.id
-    return Boolean(findMarket([card], from, btcOn('bitcoin', aspInfo.network as NetworkName))?.market)
+    return Boolean(findMarket([card], from, btcOn('bitcoin', operatorInfo.network as NetworkName))?.market)
   })
   const hasAssetToDiscover = availableAssetBalances?.some(
     ({ assetId, amount }) => /^[0-9a-f]{68}$/.test(assetId) && BigInt(amount) > 0n,
@@ -1114,9 +1117,9 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       swaps,
       svcWallet,
       emulatorPubkey,
-      aspInfo.url,
-      aspInfo.network,
-      aspInfo.dust,
+      operatorInfo.url,
+      operatorInfo.network,
+      operatorInfo.dust,
       outcomeOf,
       errorOf,
     ],

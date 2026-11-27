@@ -6,7 +6,7 @@ import { isInAppBrowser } from './lib/browser'
 import { detectJSCapabilities } from './lib/jsCapabilities'
 import { WalletContext } from './providers/wallet'
 import { emptySendInfo, FlowContext } from './providers/flow'
-import { AspContext } from './providers/asp'
+import { OperatorContext } from './providers/operator'
 import { setBootAnimActive as syncBootAnimFlag } from './lib/logoAnchor'
 import { PageTransition } from './components/PageTransition'
 import BootError from './components/BootError'
@@ -72,7 +72,7 @@ function PageAnimWrapper({
 }
 
 export default function App() {
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const { configLoaded } = useContext(ConfigContext)
   const { direction, navigate, screen } = useContext(NavigationContext)
   const { appIntent, initInfo, resetFlow, sendInfo, setAppIntent, setSendInfo } = useContext(FlowContext)
@@ -151,7 +151,7 @@ export default function App() {
 
   useEffect(() => {
     if (isIAB) return navigate(Pages.InAppBrowser)
-    if (aspInfo.unreachable) return navigate(Pages.Unavailable)
+    if (operatorInfo.unreachable) return navigate(Pages.Unavailable)
     if (jsCapabilitiesChecked && !isCapable) return navigate(Pages.Unavailable)
     if (isSettingUpWallet) return
     if (!walletLoaded) return navigate(Pages.Loading)
@@ -170,7 +170,7 @@ export default function App() {
     wallet.pubkey,
     authState,
     initInfo,
-    aspInfo.unreachable,
+    operatorInfo.unreachable,
     jsCapabilitiesChecked,
     isCapable,
     hasDevAutoInit,
@@ -183,14 +183,14 @@ export default function App() {
   const isDevAutoInitializing = hasDevAutoInit && !initialized
 
   // New users (no wallet in storage) skip straight to Init — the logo morph animation
-  // serves as the intro visual while ASP and JS capability checks resolve in the background.
-  // Init doesn't need ASP or crypto until "Create wallet" is clicked.
-  const aspReady = aspInfo.signerPubkey || aspInfo.unreachable
+  // serves as the intro visual while the operator and JS capability checks resolve in the background.
+  // Init doesn't need the operator or crypto until "Create wallet" is clicked.
+  const operatorReady = operatorInfo.signerPubkey || operatorInfo.unreachable
   const isNewUser = walletLoaded && !wallet.pubkey && !isDevAutoInitializing
-  const allChecksReady = jsCapabilitiesChecked && configLoaded && aspReady
+  const allChecksReady = jsCapabilitiesChecked && configLoaded && operatorReady
   const hasStoredWallet = walletLoaded && !!wallet.pubkey
-  const shouldShowUnlock = hasStoredWallet && authState === 'locked' && !aspInfo.unreachable
-  const bootReady = jsCapabilitiesChecked && configLoaded && (aspReady || hasStoredWallet)
+  const shouldShowUnlock = hasStoredWallet && authState === 'locked' && !operatorInfo.unreachable
+  const bootReady = jsCapabilitiesChecked && configLoaded && (operatorReady || hasStoredWallet)
 
   // Hold the loading screen until wallet data is ready, except while the connect
   // page is showing so it can run swap recovery before navigating.
@@ -204,7 +204,7 @@ export default function App() {
     !appIntent &&
     !isInInitFlow &&
     !isIAB &&
-    !aspInfo.unreachable &&
+    !operatorInfo.unreachable &&
     (authState === 'passwordless' || authState === 'authenticated')
   const shouldHoldOnLoading =
     hasStoredWallet &&
@@ -224,7 +224,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (!aspInfo.url) return
+    if (!operatorInfo.url) return
     if (!allChecksReady) return
     if (!wallet.pubkey || initialized) return
     if (authState !== 'passwordless') return
@@ -241,7 +241,7 @@ export default function App() {
         // ignore session storage errors; keep the app on loading instead of retry-looping
       }
     })
-  }, [allChecksReady, wallet.pubkey, initialized, authState, unlockWallet, aspInfo.url])
+  }, [allChecksReady, wallet.pubkey, initialized, authState, unlockWallet, operatorInfo.url])
 
   useEffect(() => {
     if (!hasDevAutoInit) devAutoInitHomeRedirected.current = false
@@ -261,7 +261,7 @@ export default function App() {
       authState === 'authenticated' &&
       initialized &&
       (dataReady || isConnectIntent) &&
-      !aspInfo.unreachable &&
+      !operatorInfo.unreachable &&
       !isIAB &&
       !isSettingUpWallet &&
       jsCapabilitiesChecked &&
@@ -291,7 +291,7 @@ export default function App() {
       ? Pages.Loading
       : showReturningHome
         ? Pages.Wallet
-        : authState === 'locked' && !aspReady
+        : authState === 'locked' && !operatorReady
           ? Pages.Loading
           : shouldHoldOnLoading
             ? Pages.Loading

@@ -25,7 +25,7 @@ vi.mock('@/lib/nostr', () => ({
   },
 }))
 
-let localConfig: Config = { ...mockConfigContextValue.config, aspUrl: 'https://local.server' }
+let localConfig: Config = { ...mockConfigContextValue.config, operatorUrl: 'https://local.server' }
 
 let counter = 0
 const makeEvent = (data: unknown, created_at: number, receivedAt: number, id = `event-${counter++}`): BackupEvent => ({
@@ -64,7 +64,7 @@ describe('BackupProvider restore', () => {
     mocks.events = []
     mocks.save.mockReset()
     localStorage.clear()
-    localConfig = { ...mockConfigContextValue.config, aspUrl: 'https://local.server' }
+    localConfig = { ...mockConfigContextValue.config, operatorUrl: 'https://local.server' }
   })
 
   afterEach(() => vi.restoreAllMocks())
@@ -135,7 +135,7 @@ describe('BackupProvider restore', () => {
   it('keeps the local server and applies the rest of the restored config', async () => {
     const updateConfig = vi.fn()
     mocks.events = [
-      makeEvent({ config: { ...localConfig, aspUrl: 'https://other.server', showBalance: false } }, 100, 100),
+      makeEvent({ config: { ...localConfig, operatorUrl: 'https://other.server', showBalance: false } }, 100, 100),
     ]
 
     renderProvider(updateConfig)
@@ -143,7 +143,7 @@ describe('BackupProvider restore', () => {
 
     await waitFor(() => expect(updateConfig).toHaveBeenCalledTimes(1))
     expect(updateConfig.mock.calls[0][0]).toMatchObject({
-      aspUrl: 'https://local.server',
+      operatorUrl: 'https://local.server',
       showBalance: false,
       executor: true,
     })

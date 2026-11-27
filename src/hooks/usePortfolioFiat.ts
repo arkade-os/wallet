@@ -2,7 +2,7 @@ import Decimal from 'decimal.js'
 import { useContext } from 'react'
 import { reportingSatsForFiatAmount } from '../lib/fiat'
 import { Currencies } from '../lib/types'
-import { AspContext } from '../providers/asp'
+import { OperatorContext } from '../providers/operator'
 import { FiatContext } from '../providers/fiat'
 import { WalletContext } from '../providers/wallet'
 import { designatedAccountCurrency, type FiatAccountSourceAsset } from '../lib/accountAssets'
@@ -46,7 +46,7 @@ export interface PortfolioFiat {
  * price feed as the rest of the wallet.
  */
 export function usePortfolioFiat(): PortfolioFiat {
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const { balance, availableBalance, assetBalances, availableAssetBalances, assetMetadataCache, isVerifiedAsset } =
     useContext(WalletContext)
   const { toFiat, toFiatAmount } = useContext(FiatContext)
@@ -76,7 +76,9 @@ export function usePortfolioFiat(): PortfolioFiat {
     // awaiting recovery — owned, but nothing of it is selectable
     const spendableAmount = availableAssetBalances.find((a) => a.assetId === ab.assetId)?.amount ?? BigInt(0)
     // only verified asset IDs may claim currency-account treatment
-    const sourceFiat = isVerifiedAsset(ab.assetId) ? designatedAccountCurrency(aspInfo.network, ab.assetId) : undefined
+    const sourceFiat = isVerifiedAsset(ab.assetId)
+      ? designatedAccountCurrency(operatorInfo.network, ab.assetId)
+      : undefined
 
     if (sourceFiat) {
       // the backing asset fulfills sends, so it carries the spendable amount;

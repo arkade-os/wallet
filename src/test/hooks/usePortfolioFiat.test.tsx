@@ -4,10 +4,10 @@ import { describe, expect, it } from 'vitest'
 import { Currencies } from '../../lib/types'
 import { MUTINYNET_DEPIX_ASSET_ID, MUTINYNET_USDT_ASSET_ID } from '../../lib/accountAssets'
 import { usePortfolioFiat } from '../../hooks/usePortfolioFiat'
-import { AspContext } from '../../providers/asp'
+import { OperatorContext } from '../../providers/operator'
 import { FiatContext } from '../../providers/fiat'
 import { WalletContext } from '../../providers/wallet'
-import { mockAspContextValue, mockFiatContextValue, mockWalletContextValue } from '../screens/mocks'
+import { mockOperatorContextValue, mockFiatContextValue, mockWalletContextValue } from '../screens/mocks'
 
 const assetDetails = (assetId: string, ticker: string, decimals = 2) => ({
   assetId,
@@ -37,8 +37,10 @@ function wrapper({
     [MUTINYNET_DEPIX_ASSET_ID, assetDetails(MUTINYNET_DEPIX_ASSET_ID, 'DEPIX', hasFractionalDepix ? 8 : 2)],
   ])
   return (
-    <AspContext.Provider
-      value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network } } as any}
+    <OperatorContext.Provider
+      value={
+        { ...mockOperatorContextValue, operatorInfo: { ...mockOperatorContextValue.operatorInfo, network } } as any
+      }
     >
       <FiatContext.Provider
         value={{
@@ -64,15 +66,20 @@ function wrapper({
           {children}
         </WalletContext.Provider>
       </FiatContext.Provider>
-    </AspContext.Provider>
+    </OperatorContext.Provider>
   )
 }
 
 // a verified asset with a fiat-like ticker but no explicit designation
 const makeChfWrapper = (isVerifiedAsset: (assetId: string) => boolean) => {
   return ({ children }: { children: ReactNode }) => (
-    <AspContext.Provider
-      value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet' } } as any}
+    <OperatorContext.Provider
+      value={
+        {
+          ...mockOperatorContextValue,
+          operatorInfo: { ...mockOperatorContextValue.operatorInfo, network: 'mutinynet' },
+        } as any
+      }
     >
       <FiatContext.Provider
         value={{
@@ -97,7 +104,7 @@ const makeChfWrapper = (isVerifiedAsset: (assetId: string) => boolean) => {
           {children}
         </WalletContext.Provider>
       </FiatContext.Provider>
-    </AspContext.Provider>
+    </OperatorContext.Provider>
   )
 }
 
@@ -105,8 +112,13 @@ const makeChfWrapper = (isVerifiedAsset: (assetId: string) => boolean) => {
  * escrowed VTXO is still the wallet's but generic spending refuses it. */
 function escrowWrapper({ children }: { children: ReactNode }) {
   return (
-    <AspContext.Provider
-      value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet' } } as any}
+    <OperatorContext.Provider
+      value={
+        {
+          ...mockOperatorContextValue,
+          operatorInfo: { ...mockOperatorContextValue.operatorInfo, network: 'mutinynet' },
+        } as any
+      }
     >
       <FiatContext.Provider
         value={{
@@ -131,7 +143,7 @@ function escrowWrapper({ children }: { children: ReactNode }) {
           {children}
         </WalletContext.Provider>
       </FiatContext.Provider>
-    </AspContext.Provider>
+    </OperatorContext.Provider>
   )
 }
 

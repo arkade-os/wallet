@@ -25,7 +25,7 @@ import {
   WALLET_EXIT_RAIL,
 } from '../../../lib/sendRouter'
 import { SwapsContext } from '../../../providers/swaps'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { useTranslation } from '../../../providers/language'
 import { appIntentHandoff, callbackHost, redirectToCallback } from '../../../lib/appIntent'
 
@@ -36,7 +36,7 @@ export default function SendSuccess() {
   const { notifyPaymentSent } = useContext(NotificationsContext)
   const { assetMetadataCache, isVerifiedAsset } = useContext(WalletContext)
   const { navigate } = useContext(NavigationContext)
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const { t } = useTranslation()
   const { outcomeOf } = useContext(SwapsContext)
   const handedOff = useRef(false)
@@ -52,7 +52,7 @@ export default function SendSuccess() {
     : rawAssetPresentation(assetMeta?.metadata, t('send.unknownAsset'))
   const designatedCurrency = sendInfo.account
     ? undefined
-    : verifiedDesignatedCurrency(aspInfo.network, assetId, isVerifiedAsset)
+    : verifiedDesignatedCurrency(operatorInfo.network, assetId, isVerifiedAsset)
   // name only — the ticker already rides with the balance on AssetCard's left column
   const assetName = accountAssetLabel(designatedCurrency, { name: assetPresentation.name, ticker: '' })
   const assetTicker = assetPresentation.ticker

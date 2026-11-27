@@ -31,9 +31,9 @@ import {
   type TransactionActivityMetadata,
 } from '../lib/storage'
 import { NavigationContext, Pages } from './navigation'
-import { getBalance, getUnrolledVtxos, getVtxos, ownAddress, settleVtxos } from '../lib/asp'
+import { getBalance, getUnrolledVtxos, getVtxos, ownAddress, settleVtxos } from '../lib/operator'
 import { resolveExits, subtractExitedAssets, type ExitRecord } from '../lib/exitHistory'
-import { AspContext } from './asp'
+import { OperatorContext } from './operator'
 import { AssetsContext } from './assets'
 import { NotificationsContext } from './notifications'
 import { FlowContext, type InitInfo } from './flow'
@@ -82,7 +82,7 @@ const ASSET_METADATA_FETCH_CONCURRENCY = 4
 const ASSET_METADATA_FETCH_TIMEOUT_MS = 5_000
 
 interface InitSvcWorkerWalletParams {
-  arkServerUrl: string
+  operatorUrl: string
   identity: Identity
   retryCount?: number
   maxRetries?: number
@@ -229,7 +229,7 @@ const readSwapRecordAssets = async (): Promise<string[]> => {
 }
 
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const { isRegistered } = useContext(AssetsContext)
   const { initialiseNostrBackup } = useContext(BackupContext)
   const { config, updateConfig } = useContext(ConfigContext)
@@ -298,11 +298,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
         metadata: history.metadata,
         lnSends: history.lnSends,
         exits: history.exits,
-        network: aspInfo.network,
+        network: operatorInfo.network,
         assetDisplay: (id) => assetMetadataCache.current.get(id)?.metadata,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [history, assetSwaps, aspInfo.network, assetDisplayVersion],
+    [history, assetSwaps, operatorInfo.network, assetDisplayVersion],
   )
 
   const ungroupedTxs = useMemo(
@@ -340,7 +340,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   configRef.current = config
   const walletRef = useRef(wallet)
   walletRef.current = wallet
-  // Same hazard: a listener that captured an early `aspInfo` captured it before
+  // Same hazard: a listener that captured an early `operatorInfo` captured it before
   // the server answered, when the network was still unset. The exit timestamp
   // lookup needs the live one to pick an explorer. Synced after commit rather
   // than during render, so the ref only ever holds a network React actually
@@ -348,10 +348,10 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // behind for `reloadWallet` to pick an explorer from. Declared here, above
   // every effect that reloads, so it is the first to run on the commit that
   // brings the network in.
-  const networkRef = useRef(aspInfo.network)
+  const networkRef = useRef(operatorInfo.network)
   useEffect(() => {
-    networkRef.current = aspInfo.network
-  }, [aspInfo.network])
+    networkRef.current = operatorInfo.network
+  }, [operatorInfo.network])
 
   // Each init gets its own AbortSignal; lock/reset aborts the current signal
   // with 'lock-reset' so stale paths can decide whether to tear down the SW.
@@ -531,7 +531,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!isDevAutoInit || devAutoInitFailed) return
     if (initialized) return
-    if (!aspInfo.url) return
+    if (!operatorInfo.url) return
 
     let cancelled = false
     let watchdog: ReturnType<typeof setTimeout> | undefined
@@ -579,7 +579,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       clearTimeout(watchdog)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aspInfo.url, initialized, devAutoInitFailed, isDevAutoInit, devMnemonic, devNsec])
+  }, [operatorInfo.url, initialized, devAutoInitFailed, isDevAutoInit, devMnemonic, devNsec])
 
   useEffect(() => {
     // skip auth check when dev auto-init will handle it
@@ -633,8 +633,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   // This branch is not first unlock: `initWallet` already had a server URL.
   useEffect(() => {
     if (!svcWallet) return
-    if (!aspInfo.url || !aspInfo.network) reloadWallet().catch(consoleError)
-  }, [svcWallet, aspInfo.url, aspInfo.network])
+    if (!operatorInfo.url || !operatorInfo.network) reloadWallet().catch(consoleError)
+  }, [svcWallet, operatorInfo.url, operatorInfo.network])
 
   useEffect(() => {
     if (!import.meta.env.DEV || !isDevAutoInit) return
@@ -657,16 +657,16 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const computeThresholds = async () => {
       try {
         const allVtxos = await svcWallet.getVtxos({ withRecoverable: true })
-        const batchLifetimeMs = await calcBatchLifetimeMs(allVtxos, new Indexer(aspInfo))
+        const batchLifetimeMs = await calcBatchLifetimeMs(allVtxos, new Indexer(operatorInfo))
         const thresholdMs = Math.floor((batchLifetimeMs * maxPercentage) / 100)
-        const nextRollover = await calcNextRollover(vtxos.spendable, svcWallet, aspInfo)
+        const nextRollover = await calcNextRollover(vtxos.spendable, svcWallet, operatorInfo)
         updateWallet((prev) => ({ ...prev, nextRollover, thresholdMs }))
       } catch (err) {
         consoleError(err, 'Error computing rollover thresholds')
       }
     }
     computeThresholds()
-  }, [initialized, vtxos, svcWallet, aspInfo])
+  }, [initialized, vtxos, svcWallet, operatorInfo])
 
   // fetch verified assets list once on startup
   useEffect(() => {
@@ -824,7 +824,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     identity: Identity,
     params: InitSvcWorkerWalletParams,
   ): Promise<boolean> => {
-    const { arkServerUrl, retryCount = 0, maxRetries = 2, executorUrl, walletMode, restoring = false } = params
+    const { operatorUrl, retryCount = 0, maxRetries = 2, executorUrl, walletMode, restoring = false } = params
     try {
       setLoadingStatus(t('loading.startingWallet'))
       const mode = walletMode ?? config.walletMode ?? 'static'
@@ -863,7 +863,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       const svcWallet = await ServiceWorkerWallet.setup({
         serviceWorkerPath: '/wallet-service-worker.mjs',
         identity,
-        arkServer: { url: arkServerUrl },
+        arkServer: { url: operatorUrl },
         executorUrl,
         walletMode: mode,
         // Contract sync finishes in the background; the coin-event reload below repaints. Not lazyBoarding: its
@@ -936,7 +936,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
       // and the wallet renews its coins itself. The session lets Receive wait (bounded) for the outcome, because the
       // SDK answers `getBoardingAddress()` with the wallet's own address until the watch is registered.
       if (executorUrl) {
-        const network = aspInfo.network as NetworkName
+        const network = operatorInfo.network as NetworkName
         const session = beginExecutorSession(signal)
         const isCurrent = () => executorSessionRef.current === session && !signal.aborted
         const settle = (settlement: ExecutorSettlement) => {
@@ -1138,8 +1138,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     restoring?: boolean
     passkeyUnlock?: InitInfo['passkeyUnlock']
   }) => {
-    const arkServerUrl = aspInfo.url
-    const network = aspInfo.network as NetworkName
+    const operatorUrl = operatorInfo.url
+    const network = operatorInfo.network as NetworkName
 
     let identity: Identity
     let pubkey: string
@@ -1171,7 +1171,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
     const didInit = await initSvcWorkerWallet({
       identity,
-      arkServerUrl,
+      operatorUrl,
       executorUrl,
       walletMode,
       restoring: credentials.restoring,
@@ -1202,7 +1202,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const unlockWithPasskey = async () => {
-    const mnemonic = await passkeyMnemonic(wallet, isMainnet(aspInfo.network))
+    const mnemonic = await passkeyMnemonic(wallet, isMainnet(operatorInfo.network))
     setAuthState('authenticated')
     try {
       await initWallet({ mnemonic })
@@ -1221,11 +1221,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const restartWallet = async (executorEnabled = config.executor) => {
     if (!svcWallet) return
     const identity = svcWallet.identity as Identity
-    const arkServerUrl = aspInfo.url
-    const executorUrl = executorEnabled ? getExecutorUrlForNetwork(aspInfo.network as NetworkName) : undefined
+    const operatorUrl = operatorInfo.url
+    const executorUrl = executorEnabled ? getExecutorUrlForNetwork(operatorInfo.network as NetworkName) : undefined
     await initSvcWorkerWallet({
       identity,
-      arkServerUrl,
+      operatorUrl,
       executorUrl,
     })
   }
@@ -1240,11 +1240,11 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     if (reinitInProgress.current) return
     reinitInProgress.current = true
     try {
-      const arkServerUrl = aspInfo.url
-      const executorUrl = config.executor ? getExecutorUrlForNetwork(aspInfo.network as NetworkName) : undefined
+      const operatorUrl = operatorInfo.url
+      const executorUrl = config.executor ? getExecutorUrlForNetwork(operatorInfo.network as NetworkName) : undefined
       const initialized = await initSvcWorkerWallet({
         identity,
-        arkServerUrl,
+        operatorUrl,
         executorUrl,
       })
       if (!initialized) return
@@ -1319,7 +1319,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
 
   const settlePreconfirmed = async () => {
     if (!svcWallet || !vtxoManager) throw new Error('Service worker not initialized')
-    await settleVtxos(svcWallet, vtxoManager, aspInfo.dust, wallet.thresholdMs, aspInfo.fees?.intentFee)
+    await settleVtxos(svcWallet, vtxoManager, operatorInfo.dust, wallet.thresholdMs, operatorInfo.fees?.intentFee)
     notifyTxSettled()
   }
 

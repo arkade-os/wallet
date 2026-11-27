@@ -10,7 +10,7 @@ import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import type { AssetDetails } from '@arkade-os/sdk'
 import { walletAssetPresentationForId } from '../../../lib/accountAssets'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { AssetsContext } from '../../../providers/assets'
 import { useTranslation } from '../../../providers/language'
 
@@ -30,7 +30,7 @@ function formatAssetLabel(
 }
 
 export default function ReceiveSuccess() {
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const { isRegistered } = useContext(AssetsContext)
   const { config, useFiat } = useContext(ConfigContext)
   const { toFiat } = useContext(FiatContext)
@@ -75,7 +75,7 @@ export default function ReceiveSuccess() {
     if (isAssetReceive) {
       if (assetDetails.size < receivedAssets.length) return
       const labels = receivedAssets.map((a) =>
-        formatAssetLabel(a, assetDetails.get(a.assetId), aspInfo.network, isRegistered),
+        formatAssetLabel(a, assetDetails.get(a.assetId), operatorInfo.network, isRegistered),
       )
       notifyPaymentReceived(recvInfo.satoshis, labels.join(', '))
     } else {
@@ -89,7 +89,7 @@ export default function ReceiveSuccess() {
 
   const displayText = isAssetReceive
     ? receivedAssets
-        .map((a) => formatAssetLabel(a, assetDetails.get(a.assetId), aspInfo.network, isRegistered))
+        .map((a) => formatAssetLabel(a, assetDetails.get(a.assetId), operatorInfo.network, isRegistered))
         .join(', ')
     : `${displayAmount} ${t('transaction.receivedSuccessfully')}`
 

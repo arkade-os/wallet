@@ -4,10 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeHandle } from '@arkade-os/sdk'
 import { LNURL_LIGHTNING_RAIL } from '@arkade-os/lnurl-client/arkade'
 import { WalletContext, WalletProvider } from '../../providers/wallet'
-import { AspContext } from '../../providers/asp'
+import { OperatorContext } from '../../providers/operator'
 import { ConfigContext } from '../../providers/config'
 import { forgetLnurlSends, lnurlSends, recordLnurlSend } from '../../lib/lnurlSends'
-import { mockAspContextValue, mockConfigContextValue } from '../screens/mocks'
+import { mockOperatorContextValue, mockConfigContextValue } from '../screens/mocks'
 
 const mocks = vi.hoisted(() => ({
   purge: vi.fn(),
@@ -57,13 +57,13 @@ function Capture() {
 
 const renderWallet = async () => {
   render(
-    <AspContext.Provider value={mockAspContextValue}>
+    <OperatorContext.Provider value={mockOperatorContextValue}>
       <ConfigContext.Provider value={mockConfigContextValue}>
         <WalletProvider>
           <Capture />
         </WalletProvider>
       </ConfigContext.Provider>
-    </AspContext.Provider>,
+    </OperatorContext.Provider>,
   )
   await act(() => wallet.initWallet({ privateKey: new Uint8Array(32).fill(1) }))
   expect(wallet.svcWallet).toBe(mocks.service)

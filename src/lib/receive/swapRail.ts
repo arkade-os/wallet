@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from 'react'
-import { AspContext } from '../../providers/asp'
+import { OperatorContext } from '../../providers/operator'
 import { FlowContext } from '../../providers/flow'
 import { SwapsContext } from '../../providers/swaps'
 import { WalletContext } from '../../providers/wallet'
@@ -19,7 +19,7 @@ export interface SwapRail {
 }
 
 export function useSwapRail(enabled = true): SwapRail {
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { receiveLightning, cancelSwap, outcomeOf, errorOf } = useContext(SwapsContext)
   const { svcWallet } = useContext(WalletContext)
@@ -120,7 +120,7 @@ export function useSwapRail(enabled = true): SwapRail {
     }
     // invoice and pendingLnReceive are only the guard above: listing them would re-run this on its own result.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, svcWallet, satoshis, isAssetReceive, aspInfo.network, negotiateAttempt, recvInfo.received])
+  }, [enabled, svcWallet, satoshis, isAssetReceive, operatorInfo.network, negotiateAttempt, recvInfo.received])
 
   // What the monitored receive is doing, if there is one. The screen's VTXO
   // listener still reports the credit; this is what can say the payment was LOST —

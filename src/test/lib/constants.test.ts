@@ -1,5 +1,6 @@
 import { afterEach, describe, it, expect, vi } from 'vitest'
 import {
+  defaultOperatorUrl,
   getExecutorParams,
   getExecutorUrlForNetwork,
   getSolverRegistryUrl,
@@ -20,7 +21,7 @@ describe('isMainnet', () => {
     expect(isMainnet('regtest')).toBe(false)
   })
 
-  it('returns false for an empty network (unreachable ASP or not yet loaded)', () => {
+  it('returns false for an empty network (unreachable operator or not yet loaded)', () => {
     expect(isMainnet('')).toBe(false)
   })
 })
@@ -99,5 +100,17 @@ describe('getExecutorParams', () => {
       vi.stubEnv('VITE_EXECUTOR_RENEWAL_WINDOW', value)
       expect(getExecutorParams('regtest').renewalWindow).toBe(43_200)
     })
+  })
+})
+
+describe('defaultOperatorUrl', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  it('reads VITE_OPERATOR_URL, and the deprecated VITE_ARK_SERVER when it is unset', () => {
+    vi.stubEnv('VITE_OPERATOR_URL', '')
+    vi.stubEnv('VITE_ARK_SERVER', 'https://old.example')
+    expect(defaultOperatorUrl()).toBe('https://old.example')
+    vi.stubEnv('VITE_OPERATOR_URL', 'https://operator.example')
+    expect(defaultOperatorUrl()).toBe('https://operator.example')
   })
 })

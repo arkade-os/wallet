@@ -1,14 +1,14 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App, { appReloader } from '../App'
-import { AspContext } from '../providers/asp'
+import { OperatorContext } from '../providers/operator'
 import { ConfigContext } from '../providers/config'
 import { FlowContext } from '../providers/flow'
 import { NavigationContext, Pages } from '../providers/navigation'
 import { OptionsContext } from '../providers/options'
 import { WalletContext, type WalletAuthState } from '../providers/wallet'
 import {
-  mockAspContextValue,
+  mockOperatorContextValue,
   mockConfigContextValue,
   mockFlowContextValue,
   mockNavigationContextValue,
@@ -58,7 +58,7 @@ function renderApp({
 
   render(
     <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate, screen: screenOverride }}>
-      <AspContext.Provider value={mockAspContextValue as any}>
+      <OperatorContext.Provider value={mockOperatorContextValue as any}>
         <ConfigContext.Provider value={{ ...mockConfigContextValue, configLoaded: true } as any}>
           <FlowContext.Provider value={{ ...mockFlowContextValue, ...flow } as any}>
             <OptionsContext.Provider
@@ -82,7 +82,7 @@ function renderApp({
             </OptionsContext.Provider>
           </FlowContext.Provider>
         </ConfigContext.Provider>
-      </AspContext.Provider>
+      </OperatorContext.Provider>
     </NavigationContext.Provider>,
   )
 

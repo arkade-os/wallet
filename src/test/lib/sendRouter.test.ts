@@ -27,8 +27,8 @@ import fixtures from '../fixtures.json'
 
 const collaborativeExitWithFees = vi.fn(async () => 'exit-txid')
 const sendAssets = vi.fn(async () => 'asset-txid')
-vi.mock('../../lib/asp', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../lib/asp')>()),
+vi.mock('../../lib/operator', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../lib/operator')>()),
   collaborativeExitWithFees: (...args: unknown[]) => collaborativeExitWithFees(...(args as [])),
   sendAssets: (...args: unknown[]) => sendAssets(...(args as [])),
 }))

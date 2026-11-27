@@ -2,11 +2,16 @@ import { describe, expect, it, vi } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { useSwapRail } from '../../../lib/receive/swapRail'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { FlowContext } from '../../../providers/flow'
 import { SwapsContext } from '../../../providers/swaps'
 import { WalletContext } from '../../../providers/wallet'
-import { mockAspContextValue, mockFlowContextValue, mockSvcWallet, mockWalletContextValue } from '../../screens/mocks'
+import {
+  mockOperatorContextValue,
+  mockFlowContextValue,
+  mockSvcWallet,
+  mockWalletContextValue,
+} from '../../screens/mocks'
 
 const renderRail = (enabled: boolean) => {
   const receiveLightning = vi.fn(async () => ({ id: 'swap-1', invoice: 'lnbc1test' }))
@@ -22,7 +27,7 @@ const renderRail = (enabled: boolean) => {
     errorOf: () => undefined,
   }
   const wrapper = ({ children }: { children: ReactNode }) => (
-    <AspContext.Provider value={mockAspContextValue as never}>
+    <OperatorContext.Provider value={mockOperatorContextValue as never}>
       <FlowContext.Provider value={flow as never}>
         <SwapsContext.Provider value={swaps as never}>
           <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet: mockSvcWallet } as never}>
@@ -30,7 +35,7 @@ const renderRail = (enabled: boolean) => {
           </WalletContext.Provider>
         </SwapsContext.Provider>
       </FlowContext.Provider>
-    </AspContext.Provider>
+    </OperatorContext.Provider>
   )
   return { receiveLightning, ...renderHook(() => useSwapRail(enabled), { wrapper }) }
 }

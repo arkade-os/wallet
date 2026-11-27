@@ -5,7 +5,7 @@ import { LNURL_ARKADE_RAIL, LNURL_LIGHTNING_RAIL, ONCHAIN_SWAP_RAIL, WALLET_EXIT
 import type { Outcome } from '@arkade-os/swap'
 import { SwapsContext } from '../../../providers/swaps'
 import { redirectToCallback } from '../../../lib/appIntent'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { FlowContext, type SendInfo } from '../../../providers/flow'
@@ -15,7 +15,7 @@ import { WalletContext } from '../../../providers/wallet'
 import { LanguageContext, translate } from '../../../providers/language'
 import { Language } from '../../../lib/types'
 import {
-  mockAspContextValue,
+  mockOperatorContextValue,
   mockConfigContextValue,
   mockFiatContextValue,
   mockFlowContextValue,
@@ -42,7 +42,7 @@ const renderSuccess = (
     <NavigationContext.Provider value={mockNavigationContextValue}>
       <ConfigContext.Provider value={mockConfigContextValue}>
         <FiatContext.Provider value={mockFiatContextValue}>
-          <AspContext.Provider value={mockAspContextValue}>
+          <OperatorContext.Provider value={mockOperatorContextValue}>
             <NotificationsContext.Provider value={notifications as never}>
               <WalletContext.Provider value={mockWalletContextValue as never}>
                 <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo, ...flow }}>
@@ -52,7 +52,7 @@ const renderSuccess = (
                 </FlowContext.Provider>
               </WalletContext.Provider>
             </NotificationsContext.Provider>
-          </AspContext.Provider>
+          </OperatorContext.Provider>
         </FiatContext.Provider>
       </ConfigContext.Provider>
     </NavigationContext.Provider>

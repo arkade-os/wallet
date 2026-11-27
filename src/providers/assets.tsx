@@ -1,6 +1,6 @@
 import { ReactNode, createContext, useContext, useEffect, useState } from 'react'
 import { consoleError } from '../lib/logs'
-import { AspContext } from './asp'
+import { OperatorContext } from './operator'
 
 const repo = 'https://raw.githubusercontent.com/ArkLabsHQ/asset-registry/master'
 
@@ -13,7 +13,7 @@ export const AssetsContext = createContext<AssetsContextProps>({
 })
 
 export const AssetsProvider = ({ children }: { children: ReactNode }) => {
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
 
   const [assetRegistry, setAssetRegistry] = useState<string[]>()
 
@@ -33,8 +33,8 @@ export const AssetsProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     setAssetRegistry(undefined)
-    if (!aspInfo.network) return
-    const url = getRegistryUrl(aspInfo.network)
+    if (!operatorInfo.network) return
+    const url = getRegistryUrl(operatorInfo.network)
     if (!url) return
     let cancelled = false
     fetch(url)
@@ -46,7 +46,7 @@ export const AssetsProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       cancelled = true
     }
-  }, [aspInfo.network])
+  }, [operatorInfo.network])
 
   const isRegistered = (assetId: string): boolean => {
     return assetRegistry?.includes(assetId) ?? false

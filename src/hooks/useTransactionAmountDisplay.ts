@@ -1,5 +1,5 @@
 import { useContext } from 'react'
-import { AspContext } from '../providers/asp'
+import { OperatorContext } from '../providers/operator'
 import { ConfigContext } from '../providers/config'
 import { FiatContext } from '../providers/fiat'
 import { WalletContext } from '../providers/wallet'
@@ -12,13 +12,13 @@ export function useAmountDisplayContext() {
   const { config } = useContext(ConfigContext)
   const { toFiatAmount } = useContext(FiatContext)
   const { assetMetadataCache, isVerifiedAsset } = useContext(WalletContext)
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   return {
     bitcoinUnit: config.unit,
     currency: config.currency,
     isVerifiedAsset,
     metadataForAsset: (assetId: string) => assetMetadataCache.get(assetId)?.metadata,
-    network: aspInfo.network,
+    network: operatorInfo.network,
     toFiatAmount,
   }
 }

@@ -30,3 +30,27 @@ describe('ConfigProvider executor flag', () => {
     expect(readConfigFromStorage()?.executor).toBe(false)
   })
 })
+
+describe('ConfigProvider operator URL', () => {
+  afterEach(() => localStorage.clear())
+
+  it('reads the operator URL that older builds stored as aspUrl', async () => {
+    localStorage.setItem('config', JSON.stringify({ aspUrl: 'https://operator.example' }))
+
+    let operatorUrl: string | undefined
+    const Probe = () => {
+      const { config, configLoaded } = useContext(ConfigContext)
+      if (configLoaded) operatorUrl = config.operatorUrl
+      return null
+    }
+    render(
+      <ConfigProvider>
+        <Probe />
+      </ConfigProvider>,
+    )
+
+    await waitFor(() => expect(operatorUrl).toBe('https://operator.example'))
+    expect(readConfigFromStorage()?.operatorUrl).toBe('https://operator.example')
+    expect(readConfigFromStorage()).not.toHaveProperty('aspUrl')
+  })
+})

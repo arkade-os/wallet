@@ -1,9 +1,9 @@
 import { ReactNode, createContext, useContext, useEffect, useState } from 'react'
-import { ArkadeInfo, ScheduledSession } from '@arkade-os/sdk'
-import { emptyAspInfo, getAspInfo } from '../lib/asp'
+import { OperatorInfo as SdkOperatorInfo, ScheduledSession } from '@arkade-os/sdk'
+import { emptyOperatorInfo, getOperatorInfo } from '../lib/operator'
 import { ConfigContext } from './config'
 
-export type AspInfo = ArkadeInfo & {
+export type OperatorInfo = SdkOperatorInfo & {
   unreachable: boolean
   url: string
   // Set when the server rejected us with BUILD_VERSION_TOO_OLD: the client is
@@ -13,33 +13,33 @@ export type AspInfo = ArkadeInfo & {
   minBuildVersion?: string
 }
 
-interface AspContextProps {
-  aspInfo: AspInfo
+interface OperatorContextProps {
+  operatorInfo: OperatorInfo
   calcBestMarketHour: (nextRollOver: number) => ScheduledSession | undefined
   calcNextMarketHour: (nextRollOver: number) => ScheduledSession | undefined
-  setAspInfo: (info: AspInfo) => void
+  setOperatorInfo: (info: OperatorInfo) => void
 }
 
-export const AspContext = createContext<AspContextProps>({
-  aspInfo: emptyAspInfo,
+export const OperatorContext = createContext<OperatorContextProps>({
+  operatorInfo: emptyOperatorInfo,
   calcBestMarketHour: () => undefined,
   calcNextMarketHour: () => undefined,
-  setAspInfo: () => {},
+  setOperatorInfo: () => {},
 })
 
-export const AspProvider = ({ children }: { children: ReactNode }) => {
+export const OperatorProvider = ({ children }: { children: ReactNode }) => {
   const { config, configLoaded } = useContext(ConfigContext)
 
-  const [aspInfo, setAspInfo] = useState(emptyAspInfo)
+  const [operatorInfo, setOperatorInfo] = useState(emptyOperatorInfo)
 
   useEffect(() => {
-    if (!config.aspUrl || !configLoaded) return
-    getAspInfo(config.aspUrl)
-      .then(setAspInfo)
+    if (!config.operatorUrl || !configLoaded) return
+    getOperatorInfo(config.operatorUrl)
+      .then(setOperatorInfo)
       .catch(() => {
-        setAspInfo({ ...emptyAspInfo, unreachable: true })
+        setOperatorInfo({ ...emptyOperatorInfo, unreachable: true })
       })
-  }, [config.aspUrl, configLoaded])
+  }, [config.operatorUrl, configLoaded])
 
   /**
    * Calculates the best market hour that fits within the given expiration time.
@@ -48,10 +48,10 @@ export const AspProvider = ({ children }: { children: ReactNode }) => {
    * @returns The best market hour with duration, or undefined if none found
    */
   const calcBestMarketHour = (expiration: number): ScheduledSession | undefined => {
-    if (!aspInfo.scheduledSession) return undefined
-    let startTime = aspInfo.scheduledSession.nextStartTime
+    if (!operatorInfo.scheduledSession) return undefined
+    let startTime = operatorInfo.scheduledSession.nextStartTime
     if (startTime > expiration) return undefined
-    const period = aspInfo.scheduledSession.period
+    const period = operatorInfo.scheduledSession.period
     if (period <= 0) return undefined
     // a period too small will result in too many iterations,
     // so we limit it to 3600 iterations to prevent performance issues
@@ -61,9 +61,9 @@ export const AspProvider = ({ children }: { children: ReactNode }) => {
       startTime += period
     }
     return {
-      ...aspInfo.scheduledSession,
+      ...operatorInfo.scheduledSession,
       nextStartTime: startTime,
-      nextEndTime: startTime + aspInfo.scheduledSession.duration,
+      nextEndTime: startTime + operatorInfo.scheduledSession.duration,
     }
   }
 
@@ -73,26 +73,26 @@ export const AspProvider = ({ children }: { children: ReactNode }) => {
    * @returns The next market hour with duration, or undefined if it starts after expiration
    */
   const calcNextMarketHour = (expiration: number): ScheduledSession | undefined => {
-    if (!aspInfo.scheduledSession) return undefined
-    let startTime = aspInfo.scheduledSession.nextStartTime
+    if (!operatorInfo.scheduledSession) return undefined
+    let startTime = operatorInfo.scheduledSession.nextStartTime
     if (startTime > expiration) return undefined
     return {
-      ...aspInfo.scheduledSession,
+      ...operatorInfo.scheduledSession,
       nextStartTime: startTime,
-      nextEndTime: startTime + aspInfo.scheduledSession.duration,
+      nextEndTime: startTime + operatorInfo.scheduledSession.duration,
     }
   }
 
   return (
-    <AspContext.Provider
+    <OperatorContext.Provider
       value={{
-        aspInfo,
+        operatorInfo,
         calcBestMarketHour,
         calcNextMarketHour,
-        setAspInfo,
+        setOperatorInfo,
       }}
     >
       {children}
-    </AspContext.Provider>
+    </OperatorContext.Provider>
   )
 }

@@ -5,7 +5,7 @@
     {
       "name": "dev-server",
       "command": "bash .cursor/dev-server.sh",
-      "description": "Vite dev server for the Arkade Wallet on http://localhost:3002. Points at the public mutinynet test Arkade server by default so the wallet is usable without a local regtest stack; override VITE_ARK_SERVER to target another backend."
+      "description": "Vite dev server for the Arkade Wallet on http://localhost:3002. Points at the public mutinynet operator by default so the wallet is usable without a local regtest stack; override VITE_OPERATOR_URL to target another operator."
     }
   ],
   "ports": [

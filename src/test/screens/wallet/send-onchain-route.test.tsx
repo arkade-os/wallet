@@ -4,9 +4,9 @@ import { makeHandle } from '@arkade-os/sdk'
 import { PRICING_BUDGET_MS } from '../../../lib/sendRouter'
 import SendDetails from '../../../screens/Wallet/Send/Details'
 import { readAllTransactionActivityMetadata } from '../../../lib/storage'
-import { InsufficientFundsError } from '../../../lib/asp'
+import { InsufficientFundsError } from '../../../lib/operator'
 import { Unit } from '../../../lib/types'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { ConfigContext } from '../../../providers/config'
 import { FeesContext } from '../../../providers/fees'
 import { FiatContext } from '../../../providers/fiat'
@@ -16,7 +16,7 @@ import { SwapsContext } from '../../../providers/swaps'
 import { NavigationContext } from '../../../providers/navigation'
 import { WalletContext } from '../../../providers/wallet'
 import {
-  mockAspContextValue,
+  mockOperatorContextValue,
   mockConfigContextValue,
   mockFiatContextValue,
   mockFlowContextValue,
@@ -29,8 +29,8 @@ import {
 const collaborativeExitWithFees = vi.fn<
   (wallet: unknown, input: number, output: number, address: string) => Promise<string>
 >(async () => 'exit-txid')
-vi.mock('../../../lib/asp', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../../lib/asp')>()),
+vi.mock('../../../lib/operator', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../lib/operator')>()),
   collaborativeExitWithFees: (...args: Parameters<typeof collaborativeExitWithFees>) =>
     collaborativeExitWithFees(...args),
 }))
@@ -161,7 +161,7 @@ const renderSign = (
     <NavigationContext.Provider value={mockNavigationContextValue}>
       <ConfigContext.Provider value={config}>
         <FiatContext.Provider value={mockFiatContextValue}>
-          <AspContext.Provider value={mockAspContextValue}>
+          <OperatorContext.Provider value={mockOperatorContextValue}>
             <FeesContext.Provider
               value={{ calcOnchainOutputFee: () => outputFee, intentFee: () => intentFee } as never}
             >
@@ -182,7 +182,7 @@ const renderSign = (
                 </WalletContext.Provider>
               </FlowContext.Provider>
             </FeesContext.Provider>
-          </AspContext.Provider>
+          </OperatorContext.Provider>
         </FiatContext.Provider>
       </ConfigContext.Provider>
     </NavigationContext.Provider>,

@@ -2,7 +2,7 @@
 set -e
 
 # Runtime env var substitution for Vite build output.
-# At build time, placeholders like __VITE_ARK_SERVER__ are baked into the JS
+# At build time, placeholders like __VITE_OPERATOR_URL__ are baked into the JS
 # bundle (one ARG per var in the Dockerfile). At container startup each
 # placeholder is replaced with the matching VITE_* env var, so one image can
 # serve multiple environments. Iterating over the environment means a new

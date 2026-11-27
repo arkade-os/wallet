@@ -2,7 +2,7 @@ import { hex } from '@scure/base'
 import { isValidInvoice } from './bolt11'
 import { ArkAddress, DefaultVtxo, isBtcAddress, toXOnlySignerHex } from '@arkade-os/sdk'
 import { l1ScriptForAddress } from '@arkade-os/swap/protocol'
-import { AspInfo } from '../providers/asp'
+import { OperatorInfo } from '../providers/operator'
 
 export const decodeArkAddress = (addr: string) => {
   const decoded = ArkAddress.decode(addr)
@@ -12,16 +12,16 @@ export const decodeArkAddress = (addr: string) => {
   }
 }
 
-export const getDefaultAddress = (pubKey: string, aspInfo: AspInfo) => {
+export const getDefaultAddress = (pubKey: string, operatorInfo: OperatorInfo) => {
   try {
     const xOnlyPubKey = toXOnlySignerHex(pubKey)
-    const xOnlySignerPubKey = toXOnlySignerHex(aspInfo.signerPubkey)
-    const hrp = aspInfo.network === 'bitcoin' ? 'ark' : 'tark'
+    const xOnlySignerPubKey = toXOnlySignerHex(operatorInfo.signerPubkey)
+    const hrp = operatorInfo.network === 'bitcoin' ? 'ark' : 'tark'
 
     return new DefaultVtxo.Script({
       pubKey: hex.decode(xOnlyPubKey),
       serverPubKey: hex.decode(xOnlySignerPubKey),
-      csvTimelock: { value: aspInfo.unilateralExitDelay, type: 'seconds' },
+      csvTimelock: { value: operatorInfo.unilateralExitDelay, type: 'seconds' },
     })
       .address(hrp, hex.decode(xOnlySignerPubKey))
       .encode()

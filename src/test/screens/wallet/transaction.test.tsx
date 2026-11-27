@@ -6,7 +6,7 @@ import Transaction from '../../../screens/Wallet/Transaction'
 import { FlowContext } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import {
-  mockAspContextValue,
+  mockOperatorContextValue,
   mockConfigContextValue,
   mockFiatContextValue,
   mockFlowContextValue,
@@ -17,7 +17,7 @@ import {
   mockWalletContextValue,
   mockBackupContextValue,
 } from '../mocks'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { WalletContext } from '../../../providers/wallet'
 import { NavigationContext } from '../../../providers/navigation'
 import { BackupContext } from '../../../providers/backup'
@@ -91,7 +91,7 @@ function CancellationHarness({
       <ConfigContext.Provider value={mockConfigContextValue}>
         <FiatContext.Provider value={mockFiatContextValue}>
           <BackupContext.Provider value={mockBackupContextValue}>
-            <AspContext.Provider value={mockAspContextValue}>
+            <OperatorContext.Provider value={mockOperatorContextValue}>
               <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: pendingSwapTx }}>
                 <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [pendingSwapTx] } as any}>
                   <SwapsContext.Provider value={{ swaps: reconciled ? [cancelledSwap] : swaps, cancelSwap } as any}>
@@ -101,7 +101,7 @@ function CancellationHarness({
                   </SwapsContext.Provider>
                 </WalletContext.Provider>
               </FlowContext.Provider>
-            </AspContext.Provider>
+            </OperatorContext.Provider>
           </BackupContext.Provider>
         </FiatContext.Provider>
       </ConfigContext.Provider>
@@ -125,7 +125,7 @@ function RecoveryHarness({ recover }: { recover: (id: string) => Promise<boolean
       <ConfigContext.Provider value={mockConfigContextValue}>
         <FiatContext.Provider value={mockFiatContextValue}>
           <BackupContext.Provider value={mockBackupContextValue}>
-            <AspContext.Provider value={mockAspContextValue}>
+            <OperatorContext.Provider value={mockOperatorContextValue}>
               <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: pendingSwapTx }}>
                 <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [pendingSwapTx] } as any}>
                   <SwapsContext.Provider value={{ swaps, cancelSwap: vi.fn(), recoverSwap } as any}>
@@ -135,7 +135,7 @@ function RecoveryHarness({ recover }: { recover: (id: string) => Promise<boolean
                   </SwapsContext.Provider>
                 </WalletContext.Provider>
               </FlowContext.Provider>
-            </AspContext.Provider>
+            </OperatorContext.Provider>
           </BackupContext.Provider>
         </FiatContext.Provider>
       </ConfigContext.Provider>
@@ -285,7 +285,7 @@ describe('Transaction screen', () => {
 
     render(
       <NavigationContext.Provider value={mockNavigationContextValue}>
-        <AspContext.Provider value={mockAspContextValue}>
+        <OperatorContext.Provider value={mockOperatorContextValue}>
           <FlowContext.Provider value={localFlowContextValue}>
             <WalletContext.Provider
               value={{ ...localWalletContextValue, isVerifiedAsset: (id: string) => id === MUTINYNET_USDT_ASSET_ID }}
@@ -295,7 +295,7 @@ describe('Transaction screen', () => {
               </LimitsContext.Provider>
             </WalletContext.Provider>
           </FlowContext.Provider>
-        </AspContext.Provider>
+        </OperatorContext.Provider>
       </NavigationContext.Provider>,
     )
 
@@ -318,7 +318,7 @@ describe('Transaction screen', () => {
     render(
       <BackupContext.Provider value={{ ...mockBackupContextValue, backupContacts }}>
         <NavigationContext.Provider value={mockNavigationContextValue}>
-          <AspContext.Provider value={mockAspContextValue}>
+          <OperatorContext.Provider value={mockOperatorContextValue}>
             <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: sentTx }}>
               <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [sentTx] } as any}>
                 <LimitsContext.Provider value={mockLimitsContextValue}>
@@ -326,7 +326,7 @@ describe('Transaction screen', () => {
                 </LimitsContext.Provider>
               </WalletContext.Provider>
             </FlowContext.Provider>
-          </AspContext.Provider>
+          </OperatorContext.Provider>
         </NavigationContext.Provider>
       </BackupContext.Provider>,
     )
@@ -356,7 +356,7 @@ describe('Transaction screen', () => {
 
     render(
       <NavigationContext.Provider value={mockNavigationContextValue}>
-        <AspContext.Provider value={mockAspContextValue}>
+        <OperatorContext.Provider value={mockOperatorContextValue}>
           <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: sentTx }}>
             <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [sentTx] } as any}>
               <LimitsContext.Provider value={mockLimitsContextValue}>
@@ -364,7 +364,7 @@ describe('Transaction screen', () => {
               </LimitsContext.Provider>
             </WalletContext.Provider>
           </FlowContext.Provider>
-        </AspContext.Provider>
+        </OperatorContext.Provider>
       </NavigationContext.Provider>,
     )
 
@@ -384,7 +384,7 @@ describe('Transaction screen', () => {
 
     render(
       <NavigationContext.Provider value={mockNavigationContextValue}>
-        <AspContext.Provider value={mockAspContextValue}>
+        <OperatorContext.Provider value={mockOperatorContextValue}>
           <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: sentTx }}>
             <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [sentTx] } as any}>
               <LimitsContext.Provider value={mockLimitsContextValue}>
@@ -392,7 +392,7 @@ describe('Transaction screen', () => {
               </LimitsContext.Provider>
             </WalletContext.Provider>
           </FlowContext.Provider>
-        </AspContext.Provider>
+        </OperatorContext.Provider>
       </NavigationContext.Provider>,
     )
 
@@ -423,7 +423,7 @@ describe('Transaction screen', () => {
 
     render(
       <NavigationContext.Provider value={mockNavigationContextValue}>
-        <AspContext.Provider value={mockAspContextValue}>
+        <OperatorContext.Provider value={mockOperatorContextValue}>
           <ConfigContext.Provider value={mockConfigContextValue}>
             <FiatContext.Provider value={mockFiatContextValue}>
               <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: exitTxInfo }}>
@@ -443,7 +443,7 @@ describe('Transaction screen', () => {
               </FlowContext.Provider>
             </FiatContext.Provider>
           </ConfigContext.Provider>
-        </AspContext.Provider>
+        </OperatorContext.Provider>
       </NavigationContext.Provider>,
     )
 
@@ -473,7 +473,7 @@ describe('Transaction screen', () => {
 
     render(
       <NavigationContext.Provider value={mockNavigationContextValue}>
-        <AspContext.Provider value={mockAspContextValue}>
+        <OperatorContext.Provider value={mockOperatorContextValue}>
           <FlowContext.Provider value={localFlowContextValue}>
             <WalletContext.Provider
               value={{ ...localWalletContextValue, isVerifiedAsset: (id: string) => id === MUTINYNET_USDT_ASSET_ID }}
@@ -483,7 +483,7 @@ describe('Transaction screen', () => {
               </LimitsContext.Provider>
             </WalletContext.Provider>
           </FlowContext.Provider>
-        </AspContext.Provider>
+        </OperatorContext.Provider>
       </NavigationContext.Provider>,
     )
 
@@ -496,7 +496,7 @@ describe('Transaction screen', () => {
 
     render(
       <NavigationContext.Provider value={mockNavigationContextValue}>
-        <AspContext.Provider value={mockAspContextValue}>
+        <OperatorContext.Provider value={mockOperatorContextValue}>
           <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
             <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [txInfo] }}>
               <LimitsContext.Provider value={mockLimitsContextValue}>
@@ -504,7 +504,7 @@ describe('Transaction screen', () => {
               </LimitsContext.Provider>
             </WalletContext.Provider>
           </FlowContext.Provider>
-        </AspContext.Provider>
+        </OperatorContext.Provider>
       </NavigationContext.Provider>,
     )
 
@@ -546,7 +546,7 @@ describe('Transaction screen', () => {
       <NavigationContext.Provider value={mockNavigationContextValue}>
         <ConfigContext.Provider value={localConfigContextValue}>
           <FiatContext.Provider value={mockFiatContextValue}>
-            <AspContext.Provider value={mockAspContextValue}>
+            <OperatorContext.Provider value={mockOperatorContextValue}>
               <FlowContext.Provider value={localFlowContextValue}>
                 <WalletContext.Provider
                   value={{
@@ -559,7 +559,7 @@ describe('Transaction screen', () => {
                   </LimitsContext.Provider>
                 </WalletContext.Provider>
               </FlowContext.Provider>
-            </AspContext.Provider>
+            </OperatorContext.Provider>
           </FiatContext.Provider>
         </ConfigContext.Provider>
       </NavigationContext.Provider>,
@@ -613,7 +613,7 @@ describe('Transaction screen', () => {
 
     render(
       <NavigationContext.Provider value={mockNavigationContextValue}>
-        <AspContext.Provider value={mockAspContextValue}>
+        <OperatorContext.Provider value={mockOperatorContextValue}>
           <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: swapTxInfo }}>
             <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [swapTxInfo] }}>
               <LimitsContext.Provider value={mockLimitsContextValue}>
@@ -621,7 +621,7 @@ describe('Transaction screen', () => {
               </LimitsContext.Provider>
             </WalletContext.Provider>
           </FlowContext.Provider>
-        </AspContext.Provider>
+        </OperatorContext.Provider>
       </NavigationContext.Provider>,
     )
 
@@ -656,7 +656,7 @@ describe('Transaction screen', () => {
 
     render(
       <NavigationContext.Provider value={mockNavigationContextValue}>
-        <AspContext.Provider value={mockAspContextValue}>
+        <OperatorContext.Provider value={mockOperatorContextValue}>
           <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: swapTxInfo }}>
             <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [swapTxInfo] }}>
               <LimitsContext.Provider value={mockLimitsContextValue}>
@@ -664,7 +664,7 @@ describe('Transaction screen', () => {
               </LimitsContext.Provider>
             </WalletContext.Provider>
           </FlowContext.Provider>
-        </AspContext.Provider>
+        </OperatorContext.Provider>
       </NavigationContext.Provider>,
     )
 
@@ -704,7 +704,7 @@ describe('Transaction screen', () => {
       <NavigationContext.Provider value={mockNavigationContextValue}>
         <ConfigContext.Provider value={localConfigContextValue}>
           <FiatContext.Provider value={mockFiatContextValue}>
-            <AspContext.Provider value={mockAspContextValue}>
+            <OperatorContext.Provider value={mockOperatorContextValue}>
               <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo: swapTxInfo }}>
                 <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [swapTxInfo] }}>
                   <LimitsContext.Provider value={mockLimitsContextValue}>
@@ -712,7 +712,7 @@ describe('Transaction screen', () => {
                   </LimitsContext.Provider>
                 </WalletContext.Provider>
               </FlowContext.Provider>
-            </AspContext.Provider>
+            </OperatorContext.Provider>
           </FiatContext.Provider>
         </ConfigContext.Provider>
       </NavigationContext.Provider>,
@@ -740,7 +740,7 @@ describe('Transaction screen', () => {
 
     render(
       <NavigationContext.Provider value={mockNavigationContextValue}>
-        <AspContext.Provider value={mockAspContextValue}>
+        <OperatorContext.Provider value={mockOperatorContextValue}>
           <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
             <WalletContext.Provider value={mockWalletContextValue}>
               <LimitsContext.Provider value={mockLimitsContextValue}>
@@ -748,7 +748,7 @@ describe('Transaction screen', () => {
               </LimitsContext.Provider>
             </WalletContext.Provider>
           </FlowContext.Provider>
-        </AspContext.Provider>
+        </OperatorContext.Provider>
       </NavigationContext.Provider>,
     )
 
@@ -813,11 +813,11 @@ describe('Transaction screen', () => {
         >
           <FiatContext.Provider value={fiatContextValue}>
             <NavigationContext.Provider value={mockNavigationContextValue}>
-              <AspContext.Provider
+              <OperatorContext.Provider
                 value={
                   {
-                    ...mockAspContextValue,
-                    aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet' },
+                    ...mockOperatorContextValue,
+                    operatorInfo: { ...mockOperatorContextValue.operatorInfo, network: 'mutinynet' },
                   } as any
                 }
               >
@@ -837,7 +837,7 @@ describe('Transaction screen', () => {
                     </WalletContext.Provider>
                   </FlowContext.Provider>
                 </AssetsContext.Provider>
-              </AspContext.Provider>
+              </OperatorContext.Provider>
             </NavigationContext.Provider>
           </FiatContext.Provider>
         </ConfigContext.Provider>,
@@ -877,7 +877,7 @@ describe('Transaction screen', () => {
     render(
       <ConfigContext.Provider value={{ ...mockConfigContextValue, useFiat: false }}>
         <NavigationContext.Provider value={mockNavigationContextValue}>
-          <AspContext.Provider value={mockAspContextValue}>
+          <OperatorContext.Provider value={mockOperatorContextValue}>
             <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
               <WalletContext.Provider value={{ ...mockWalletContextValue, txs: [txInfo] }}>
                 <LimitsContext.Provider value={mockLimitsContextValue}>
@@ -885,7 +885,7 @@ describe('Transaction screen', () => {
                 </LimitsContext.Provider>
               </WalletContext.Provider>
             </FlowContext.Provider>
-          </AspContext.Provider>
+          </OperatorContext.Provider>
         </NavigationContext.Provider>
       </ConfigContext.Provider>,
     )
@@ -930,7 +930,7 @@ describe('Transaction screen', () => {
       <ConfigContext.Provider value={mockConfigContextValue}>
         <FiatContext.Provider value={fiatContextValue}>
           <NavigationContext.Provider value={mockNavigationContextValue}>
-            <AspContext.Provider value={mockAspContextValue}>
+            <OperatorContext.Provider value={mockOperatorContextValue}>
               <FlowContext.Provider value={{ ...mockFlowContextValue, txInfo }}>
                 <WalletContext.Provider
                   value={
@@ -942,7 +942,7 @@ describe('Transaction screen', () => {
                   </LimitsContext.Provider>
                 </WalletContext.Provider>
               </FlowContext.Provider>
-            </AspContext.Provider>
+            </OperatorContext.Provider>
           </NavigationContext.Provider>
         </FiatContext.Provider>
       </ConfigContext.Provider>,

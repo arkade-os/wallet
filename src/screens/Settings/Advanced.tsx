@@ -5,7 +5,7 @@ import Content from '../../components/Content'
 import { SettingsOptions, SettingsSections } from '../../lib/types'
 import Menu from '../../components/Menu'
 import { DevModeContext } from '../../providers/devMode'
-import { AspContext } from '../../providers/asp'
+import { OperatorContext } from '../../providers/operator'
 import { isMainnet } from '../../lib/constants'
 import { configuredLnurlServer } from '../../lib/receive/lnurlRail'
 import Padded from '../../components/Padded'
@@ -13,12 +13,12 @@ import { useTranslation } from '../../providers/language'
 
 export default function Advanced() {
   const { devMode } = useContext(DevModeContext)
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const { t } = useTranslation()
   const rows = options
     .filter((o) => o.section === SettingsSections.Advanced)
     .filter((o) => o.option !== SettingsOptions.Contracts || devMode)
-    .filter((o) => o.option !== SettingsOptions.Server || !isMainnet(aspInfo.network))
+    .filter((o) => o.option !== SettingsOptions.Server || !isMainnet(operatorInfo.network))
     .filter((o) => o.option !== SettingsOptions.Lnurl || Boolean(configuredLnurlServer()))
 
   return (

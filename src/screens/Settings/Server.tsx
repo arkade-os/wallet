@@ -6,14 +6,14 @@ import Content from '../../components/Content'
 import Padded from '../../components/Padded'
 import ErrorMessage from '../../components/Error'
 import { ConfigContext } from '../../providers/config'
-import { getAspInfo, aspErrorText } from '../../lib/asp'
+import { getOperatorInfo, operatorErrorText } from '../../lib/operator'
 import { WalletContext } from '../../providers/wallet'
 import Header from './Header'
 import WarningBox from '../../components/Warning'
 import InputUrl from '../../components/InputUrl'
 import FlexCol from '../../components/FlexCol'
 import Scanner from '../../components/Scanner'
-import { AspContext, AspInfo } from '../../providers/asp'
+import { OperatorContext, OperatorInfo } from '../../providers/operator'
 import { consoleError } from '../../lib/logs'
 import LoadingLogo from '../../components/LoadingLogo'
 import { isMainnet } from '../../lib/constants'
@@ -21,15 +21,15 @@ import { useTranslation } from '../../providers/language'
 import { isValidUrl } from '@/lib/validators'
 
 export default function Server() {
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const { backupConfig } = useContext(BackupContext)
   const { config, updateConfig } = useContext(ConfigContext)
   const { svcWallet, resetWallet } = useContext(WalletContext)
   const { t } = useTranslation()
 
-  const [aspUrl, setAspUrl] = useState('')
+  const [operatorUrl, setOperatorUrl] = useState('')
   const [error, setError] = useState('')
-  const [info, setInfo] = useState<AspInfo>()
+  const [info, setInfo] = useState<OperatorInfo>()
   const [scan, setScan] = useState(false)
   const [loading, setLoading] = useState(false)
 
@@ -42,26 +42,28 @@ export default function Server() {
 
   useEffect(() => {
     setError(
-      aspInfo.unreachable ? aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet')) : '',
+      operatorInfo.unreachable
+        ? operatorErrorText(operatorInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))
+        : '',
     )
-  }, [aspInfo.unreachable, aspInfo.outdated, t])
+  }, [operatorInfo.unreachable, operatorInfo.outdated, t])
 
   useEffect(() => {
-    if (!aspUrl || !isValidServerUrl(aspUrl)) return
+    if (!operatorUrl || !isValidServerUrl(operatorUrl)) return
     // don't do anything if same server
-    if (aspUrl === config.aspUrl) return setError(t('settings.sameServer'))
+    if (operatorUrl === config.operatorUrl) return setError(t('settings.sameServer'))
     // test connection
-    getAspInfo(aspUrl).then((info) => {
+    getOperatorInfo(operatorUrl).then((info) => {
       setError(info.unreachable ? t('settings.unableToConnect') : '')
       setInfo(info)
     })
-  }, [aspUrl, t])
+  }, [operatorUrl, t])
 
   if (!svcWallet) return <LoadingLogo text={t('common.loading')} />
 
   // Mirrors the Advanced menu filter: block direct navigation to this screen too,
   // but still allow recovery if the current mainnet server is unreachable.
-  const blocked = isMainnet(aspInfo.network) && !aspInfo.unreachable
+  const blocked = isMainnet(operatorInfo.network) && !operatorInfo.unreachable
 
   const handleConnect = async () => {
     if (blocked) return
@@ -69,8 +71,8 @@ export default function Server() {
     try {
       if (!info) return
       await resetWallet()
-      updateConfig({ ...config, aspUrl: info.url })
-      await backupConfig({ ...config, aspUrl: info.url })
+      updateConfig({ ...config, operatorUrl: info.url })
+      await backupConfig({ ...config, operatorUrl: info.url })
       location.reload() // reload app or else weird things happen
     } catch (err) {
       consoleError(err)
@@ -90,7 +92,7 @@ export default function Server() {
         close={() => setScan(false)}
         label={t('settings.serverUrl')}
         onData={(data) => {
-          setAspUrl(data)
+          setOperatorUrl(data)
           setScan(false)
         }}
         onError={setError}
@@ -119,10 +121,10 @@ export default function Server() {
             <InputUrl
               focus
               label={t('settings.serverUrl')}
-              onChange={setAspUrl}
+              onChange={setOperatorUrl}
               onEnter={handleEnter}
               openScan={() => setScan(true)}
-              placeholder={config.aspUrl}
+              placeholder={config.operatorUrl}
             />
             <ErrorMessage error={Boolean(error)} text={error} />
             {info && !error ? <WarningBox green text={t('settings.serverFound')} /> : null}

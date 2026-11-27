@@ -12,7 +12,7 @@ export type Config = {
       enabled: boolean
     }
   }
-  aspUrl: string
+  operatorUrl: string
   currency: Currencies
   /** Board deposits and renew them through the network's Executor while the wallet is offline. Not exposed in the UI: VITE_EXECUTOR_ENABLED sets it. */
   executor: boolean
@@ -31,6 +31,7 @@ export type Config = {
   unit: Unit
   walletMode: ServiceWorkerWalletMode
   // deprecated
+  aspUrl?: string
   currencyDisplay?: string
   fiat?: Currencies
 }

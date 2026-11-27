@@ -4,7 +4,7 @@ import { render, screen, act, fireEvent, waitFor, within } from '@testing-librar
 import { FlowContext, emptyRecvInfo } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import {
-  mockAspContextValue,
+  mockOperatorContextValue,
   mockConfigContextValue,
   mockFiatContextValue,
   mockFlowContextValue,
@@ -13,7 +13,7 @@ import {
   mockSvcWallet,
   mockWalletContextValue,
 } from '../mocks'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { WalletContext } from '../../../providers/wallet'
 import { NavigationContext } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
@@ -119,7 +119,7 @@ function buildTree(overrides?: RenderOverrides) {
     >
       <ToastProvider>
         <NavigationContext.Provider value={mockNavigationContextValue}>
-          <AspContext.Provider value={mockAspContextValue}>
+          <OperatorContext.Provider value={mockOperatorContextValue}>
             <ConfigContext.Provider value={{ ...config, updateConfig } as any}>
               <FiatContext.Provider value={{ ...mockFiatContextValue, ...overrides?.fiat } as any}>
                 <NotificationsContext.Provider value={mockNotificationsContextValue as any}>
@@ -135,7 +135,7 @@ function buildTree(overrides?: RenderOverrides) {
                 </NotificationsContext.Provider>
               </FiatContext.Provider>
             </ConfigContext.Provider>
-          </AspContext.Provider>
+          </OperatorContext.Provider>
         </NavigationContext.Provider>
       </ToastProvider>
     </LanguageContext.Provider>

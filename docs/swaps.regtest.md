@@ -56,7 +56,7 @@ pnpm start
 
 Open <http://localhost:3002> and create/unlock a wallet. On `localhost` the app
 automatically targets the local `arkd` (`http://localhost:7070`) and its regtest
-network — no `VITE_ARK_SERVER` needed. The regtest Boltz endpoint
+network — no `VITE_OPERATOR_URL` needed. The regtest Boltz endpoint
 (`http://localhost:9069`) is likewise built in.
 
 > To exercise the LNURL / nostr-backup features as well, start with:

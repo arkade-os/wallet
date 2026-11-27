@@ -2,9 +2,9 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Contracts from '../../../screens/Settings/Contracts'
 import { WalletContext } from '../../../providers/wallet'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { mockWalletContextValue, mockSvcWallet } from '../mocks'
-import { emptyAspInfo } from '../../../lib/asp'
+import { emptyOperatorInfo } from '../../../lib/operator'
 import { ToastProvider } from '../../../components/Toast'
 import { copyToClipboard } from '../../../lib/clipboard'
 import type { Contract } from '@arkade-os/sdk'
@@ -47,15 +47,15 @@ function withContracts(contracts: Contract[]) {
   }
 }
 
-function renderScreen(svcWallet: typeof mockSvcWallet | undefined, aspInfo = emptyAspInfo) {
+function renderScreen(svcWallet: typeof mockSvcWallet | undefined, operatorInfo = emptyOperatorInfo) {
   return render(
-    <AspContext.Provider value={{ aspInfo, setAspInfo: () => {} } as any}>
+    <OperatorContext.Provider value={{ operatorInfo, setOperatorInfo: () => {} } as any}>
       <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet } as any}>
         <ToastProvider>
           <Contracts />
         </ToastProvider>
       </WalletContext.Provider>
-    </AspContext.Provider>,
+    </OperatorContext.Provider>,
   )
 }
 
@@ -93,7 +93,7 @@ describe('Contracts screen', () => {
   it('shows the on-chain Taproot address for boarding contracts', async () => {
     const script = '5120' + 'cc'.repeat(32) // P2TR scriptPubKey
     renderScreen(withContracts([contract({ type: 'boarding', address: 'ark1qboardingoffchain', script })]) as any, {
-      ...emptyAspInfo,
+      ...emptyOperatorInfo,
       network: 'bitcoin',
     })
     await screen.findByText('Contracts')
@@ -106,12 +106,12 @@ describe('Contracts screen', () => {
 const ACTIVE_SIGNER = 'aa'.repeat(32)
 const DEPRECATED_SIGNER = 'bb'.repeat(32)
 
-function deprecatedAspInfo(cutoff: bigint) {
+function deprecatedOperatorInfo(cutoff: bigint) {
   return {
-    ...emptyAspInfo,
+    ...emptyOperatorInfo,
     signerPubkey: ACTIVE_SIGNER,
     deprecatedSigners: [{ pubkey: DEPRECATED_SIGNER, cutoffDate: cutoff }],
-  } as typeof emptyAspInfo
+  } as typeof emptyOperatorInfo
 }
 
 function underSigner(serverPubKey: string): Contract {
@@ -120,20 +120,20 @@ function underSigner(serverPubKey: string): Contract {
 
 describe('Contracts screen — deprecated signer badges', () => {
   it('flags a contract whose signer is deprecated and past its cutoff', async () => {
-    renderScreen(withContracts([underSigner(DEPRECATED_SIGNER)]) as any, deprecatedAspInfo(BigInt(1))) // 1970 → EXPIRED
+    renderScreen(withContracts([underSigner(DEPRECATED_SIGNER)]) as any, deprecatedOperatorInfo(BigInt(1))) // 1970 → EXPIRED
     await screen.findByText('Contracts')
     expect(screen.getByText('deprecated signer · past cutoff')).toBeInTheDocument()
   })
 
   it('flags a contract whose signer is deprecated but before its cutoff', async () => {
-    renderScreen(withContracts([underSigner(DEPRECATED_SIGNER)]) as any, deprecatedAspInfo(BigInt(99999999999))) // MIGRATABLE
+    renderScreen(withContracts([underSigner(DEPRECATED_SIGNER)]) as any, deprecatedOperatorInfo(BigInt(99999999999))) // MIGRATABLE
     await screen.findByText('Contracts')
     expect(screen.getByText('deprecated signer')).toBeInTheDocument()
     expect(screen.queryByText('deprecated signer · past cutoff')).not.toBeInTheDocument()
   })
 
   it('does not flag a contract under the active signer', async () => {
-    renderScreen(withContracts([underSigner(ACTIVE_SIGNER)]) as any, deprecatedAspInfo(BigInt(1)))
+    renderScreen(withContracts([underSigner(ACTIVE_SIGNER)]) as any, deprecatedOperatorInfo(BigInt(1)))
     await screen.findByText('Contracts')
     expect(screen.queryByText(/deprecated signer/)).not.toBeInTheDocument()
   })
@@ -193,7 +193,7 @@ describe('Contracts screen — copy feedback', () => {
   const boarding = async () => {
     const script = '5120' + 'cc'.repeat(32) // P2TR scriptPubKey
     renderScreen(withContracts([contract({ type: 'boarding', address: 'ark1qboardingoffchain', script })]) as any, {
-      ...emptyAspInfo,
+      ...emptyOperatorInfo,
       network: 'bitcoin',
     })
     await screen.findByText('Contracts')

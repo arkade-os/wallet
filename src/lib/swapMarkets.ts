@@ -69,7 +69,7 @@ export const BUNDLED_CARDS: LocalCardInput[] = [{ card: betaSolverCard as LocalC
  * All three fields resolve off ONE narrowed name, and that is the whole of the
  * care here. Deriving them separately is what let an unnamed network keep its
  * cards: `network` and `registryUrl` fell back while the card filter compared
- * the raw name, and Settings stamps `aspInfo.network` on a card it stores — so
+ * the raw name, and Settings stamps `operatorInfo.network` on a card it stores — so
  * a card added on testnet matched the filter and then reached discovery
  * labelled `bitcoin`. A testnet card priced as a mainnet market is the same
  * mismatch `BUNDLED_CARDS` is scoped to prevent, arrived at from the other end.

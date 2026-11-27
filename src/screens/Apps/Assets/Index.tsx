@@ -14,7 +14,7 @@ import { FlowContext } from '../../../providers/flow'
 import { consoleError } from '../../../lib/logs'
 import { SettingsIconLight } from '../../../icons/Settings'
 import { EmptyAssetsList } from '../../../components/Empty'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import AssetCard from '../../../components/AssetCard'
 import { useTranslation } from '../../../providers/language'
 
@@ -32,7 +32,7 @@ export default function AppAssets() {
   const { assetBalances, balance, svcWallet, assetMetadataCache, setCacheEntry } = useContext(WalletContext)
   const { config } = useContext(ConfigContext)
   const { setAssetInfo } = useContext(FlowContext)
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const { t } = useTranslation()
 
   const [assets, setAssets] = useState<AssetListItem[]>([])
@@ -129,7 +129,7 @@ export default function AppAssets() {
           <Button
             label={t('mint.mint')}
             onClick={() => navigate(Pages.AppAssetMint)}
-            disabled={balance < aspInfo.dust}
+            disabled={balance < operatorInfo.dust}
             secondary
           />
         </ButtonsOnBottom>

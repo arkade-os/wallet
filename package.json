@@ -45,7 +45,7 @@
   "scripts": {
     "prepare": "husky install",
     "start": "pnpm git-info && pnpm build:worker && vite",
-    "start:mainnet": "pnpm git-info && pnpm build:worker && cross-env VITE_ARK_SERVER=https://arkade.computer vite",
+    "start:mainnet": "pnpm git-info && pnpm build:worker && cross-env VITE_OPERATOR_URL=https://arkade.computer vite",
     "build": "pnpm csp:check && pnpm git-info && pnpm build:worker && vite build",
     "build:worker": "vite build -c vite.worker.config.ts",
     "test": "vitest run",

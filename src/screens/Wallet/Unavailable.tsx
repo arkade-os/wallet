@@ -2,23 +2,23 @@ import CenterScreen from '../../components/CenterScreen'
 import ErrorMessage from '../../components/Error'
 import WalletNewIcon from '../../icons/WalletNew'
 import Text from '../../components/Text'
-import { AspContext } from '../../providers/asp'
-import { aspErrorText } from '../../lib/asp'
+import { OperatorContext } from '../../providers/operator'
+import { operatorErrorText } from '../../lib/operator'
 import { useContext, useEffect, useState } from 'react'
 import { isIOS } from '../../lib/browser'
 import { detectJSCapabilities, getRestrictedEnvironmentMessage } from '../../lib/jsCapabilities'
 import { useTranslation } from '../../providers/language'
 
 export default function Unavailable() {
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const { t } = useTranslation()
 
   const [error, setError] = useState('')
 
   // Check JavaScript capabilities on mount
   useEffect(() => {
-    if (aspInfo.unreachable)
-      return setError(aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet')))
+    if (operatorInfo.unreachable)
+      return setError(operatorErrorText(operatorInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet')))
     detectJSCapabilities()
       .then((result) => {
         if (result.isSupported) return
@@ -28,7 +28,7 @@ export default function Unavailable() {
       .catch(() => {
         setError(getRestrictedEnvironmentMessage(isIOS()))
       })
-  }, [aspInfo.unreachable, aspInfo.outdated])
+  }, [operatorInfo.unreachable, operatorInfo.outdated])
 
   return (
     <CenterScreen>

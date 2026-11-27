@@ -26,13 +26,13 @@ another control asset. This flow requires Web Locks support and a secure browser
 If an issuance's outcome is unknown (for example, the browser closed while submitting it), the wallet cannot
 determine safely whether retrying would create a duplicate. Check wallet activity and contact support before
 discarding the recovery record. Discarding it or clearing browser storage can make a later mint incur another fee.
-Recovery records are stored in this browser, not in the Nostr backup; use the same wallet and Arkade server to resume.
+Recovery records are stored in this browser, not in the Nostr backup; use the same wallet and operator to resume.
 
 ## Environment Variables
 
 | Variable                      | Description                                                         | Example Value                                                                        |
 | ----------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `VITE_ARK_SERVER`             | Override the default Arkade server URL                              | `VITE_ARK_SERVER=http://localhost:7070`                                              |
+| `VITE_OPERATOR_URL`           | Override the default operator URL (`VITE_ARK_SERVER` still works)   | `VITE_OPERATOR_URL=http://localhost:7070`                                            |
 | `VITE_APP_VERSION`            | App version string shown in support diagnostics                     | `VITE_APP_VERSION=1.2.3`                                                             |
 | `VITE_CHATWOOT_WEBSITE_TOKEN` | ChatWoot website token for customer support integration             | `VITE_CHATWOOT_WEBSITE_TOKEN=your-token`                                             |
 | `VITE_CHATWOOT_BASE_URL`      | ChatWoot server base URL for customer support integration           | `VITE_CHATWOOT_BASE_URL=https://app.chatwoot.com`                                    |
@@ -69,7 +69,7 @@ Environment variables can be passed at runtime to configure the wallet without r
 
 ```bash
 docker run -p 8080:80 \
-  -e VITE_ARK_SERVER=https://arkade.computer \
+  -e VITE_OPERATOR_URL=https://arkade.computer \
   ghcr.io/arkade-os/wallet:latest
 ```
 
@@ -82,7 +82,7 @@ docker build -t arkade-wallet .
 
 # With build-time configuration
 docker build \
-  --build-arg VITE_ARK_SERVER=https://arkade.computer \
+  --build-arg VITE_OPERATOR_URL=https://arkade.computer \
   -t arkade-wallet .
 ```
 

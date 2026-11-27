@@ -29,7 +29,7 @@ import createFetchMock from 'vitest-fetch-mock'
 import { emptySendInfo, FlowContext, type SendInfo } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import {
-  mockAspContextValue,
+  mockOperatorContextValue,
   mockConfigContextValue,
   mockFiatContextValue,
   mockFlowContextValue,
@@ -39,7 +39,7 @@ import {
   mockSvcWallet,
   mockWalletContextValue,
 } from '../mocks'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { WalletContext } from '../../../providers/wallet'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { redirectToCallback } from '../../../lib/appIntent'
@@ -75,7 +75,7 @@ const sendFormTree = ({
   outcomeOf,
 }: TreeOptions = {}) => (
   <NavigationContext.Provider value={navigationContext}>
-    <AspContext.Provider value={mockAspContextValue}>
+    <OperatorContext.Provider value={mockOperatorContextValue}>
       <ConfigContext.Provider value={configContext as any}>
         <FiatContext.Provider value={fiatContext as any}>
           <OptionsContext.Provider value={mockOptionsContextValue as any}>
@@ -93,7 +93,7 @@ const sendFormTree = ({
           </OptionsContext.Provider>
         </FiatContext.Provider>
       </ConfigContext.Provider>
-    </AspContext.Provider>
+    </OperatorContext.Provider>
   </NavigationContext.Provider>
 )
 

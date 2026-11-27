@@ -9,7 +9,7 @@ import * as solverQuoteHook from '../../../hooks/useSolverQuote'
 import * as solverCards from '../../../lib/solverCards'
 import WalletSwap from '../../../screens/Wallet/Swap/Index'
 import { ToastProvider } from '../../../components/Toast'
-import { AspContext } from '../../../providers/asp'
+import { OperatorContext } from '../../../providers/operator'
 import { AssetsContext } from '../../../providers/assets'
 import { SwapsContext } from '../../../providers/swaps'
 import { ConfigContext } from '../../../providers/config'
@@ -21,7 +21,7 @@ import type { WalletAssetSwap as AssetSwap } from '../../../lib/swapRepository'
 import { Currencies, Unit } from '../../../lib/types'
 import { saveSolverRouting } from '../../../lib/solverRouting'
 import {
-  mockAspContextValue,
+  mockOperatorContextValue,
   mockConfigContextValue,
   mockFiatContextValue,
   mockFlowContextValue,
@@ -111,8 +111,13 @@ function renderSwap({
   if (!('availableAssetBalances' in wallet)) walletValue.availableAssetBalances = walletValue.assetBalances
 
   const contents = (nextSwap = swap, nextWallet = walletValue) => (
-    <AspContext.Provider
-      value={{ ...mockAspContextValue, aspInfo: { ...mockAspContextValue.aspInfo, network: 'mutinynet' } } as any}
+    <OperatorContext.Provider
+      value={
+        {
+          ...mockOperatorContextValue,
+          operatorInfo: { ...mockOperatorContextValue.operatorInfo, network: 'mutinynet' },
+        } as any
+      }
     >
       <AssetsContext.Provider value={{ isRegistered: () => true }}>
         <NavigationContext.Provider
@@ -158,7 +163,7 @@ function renderSwap({
           </ConfigContext.Provider>
         </NavigationContext.Provider>
       </AssetsContext.Provider>
-    </AspContext.Provider>
+    </OperatorContext.Provider>
   )
   const view = render(contents())
   return {

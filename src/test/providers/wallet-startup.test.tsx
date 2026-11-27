@@ -2,9 +2,9 @@ import { act, render, waitFor } from '@testing-library/react'
 import { useContext } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WalletContext, WalletProvider } from '../../providers/wallet'
-import { AspContext } from '../../providers/asp'
+import { OperatorContext } from '../../providers/operator'
 import { ConfigContext } from '../../providers/config'
-import { mockAspContextValue, mockConfigContextValue } from '../screens/mocks'
+import { mockOperatorContextValue, mockConfigContextValue } from '../screens/mocks'
 
 // A fresh service per test: a provider outlives its test (its status ping keeps running), and must
 // not count toward the next test's reloads.
@@ -49,13 +49,13 @@ function Capture() {
 
 const renderWallet = (config = mockConfigContextValue.config) =>
   render(
-    <AspContext.Provider value={mockAspContextValue}>
+    <OperatorContext.Provider value={mockOperatorContextValue}>
       <ConfigContext.Provider value={{ ...mockConfigContextValue, config }}>
         <WalletProvider>
           <Capture />
         </WalletProvider>
       </ConfigContext.Provider>
-    </AspContext.Provider>,
+    </OperatorContext.Provider>,
   )
 
 const startWallet = async (
@@ -140,7 +140,7 @@ it('registers the boarding watch with a configured Executor, then reloads', asyn
   await startWallet()
 
   expect(mocks.setup).toHaveBeenCalledWith(expect.objectContaining({ executorUrl: 'https://executor.example' }))
-  // the mocked Ark server is on regtest, whose VTXOs expire after a day
+  // the mocked operator is on regtest, whose VTXOs expire after a day
   await vi.waitFor(() =>
     expect(mocks.current.service.executor.registerBoarding).toHaveBeenCalledWith(
       { renewalWindow: 43_200, maxFee: 1_000 },

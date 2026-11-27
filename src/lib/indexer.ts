@@ -1,13 +1,13 @@
 import { RestIndexerProvider } from '@arkade-os/sdk'
-import { AspInfo } from '../providers/asp'
+import { OperatorInfo } from '../providers/operator'
 
 const STORAGE_KEY = 'commitmentTxs'
 
 export class Indexer {
   readonly provider: RestIndexerProvider
 
-  constructor(aspInfo: AspInfo) {
-    this.provider = new RestIndexerProvider(aspInfo.url)
+  constructor(operatorInfo: OperatorInfo) {
+    this.provider = new RestIndexerProvider(operatorInfo.url)
   }
 
   getAndUpdateCommitmentTxCreatedAt = async (txid: string): Promise<number | null> => {

@@ -1,8 +1,8 @@
 import { useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import DismissibleBanner from '../../components/DismissibleBanner'
 import ErrorMessage from '../../components/Error'
-import { AspContext } from '../../providers/asp'
-import { aspErrorText } from '../../lib/asp'
+import { OperatorContext } from '../../providers/operator'
+import { operatorErrorText } from '../../lib/operator'
 import { ConfigContext } from '../../providers/config'
 import HomeIcon from '../../icons/Home'
 import Padded from '../../components/Padded'
@@ -27,7 +27,7 @@ import { BackupContext } from '@/providers/backup'
 import { useTranslation } from '../../providers/language'
 
 export default function Wallet() {
-  const { aspInfo } = useContext(AspContext)
+  const { operatorInfo } = useContext(OperatorContext)
   const { announcement } = useContext(AnnouncementContext)
   const { config } = useContext(ConfigContext)
   const { backupAndUpdateConfig } = useContext(BackupContext)
@@ -70,8 +70,8 @@ export default function Wallet() {
   }
 
   useEffect(() => {
-    setError(aspInfo.unreachable)
-  }, [aspInfo.unreachable])
+    setError(operatorInfo.unreachable)
+  }, [operatorInfo.unreachable])
 
   useEffect(() => {
     const scrollEl = document.querySelector<HTMLElement>('.wallet-home-content')
@@ -160,7 +160,7 @@ export default function Wallet() {
             <WalletStaggerChild animate={shouldStagger}>
               <ErrorMessage
                 error={error}
-                text={aspErrorText(aspInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))}
+                text={operatorErrorText(operatorInfo, t('init.arkadeServerUnreachable'), t('errors.outdatedWallet'))}
               />
             </WalletStaggerChild>
           ) : null}

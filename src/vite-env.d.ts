@@ -4,6 +4,8 @@
 interface ImportMetaEnv {
   readonly BASE_URL: string
   readonly VITE_SENTRY_DSN?: string
+  readonly VITE_OPERATOR_URL?: string
+  /** @deprecated Use VITE_OPERATOR_URL. */
   readonly VITE_ARK_SERVER?: string
   readonly VITE_DEV_MNEMONIC?: string
   readonly VITE_DEV_NSEC?: string
