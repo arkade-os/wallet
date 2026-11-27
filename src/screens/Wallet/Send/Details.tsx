@@ -147,8 +147,12 @@ export default function SendDetails() {
 
     // The RFQ lockup carries exactly the invoice amount (exact-out, fee_bps
     // from the card; 0 today), so total == satoshis on the Lightning path.
-    const total = pendingLnSend ? pendingLnSend.total : satoshis
-    const amount = destinationType === 'mainnet' ? satoshis - calcOnchainOutputFee() : satoshis
+    // Onchain, the amount typed arrives and the output fee goes on top; send-max pays it out of the amount.
+    // Both are provisional until the router prices the send below.
+    const outputFee = destinationType === 'mainnet' ? calcOnchainOutputFee() : 0
+    const sendMax = satoshis === availableBalance
+    const total = pendingLnSend ? pendingLnSend.total : satoshis + (sendMax ? 0 : outputFee)
+    const amount = sendMax ? satoshis - outputFee : satoshis
     const fees = total - amount > 0 ? total - amount : 0
     setDetails({
       destination,
@@ -319,7 +323,7 @@ export default function SendDetails() {
    *  quote exists to go stale. A rail that cannot quote is skipped. */
   const payOnchain = async (address: string, shown: DetailsProps): Promise<void> => {
     const router = await sendRouter({ outputFee: calcOnchainOutputFee, intentFee })
-    // Receiver-exact: "what leaves" was subtracted when `details` was built.
+    // Receiver-exact: `details` shows what arrives.
     const options = await router.options({ raw: address, amount: shown.satoshis! })
     let repriced: RouteQuote | undefined
     let insufficient = false

@@ -14,6 +14,8 @@ const SOLVER = '79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798
 const RECIPIENT = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
 const FUNDED = 5000
 const SENT = 2000
+/** What leaves: SENT arrives, and the exit's 200-sat output fee (set below) goes on top. */
+const SPENT = SENT + 200
 
 const cardWithRelays = (relays: string[]) => ({
   version: 0,
@@ -63,7 +65,7 @@ const fundedWalletOnDetails = async (page: Page, isMobile: boolean) => {
   await createWallet(page)
   await fundWallet(page, FUNDED)
   await prePay(page, RECIPIENT, isMobile, SENT)
-  await expect(page.getByTestId('Total')).toContainText(`${prettyNumber(SENT)} sats`)
+  await expect(page.getByTestId('Total')).toContainText(`${prettyNumber(SPENT)} sats`)
 }
 
 /** Subscribe as the solver would, answer nothing. Without a listener `nak serve`
@@ -106,7 +108,7 @@ test.describe('on-chain send when the solver rail fails', () => {
     // fast (RelayUnavailable); if the RFQ publish wins the race, the publish refusal reports it.
     await expectRoute(page, /lost every relay connection: wss:\/\/localhost:9\/?: connection failed|no relay accepted/)
     await page.getByRole('button', { name: /Sounds good|Tap to go home/ }).click()
-    await page.waitForSelector(`text=- ${prettyNumber(SENT)} sats`, { timeout: 30_000 })
+    await page.waitForSelector(`text=- ${prettyNumber(SPENT)} sats`, { timeout: 30_000 })
   })
 
   test('pays through the collaborative exit when the solver never answers', async ({ page, isMobile }) => {
@@ -123,7 +125,7 @@ test.describe('on-chain send when the solver rail fails', () => {
       expect(delivered()).toBeGreaterThan(0)
       await expectRoute(page, /no solver reply within/)
       await page.getByRole('button', { name: /Sounds good|Tap to go home/ }).click()
-      await page.waitForSelector(`text=- ${prettyNumber(SENT)} sats`, { timeout: 30_000 })
+      await page.waitForSelector(`text=- ${prettyNumber(SPENT)} sats`, { timeout: 30_000 })
     })
   })
 
@@ -156,7 +158,7 @@ test.describe('on-chain send when the solver rail fails', () => {
       await page.goBack()
       await expect(page.getByTestId('input-amount-max')).toBeVisible({ timeout: 10_000 })
 
-      await expect(page.getByText(`${prettyNumber(FUNDED - SENT)} sats available`)).toBeVisible({ timeout: 120_000 })
+      await expect(page.getByText(`${prettyNumber(FUNDED - SPENT)} sats available`)).toBeVisible({ timeout: 120_000 })
       await expect(page.getByTestId('input-amount-max')).toBeVisible()
     })
   })

@@ -2,8 +2,8 @@
  * The send path's `PaymentRouter`. The fallback is not written here: a rail whose
  * `available()` returns false or throws is dropped from `options()` without
  * taking the router with it, replacing a six-case refusal enum. Amounts are
- * receiver-exact; the screen translates from "what leaves" at the boundary,
- * which keeps "send max" working.
+ * receiver-exact, as on the screen; only "send max" takes its fees out of the
+ * amount.
  */
 import {
   PaymentRouter,

@@ -378,12 +378,12 @@ test('should send sats (some and max) to onchain address with collaborative exit
     await prePay(page, someOnchainAddress, isMobile, 900)
 
     // details page
-    await expect(page.getByTestId('primary-amount')).toContainText('700 sats')
+    await expect(page.getByTestId('primary-amount')).toContainText('900 sats')
     const fees = await page.getByTestId('Network fees').textContent()
     expect(fees).not.toBeNull()
     const feesNumber = parseInt(fees!.replace(/[^0-9]/g, ''), 10)
     expect(feesNumber).toBeGreaterThan(0)
-    const totalSent = 700 + feesNumber
+    const totalSent = 900 + feesNumber
 
     await page.getByText(tr.send.tapToSign).click()
     await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
