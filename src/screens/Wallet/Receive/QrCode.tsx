@@ -646,6 +646,11 @@ export default function ReceiveQRCode() {
         btc: t('receive.bitcoinSub'),
         token: '',
       }[shown]
+  // Where a Lightning wallet can pay, the fee follows the caption on the same line.
+  const feeNote =
+    lightningFee > 0 && (shown === 'lightning' || shown === 'full')
+      ? t('receive.lightningPayerPays', { amount: prettySats(satoshis + lightningFee), fee: prettySats(lightningFee) })
+      : ''
   // Only a registered asset gets an official logo: a self-reported ticker could claim any.
   const assetRow = (id: string): FormatRow => {
     const p = id
@@ -840,15 +845,7 @@ export default function ReceiveQRCode() {
                     <TokenQuoteNote rail={activeToken} quote={tokenRails.quote} copied={copied} onCopy={handleCopy} />
                   ) : caption ? (
                     <Text small color='neutral-500' wrap centered>
-                      {caption}
-                    </Text>
-                  ) : null}
-                  {lightningFee > 0 && (shown === 'lightning' || shown === 'full') ? (
-                    <Text small color='neutral-500' wrap centered testId='receive-lightning-fee'>
-                      {t('receive.lightningPayerPays', {
-                        amount: prettySats(satoshis + lightningFee),
-                        fee: prettySats(lightningFee),
-                      })}
+                      {feeNote ? `${caption}. ${feeNote}` : caption}
                     </Text>
                   ) : null}
                 </div>

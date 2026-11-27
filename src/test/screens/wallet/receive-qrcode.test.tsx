@@ -374,16 +374,18 @@ describe('Receive QR Code screen', () => {
         config: { useFiat: false },
       })
       const { rerender } = renderReceiveQrCode(inSats(2_000))
-      expect(await screen.findByTestId('receive-lightning-fee')).toHaveTextContent(
-        'Lightning payers pay 2,100 sats, including a fee of 100 sats',
-      )
+      const fee = 'Lightning payers pay 2,100 sats, including a fee of 100 sats'
+      // One line with the caption, not a block of its own.
+      expect(
+        await screen.findByText(`Anyone can pay this from a Bitcoin or Lightning wallet. ${fee}`),
+      ).toBeInTheDocument()
 
       await pickFormat(/^Lightning invoice/)
-      expect(screen.getByTestId('receive-lightning-fee')).toBeInTheDocument()
+      expect(screen.getByText(`Pays once, from any Lightning wallet. ${fee}`)).toBeInTheDocument()
 
       rerender(buildTree(inSats(2_100)))
       await screen.findByTestId('invoice-address-copy')
-      expect(screen.queryByTestId('receive-lightning-fee')).not.toBeInTheDocument()
+      expect(screen.queryByText(/Lightning payers pay/)).not.toBeInTheDocument()
     })
 
     it('makes Any wallet the active radio on every mount, remembering no pick', async () => {
