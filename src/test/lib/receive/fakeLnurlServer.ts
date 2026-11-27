@@ -157,6 +157,8 @@ export function fakeLnurlServer(opts: {
   registrationError?: string
   /** Quotes this solver fee beside a Lightning invoice, which pays the receiver that much less. */
   solverFeeSat?: number
+  /** Echoes this paymentOption on a Lightning invoice, which the payer then refuses. */
+  lightningOption?: string
 }) {
   const addresses = [...(opts.addresses ?? [])]
   let rejected = 0
@@ -250,6 +252,7 @@ export function fakeLnurlServer(opts: {
       return json(200, {
         pr: fakeInvoice(amountMsat),
         routes: [],
+        ...(opts.lightningOption && { paymentOption: opts.lightningOption }),
         ...(feeMsat && {
           paymentQuote: {
             requested: msat(amountMsat),

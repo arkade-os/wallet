@@ -93,14 +93,15 @@ export function useLnurlRails(
       ...(allRails && ownOnchain ? (['onchain'] as const) : []),
     ]
     let stale = false
-    let fee: number | undefined
     // The solver's fee comes out of the invoice's amount; the server can quote it beside the invoice.
+    // Keyed by invoice, so only the Lightning answer the resolver accepts shows a fee.
+    const fees = new Map<string, number>()
     const client: Pick<LnurlClient, 'requestInvoice'> = {
       requestInvoice: async (payRequest, opts) => {
         const result = await lnurlClient.requestInvoice(payRequest, opts)
         const { payment, receive } = (result.kind === 'bolt11' && result.paymentQuote) || {}
-        if (payment?.unit === 'msat' && receive?.unit === 'msat') {
-          fee = Math.ceil((Number(payment.amount) - Number(receive.amount)) / 1000)
+        if (result.kind === 'bolt11' && payment?.unit === 'msat' && receive?.unit === 'msat') {
+          fees.set(result.pr, Math.ceil((Number(payment.amount) - Number(receive.amount)) / 1000))
         }
         return result
       },
@@ -119,7 +120,7 @@ export function useLnurlRails(
         })
         setTargets(resolved)
         setErrors(failed)
-        setLightningFee(fee)
+        setLightningFee(resolved.lightning ? fees.get(resolved.lightning) : undefined)
       })
       .catch((err) => {
         if (stale) return
