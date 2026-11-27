@@ -47,6 +47,8 @@ import type { AppIntentState } from './appIntent'
 import type { SendInfo } from '../providers/flow'
 import { defaultFee } from './constants'
 import { quoteProviderMarket } from './paymentQuotes'
+import { getActiveLanguage } from './language'
+import { translations } from './i18n'
 
 export const WALLET_EXIT_RAIL = 'onchain'
 
@@ -257,10 +259,11 @@ export const lnSendRefusal = (markets: DiscoveredMarket[], satoshis?: number): s
   const max = bounds.reduce((high, b) => (b.max > high ? b.max : high), bounds[0].max)
   const span = `${prettyNumber(Number(min))}-${prettyNumber(Number(max))} sats`
   const amount = satoshis === undefined ? undefined : BigInt(satoshis)
+  const lang = getActiveLanguage()
   if (amount !== undefined && !bounds.some((b) => amount >= b.min && amount <= b.max)) {
-    return `Amount outside solver bounds (${span})`
+    return translations[lang].solvers.outOfBoundsDetails.replace('{amount}', span)
   }
-  return `No Lightning solver took this payment (solvers take ${span}). The router does not report why a rail dropped; the reason is in the console log.`
+  return translations[lang].solvers.noLightningServer.replace('{amount}', span)
 }
 
 /** The Lightning analogue of {@link quoteIsForThisSend}. By payment hash: the

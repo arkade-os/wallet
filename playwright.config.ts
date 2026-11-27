@@ -18,10 +18,20 @@ export default defineConfig({
     navigationTimeout: 30000,
     contextOptions: { reducedMotion: 'reduce' },
   },
-  webServer: {
-    command: 'VITE_NOSTR_RELAY_URL=ws://localhost:7777 VITE_DELEGATE_ENABLED=false pnpm start',
-    port: 3002,
-  },
+  webServer: [
+    {
+      command:
+        'VITE_NOSTR_RELAY_URL=ws://localhost:7777 VITE_EXECUTOR_ENABLED=false VITE_DELEGATE_ENABLED=false pnpm start',
+      port: 3002,
+    },
+    // The same app with the Executor on, its build default, for executor.test.ts: the build switch overrides
+    // the stored config, so a test cannot turn the Executor on in the server above.
+    {
+      command:
+        'VITE_NOSTR_RELAY_URL=ws://localhost:7777 VITE_DELEGATE_ENABLED=false pnpm exec vite --port 3004 --strictPort',
+      port: 3004,
+    },
+  ],
   projects: [
     {
       name: 'Mobile Chrome',

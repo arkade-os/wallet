@@ -46,7 +46,6 @@ import TransactionAmountSummary from '../../../components/TransactionAmountSumma
 import { saveTransactionActivityMetadata } from '../../../lib/storage'
 import { lnurlSends, recordLnurlInvoiceSend, recordLnurlSend, watchLnurlConfirmation } from '../../../lib/lnurlSends'
 import { useTranslation } from '../../../providers/language'
-import { rememberSentDestination } from '../../../lib/contacts'
 import { readOpenOfferPolicy, readOpenOffersFirst, saveOnchainSendPreference } from '../../../lib/openOfferPolicy'
 import { isValidAssetId } from '../../../lib/assets'
 import { swapAssetId } from '../../../lib/swapMarkets'
@@ -64,6 +63,8 @@ import useChainedPaymentReview from './useChainedPaymentReview'
 import usePaymentQuoteReview from './usePaymentQuoteReview'
 
 type RememberedRoute = { kind: 'provider'; id: string } | { kind: 'onchain'; railId: string; solverId?: string }
+import { readContacts, rememberSentDestination } from '../../../lib/contacts'
+import { BackupContext } from '../../../providers/backup'
 
 export default function SendDetails() {
   const displayContext = useAmountDisplayContext()
@@ -78,6 +79,7 @@ export default function SendDetails() {
   const { sendRouter, onchainPaymentRouteCandidates } = useContext(SwapsContext)
   const readOnchainCandidates = useRef(onchainPaymentRouteCandidates)
   readOnchainCandidates.current = onchainPaymentRouteCandidates
+  const { backupContacts } = useContext(BackupContext)
   const { t } = useTranslation()
 
   const assetPayment = sendInfo.assetPayment?.address === sendInfo.arkAddress ? sendInfo.assetPayment : undefined
@@ -105,7 +107,7 @@ export default function SendDetails() {
   const commitStarted = useRef(false)
   const automaticDiscovery = useRef(false)
 
-  const { address, arkAddress, invoice, lnUrl, pendingLnSend, satoshis, saveAsContact } = sendInfo
+  const { address, arkAddress, invoice, lnUrl, pendingLnSend, satoshis } = sendInfo
   const lnurlTarget = sendInfo.lnurlInvoice && sendInfo.lnurlInvoice.pr === invoice ? lnUrl : undefined
   const lnurlRoute = Boolean(lnUrl && pendingLnSend && isLnurlRail(pendingLnSend.railId))
   const { acceptPaymentQuote } = useContext(SwapsContext)
@@ -353,7 +355,10 @@ export default function SendDetails() {
 
   /** Every reusable destination becomes a recent; only the opt-in tick makes
    *  it a contact, so the list stays a choice rather than a side effect. */
-  const rememberDestination = () => rememberSentDestination(sendInfo, Boolean(saveAsContact))
+  const rememberDestination = () => {
+    if (!rememberSentDestination(sendInfo)) return
+    backupContacts(readContacts()).catch((err) => consoleError(err, 'failed to backup contacts'))
+  }
 
   /** Unlike {@link handleTxid} a missing txid is not an error: the solver rail
    *  commits by funding. The fee comes off the QUOTE, not the screen — a rail

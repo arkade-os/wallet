@@ -18,7 +18,13 @@ vi.mock('@branta-ops/branta', async () => {
     },
   }
 })
+
+vi.mock('../../../components/SheetModal', () => ({
+  default: ({ isOpen, children }: { isOpen: boolean; children?: React.ReactNode }) =>
+    isOpen ? <div data-testid='sheet-modal'>{children}</div> : null,
+}))
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import createFetchMock from 'vitest-fetch-mock'
 import { emptySendInfo, FlowContext, type SendInfo } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
@@ -46,7 +52,7 @@ import { SwapsContext } from '../../../providers/swaps'
 import { createSendRouter, LNURL_ARKADE_RAIL, LNURL_LIGHTNING_RAIL } from '../../../lib/sendRouter'
 import { Currencies, Unit } from '../../../lib/types'
 import fixtures from '../../fixtures.json'
-import { saveContact } from '../../../lib/contacts'
+import { saveContact, sendDestination } from '../../../lib/contacts'
 import { fromSatoshis, prettyNumber } from '@/lib/format'
 
 type TreeOptions = {
@@ -1329,6 +1335,73 @@ describe('a changed recipient', () => {
     } finally {
       fetchMocker.disableMocks()
     }
+  })
+
+  it('asks for a contact name when the save tick is set, for that payee only', async () => {
+    localStorage.clear()
+    const user = userEvent.setup()
+    const { type } = renderStateful()
+    type(ARK)
+    await waitFor(() => expect(current.arkAddress).toBe(ARK), settle)
+
+    const tick = () => screen.getByRole('checkbox', { name: 'Save this payee as a contact' })
+    await user.click(screen.getByText('Save this payee as a contact'))
+    const name = screen.getByLabelText('Name (optional)')
+    await user.type(name, 'Alice')
+    expect(screen.getByLabelText('Name (optional)')).toBe(name)
+    expect(document.activeElement).toBe(name)
+    expect(tick()).not.toBeChecked()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save contact' }))
+    expect(screen.queryByTestId('sheet-modal')).not.toBeInTheDocument()
+    expect(current.saveAsContact).toEqual({ address: ARK, name: 'Alice' })
+    expect(tick()).toBeChecked()
+
+    type(BTC)
+    expect(screen.queryByText('Save this payee as a contact')).not.toBeInTheDocument()
+    await waitFor(() => expect(current.address).toBe(BTC), settle)
+    await waitFor(() => expect(current.saveAsContact).toBeUndefined())
+    expect(tick()).not.toBeChecked()
+
+    type(ARK)
+    await waitFor(() => expect(current.arkAddress).toBe(ARK), settle)
+    expect(tick()).not.toBeChecked()
+  })
+
+  it('leaves the save tick off when the name sheet is cancelled', async () => {
+    localStorage.clear()
+    const { type } = renderStateful()
+    type(ARK)
+    await waitFor(() => expect(current.arkAddress).toBe(ARK), settle)
+
+    await userEvent.setup().click(screen.getByText('Save this payee as a contact'))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByTestId('sheet-modal')).not.toBeInTheDocument()
+    expect(current.saveAsContact).toBeUndefined()
+    expect(screen.getByRole('checkbox', { name: 'Save this payee as a contact' })).not.toBeChecked()
+  })
+
+  it('saves the address typed after a payment URI, not the URI payee', async () => {
+    localStorage.clear()
+    const { type } = renderStateful()
+    type(`bitcoin:${BTC}?ark=${ARK}`)
+    await waitFor(() => expect(sendDestination(current)).toBe(ARK), settle)
+
+    type(BTC)
+    await waitFor(() => expect(current.address).toBe(BTC), settle)
+    expect(sendDestination(current)).toBe(BTC)
+  })
+
+  it('offers no save tick for an invoice pasted after a payment URI', async () => {
+    localStorage.clear()
+    const { type } = renderStateful()
+    type(`bitcoin:${BTC}?ark=${ARK}`)
+    await waitFor(() => expect(screen.getByText('Save this payee as a contact')).toBeInTheDocument(), settle)
+
+    type(fixtures.lib.bolt11.invoice)
+    await waitFor(() => expect(current.invoice).toBe(fixtures.lib.bolt11.invoice.toLowerCase()), settle)
+    expect(sendDestination(current)).toBeUndefined()
+    expect(screen.queryByText('Save this payee as a contact')).not.toBeInTheDocument()
   })
 })
 

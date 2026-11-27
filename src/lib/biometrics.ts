@@ -68,7 +68,10 @@ export async function registerUser(): Promise<{ password: string; passkeyId: str
 }
 
 // Function to authenticate a user
-export async function authenticateUser(passkeyId: string | undefined): Promise<string> {
+export async function authenticateUser(
+  passkeyId: string | undefined,
+  rpId: string = window.location.hostname,
+): Promise<string> {
   if (!passkeyId) throw new Error('Missing passkey id')
   const decoder = new TextDecoder()
   const challenge = generateRandomArray(32)
@@ -81,7 +84,7 @@ export async function authenticateUser(passkeyId: string | undefined): Promise<s
       },
     ],
     challenge: challenge as BufferSource,
-    rpId: window.location.hostname,
+    rpId,
     timeout: 60000,
   }
 

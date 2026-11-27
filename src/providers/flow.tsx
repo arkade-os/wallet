@@ -1,7 +1,7 @@
 import { readInitialAppIntent, type AppIntentState } from '../lib/appIntent'
 import { ReactNode, SetStateAction, createContext, useState } from 'react'
 import type { Asset, AssetDetails, RouteQuote, ServiceWorkerWalletMode } from '@arkade-os/sdk'
-import { Tx } from '../lib/types'
+import { Tx, Wallet } from '../lib/types'
 import type { FiatAccountSend } from '../lib/accountAssets'
 import type { AssetPaymentRequest } from '../lib/paymentQuotes'
 import type { OpenRfqOffer } from '@arkade-os/swap'
@@ -12,6 +12,10 @@ export interface InitInfo {
   mnemonic?: string
   restoring?: boolean
   walletMode?: ServiceWorkerWalletMode
+  /** The words come from a passkey and are derived again on each unlock, so they are never stored. */
+  passkeyPrf?: boolean
+  /** How this wallet unlocks, saved with its pubkey only once init succeeds, so a failed attempt leaves nothing. */
+  passkeyUnlock?: Pick<Wallet, 'lockedByBiometrics' | 'passkeyId' | 'passkeyPrf' | 'passkeyRpId'>
 }
 
 export interface NoteInfo {
@@ -45,6 +49,7 @@ export interface PendingLnReceive {
 
 export interface RecvInfo {
   boardingAddr: string
+  /** The Ark address shown on Receive: the Executor renewal contract on a registered static wallet. */
   offchainAddr: string
   onchainAddr?: string
   /** The solver's hold invoice, once an RFQ receive has been negotiated. */
@@ -78,8 +83,8 @@ export type SendInfo = {
   swapId?: string
   recipient?: string
   satoshis?: number
-  /** Opt-in tick from the send form: also keep this payee as a named contact. */
-  saveAsContact?: boolean
+  /** Opt-in tick from the send form, bound to the destination it was ticked for. */
+  saveAsContact?: { address: string; name: string }
   scan?: boolean
   total?: number
   text?: string

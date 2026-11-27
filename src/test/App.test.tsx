@@ -43,6 +43,7 @@ function renderApp({
   flow = {},
   outcomeOf = () => undefined,
   dataReady,
+  wallet = { nextRollover: 0, pubkey: 'stored-pubkey' },
 }: {
   authState: WalletAuthState
   initialized: boolean
@@ -52,6 +53,7 @@ function renderApp({
   flow?: Partial<typeof mockFlowContextValue>
   outcomeOf?: (id: string) => Outcome | undefined
   dataReady?: boolean
+  wallet?: { nextRollover: number; pubkey?: string }
 }) {
   const navigate = vi.fn()
 
@@ -71,7 +73,7 @@ function renderApp({
                   dataReady: dataReady ?? initialized,
                   unlockWallet,
                   walletLoaded: true,
-                  wallet: { nextRollover: 0, pubkey: 'stored-pubkey' },
+                  wallet,
                 }}
               >
                 <SwapsContext.Provider value={{ outcomeOf } as never}>
@@ -160,6 +162,75 @@ describe('App startup routing', () => {
     // while VITE_DEV_MNEMONIC auto-initializes the wallet we stay on loading, not unlock/init
     expect(navigate).not.toHaveBeenCalledWith(Pages.Unlock)
     expect(navigate).not.toHaveBeenCalledWith(Pages.Init)
+  })
+
+  const settingUp = { nextRollover: 0 }
+  const words = 'abandon abandon abandon abandon abandon about'
+
+  it('leaves a passkey wallet on the connect screen while its init is still running', async () => {
+    const { navigate } = renderApp({
+      authState: 'authenticated',
+      initialized: false,
+      screen: Pages.InitConnect,
+      wallet: settingUp,
+      flow: { initInfo: { mnemonic: words, passkeyPrf: true } },
+    })
+
+    await waitFor(() => expect(screen.getByTestId('app')).toBeInTheDocument())
+    expect(navigate).not.toHaveBeenCalledWith(Pages.Init)
+  })
+
+  it('leaves an ordinary wallet on the connect screen while its init is still running', async () => {
+    const { navigate } = renderApp({
+      authState: 'authenticated',
+      initialized: false,
+      screen: Pages.InitConnect,
+      wallet: settingUp,
+      flow: { initInfo: { mnemonic: words, password: defaultPassword } },
+    })
+
+    await waitFor(() => expect(screen.getByTestId('app')).toBeInTheDocument())
+    expect(navigate).not.toHaveBeenCalledWith(Pages.Init)
+  })
+
+  it('keeps the connect screen up for a passkey wallet whose pubkey has just landed', async () => {
+    renderApp({
+      authState: 'authenticated',
+      initialized: true,
+      dataReady: false,
+      screen: Pages.InitConnect,
+      flow: { initInfo: { mnemonic: words, passkeyPrf: true } },
+    })
+
+    expect(await screen.findByText('Connecting to server')).toBeInTheDocument()
+  })
+
+  it('keeps the connect screen up for an ordinary wallet whose pubkey has just landed', async () => {
+    renderApp({
+      authState: 'authenticated',
+      initialized: true,
+      dataReady: false,
+      screen: Pages.InitConnect,
+      flow: { initInfo: { mnemonic: words, password: defaultPassword } },
+    })
+
+    expect(await screen.findByText('Connecting to server')).toBeInTheDocument()
+  })
+
+  it('holds a pending app intent until a passkey setup finishes', async () => {
+    const { navigate } = renderApp({
+      authState: 'authenticated',
+      initialized: true,
+      dataReady: false,
+      screen: Pages.InitConnect,
+      flow: {
+        initInfo: { mnemonic: words, passkeyPrf: true },
+        appIntent: { status: 'connect', callback: 'https://example.com/cb' },
+      },
+    })
+
+    await screen.findByTestId('app')
+    expect(navigate).not.toHaveBeenCalledWith(Pages.AppIntent)
   })
 
   it('schedules a single reload after passwordless auto-init failure', async () => {

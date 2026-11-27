@@ -158,7 +158,7 @@ export async function mintAsset(page: Page, opts: MintAssetOptions): Promise<voi
 
 export async function createWallet(page: Page): Promise<void> {
   await page.goto('/')
-  await page.getByText(`+ ${tr.init.createWallet}`).click()
+  await page.getByText(tr.init.createWallet).click()
   await waitForWalletPage(page)
 }
 
@@ -312,7 +312,6 @@ async function getSecret(page: Page): Promise<string> {
 }
 
 async function restoreWallet(page: Page, nsec: string): Promise<void> {
-  await page.getByText(tr.init.otherLoginOptions).click()
   await page.getByText(tr.init.restoreWallet).click()
   await page.locator('input[name="private-key"]').fill(nsec)
   await page.getByText(tr.common.continue, { exact: true }).click()
