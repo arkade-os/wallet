@@ -323,7 +323,7 @@ export default function QuoteChoices({
                               </span>
                             </span>
                             <span id={`${descriptionId}-${offer.id}-amount`} className='min-w-0 text-right'>
-                              <strong className='block text-base font-semibold tabular-nums [overflow-wrap:anywhere]'>
+                              <strong className='block text-sm font-semibold tabular-nums [overflow-wrap:anywhere]'>
                                 {payment
                                   ? `${formatQuoteAmount(offer.fromAmount, from.decimals)} ${from.ticker}`
                                   : `${formatQuoteAmount(offer.toAmount, to.decimals)} ${to.ticker}`}
