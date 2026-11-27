@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { NormalizedExtendedVirtualCoin } from '@arkade-os/sdk'
+import { ArkAddress, type NormalizedExtendedVirtualCoin } from '@arkade-os/sdk'
+import { hex } from '@scure/base'
 import {
   readPendingAssetMint,
   runNewAssetMint,
@@ -13,8 +14,21 @@ const asset = { assetId: 'asset-id', arkTxId: 'asset-tx' }
 const create = { amount: 10n, metadata: { name: 'Token' }, controlAmount: 1n, controlMetadata: { name: 'ctrl-Token' } }
 const coin = (assetId: string) => ({ assets: [{ assetId, amount: 1n }] }) as NormalizedExtendedVirtualCoin
 
-const wallet = () => ({
-  getAddress: vi.fn().mockResolvedValue('wallet'),
+const key = (fill: number) => new Uint8Array(32).fill(fill)
+const arkAddress = (fill: number) => new ArkAddress(key(1), key(fill), 'tark').encode()
+// A receive row, the Executor twin that `getAddress()` answers once renewal is registered, and a foreign address
+const OWN = arkAddress(2)
+const TWIN = arkAddress(3)
+const FOREIGN = arkAddress(4)
+const scriptOf = (address: string) => hex.encode(ArkAddress.decode(address).pkScript)
+
+const wallet = (address = TWIN) => ({
+  getAddress: vi.fn().mockResolvedValue(address),
+  getContractManager: vi.fn().mockResolvedValue({
+    getContracts: vi.fn(async ({ script }: { script: string }) =>
+      [OWN, TWIN].some((a) => scriptOf(a) === script) ? [{ script }] : [],
+    ),
+  }),
   getSpendableVtxos: vi.fn().mockResolvedValue([coin(control.assetId)]),
   assetManager: {
     issue: vi.fn().mockResolvedValueOnce(control).mockResolvedValueOnce(asset),
@@ -25,7 +39,7 @@ const wallet = () => ({
 })
 
 const pending = (stage: PendingAssetMint['stage'] = 'control-ready'): PendingAssetMint => ({
-  walletAddress: 'wallet',
+  walletAddress: TWIN,
   server: 'server',
   amount: '10',
   metadata: create.metadata,
@@ -208,6 +222,25 @@ describe('new asset mint recovery', () => {
     await expect(runNewAssetMint(w, 'server', create, onChange, vi.fn(), vi.fn())).rejects.toThrow('needs recovery')
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ control }))
     expect(w.assetManager.issue).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['its own address, saved before the Executor twin existed', OWN],
+    ['the Executor twin', TWIN],
+  ])('resumes a mint recorded at %s', async (_name, walletAddress) => {
+    savePendingAssetMint({ ...pending(), walletAddress })
+    const w = wallet(TWIN)
+    await runNewAssetMint(w, 'server', null, vi.fn(), vi.fn(), vi.fn())
+    expect(readPendingAssetMint()).toBeNull()
+  })
+
+  it.each([
+    ['an address that is no contract of the wallet', FOREIGN],
+    ['an address that does not decode', 'not-an-ark-address'],
+  ])('does not resume a mint recorded at %s', async (_name, walletAddress) => {
+    savePendingAssetMint({ ...pending(), walletAddress })
+    await expect(runNewAssetMint(wallet(), 'server', null, vi.fn(), vi.fn(), vi.fn())).rejects.toThrow('another wallet')
+    expect(readPendingAssetMint()).not.toBeNull()
   })
 
   it('fails closed without a browser lock or when another tab holds it', async () => {

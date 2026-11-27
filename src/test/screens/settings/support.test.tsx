@@ -29,10 +29,11 @@ afterEach(() => {
   delete (window as any).$chatwoot
 })
 
-const renderSupport = (executorSettled: () => Promise<unknown>) => {
+const renderSupport = (executorSettled: () => Promise<unknown>, address = 'ark1twin') => {
   const svcWallet = {
     ...mockSvcWallet,
-    getAddress: async () => 'ark1own',
+    getAddress: async () => address,
+    getOwnAddress: async () => 'ark1own',
     getBoardingAddress: async () => 'bc1boarding',
   }
   const wallet = { ...mockWalletContextValue, wallet: { pubkey: KEY, network: 'regtest' }, svcWallet }
@@ -51,20 +52,20 @@ const renderSupport = (executorSettled: () => Promise<unknown>) => {
 
 describe('Support addresses', () => {
   it('reports the address the user is shown, and the wallet own one beside it, after the registration settled', async () => {
-    renderSupport(async () => ({ status: 'success', renewalAddress: 'ark1renewal' }))
+    renderSupport(async () => ({ status: 'success' }))
 
     await waitFor(() => expect(chatwoot.setCustomAttributes).toHaveBeenCalled())
     expect(chatwoot.setCustomAttributes).toHaveBeenCalledWith(
       expect.objectContaining({
-        ark_address: 'ark1renewal',
+        ark_address: 'ark1twin',
         wallet_ark_address: 'ark1own',
         btc_boarding_address: 'bc1boarding',
       }),
     )
   })
 
-  it('reports the wallet own address when nothing was registered', async () => {
-    renderSupport(async () => ({ status: 'no-executor' }))
+  it('reports the same address twice when the wallet has no twin', async () => {
+    renderSupport(async () => ({ status: 'no-executor' }), 'ark1own')
 
     await waitFor(() => expect(chatwoot.setCustomAttributes).toHaveBeenCalled())
     expect(chatwoot.setCustomAttributes).toHaveBeenCalledWith(

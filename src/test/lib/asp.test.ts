@@ -33,6 +33,7 @@ import {
   EXECUTOR_SETTLE_TIMEOUT_MS,
   getAspInfo,
   getDisplayAddresses,
+  ownAddress,
   getReceivingAddresses,
   aspErrorText,
   emptyAspInfo,
@@ -124,8 +125,10 @@ describe('getAspInfo', () => {
 })
 
 describe('settle failure reporting', () => {
+  const identityKey = new Uint8Array(32).fill(5)
   const failingWallet = {
     getAddress: async () => fixtures.lib.address.ark[0].address,
+    identity: { xOnlyPublicKey: async () => identityKey },
     getBoardingAddress: async () => fixtures.lib.address.btc[0],
     settle: async () => {
       throw new Error('settle failed')
@@ -143,7 +146,7 @@ describe('settle failure reporting', () => {
     expect(settle).toEqual({
       count: 1,
       totalValue: 1000,
-      wallet: walletFingerprint(fixtures.lib.address.ark[0].address),
+      wallet: walletFingerprint(identityKey),
     })
     expect(JSON.stringify(settle)).not.toMatch(/[0-9a-f]{20,}/i)
   })
@@ -420,18 +423,23 @@ describe('getUnrolledVtxos', () => {
 })
 
 describe('receive addresses', () => {
+  // `getAddress()` answers the Executor twin once renewal is registered; `getOwnAddress()` the wallet's own address
   const wallet = (boarding = 'bc1-boarding') =>
-    ({ getAddress: vi.fn(async () => 'ark1own'), getBoardingAddress: vi.fn(async () => boarding) }) as any
-  const settled = (renewalAddress?: string) => vi.fn(async () => ({ status: 'success' as const, renewalAddress }))
+    ({
+      getAddress: vi.fn(async () => 'ark1twin'),
+      getOwnAddress: vi.fn(async () => 'ark1own'),
+      getBoardingAddress: vi.fn(async () => boarding),
+    }) as any
+  const settled = () => vi.fn(async () => ({ status: 'success' as const }))
 
-  it('keeps the wallet own address in getReceivingAddresses', async () => {
+  it('keeps getAddress() in getReceivingAddresses, where change, settle and notes land', async () => {
     await expect(getReceivingAddresses(wallet())).resolves.toEqual({
       boardingAddr: 'bc1-boarding',
-      offchainAddr: 'ark1own',
+      offchainAddr: 'ark1twin',
     })
   })
 
-  it('reads the boarding address only after the registration settled', async () => {
+  it('reads the addresses only after the registration settled', async () => {
     const w = wallet()
     let settle!: () => void
     const gate = new Promise<{ status: 'success' }>((r) => (settle = () => r({ status: 'success' })))
@@ -444,24 +452,27 @@ describe('receive addresses', () => {
     expect(w.getBoardingAddress).toHaveBeenCalledTimes(1)
   })
 
-  it('shows the renewal contract as the Ark address and keeps the own one apart', async () => {
-    await expect(getDisplayAddresses(wallet(), { settled: settled('ark1renewal') })).resolves.toEqual({
-      boardingAddr: 'bc1-boarding',
-      ownAddr: 'ark1own',
-      displayOffchainAddr: 'ark1renewal',
-    })
-  })
-
-  it('shows getAddress() when no renewal address is recorded, or no registration is passed', async () => {
-    const expected = { boardingAddr: 'bc1-boarding', ownAddr: 'ark1own', displayOffchainAddr: 'ark1own' }
+  it('returns getOwnAddress() as the own address and getAddress() for display', async () => {
+    const expected = { boardingAddr: 'bc1-boarding', ownAddr: 'ark1own', displayOffchainAddr: 'ark1twin' }
     await expect(getDisplayAddresses(wallet(), { settled: settled() })).resolves.toEqual(expected)
     await expect(getDisplayAddresses(wallet())).resolves.toEqual(expected)
+  })
+
+  it('falls back to getAddress() when the wallet has no getOwnAddress', async () => {
+    const w = { getAddress: vi.fn(async () => 'ark1only'), getBoardingAddress: vi.fn(async () => 'bc1-boarding') }
+    await expect(getDisplayAddresses(w as any, { settled: settled() })).resolves.toEqual({
+      boardingAddr: 'bc1-boarding',
+      ownAddr: 'ark1only',
+      displayOffchainAddr: 'ark1only',
+    })
+    await expect(ownAddress(w as any)).resolves.toBe('ark1only')
   })
 
   it('does not throw on a rejected registration wait', async () => {
     const settledFails = vi.fn().mockRejectedValue(new Error('boom'))
     await expect(getDisplayAddresses(wallet(), { settled: settledFails })).resolves.toMatchObject({
-      displayOffchainAddr: 'ark1own',
+      ownAddr: 'ark1own',
+      displayOffchainAddr: 'ark1twin',
     })
   })
 
@@ -473,7 +484,7 @@ describe('receive addresses', () => {
       await vi.advanceTimersByTimeAsync(EXECUTOR_SETTLE_TIMEOUT_MS - 1)
       expect(w.getBoardingAddress).not.toHaveBeenCalled()
       await vi.advanceTimersByTimeAsync(1)
-      await expect(pending).resolves.toMatchObject({ ownAddr: 'ark1own', displayOffchainAddr: 'ark1own' })
+      await expect(pending).resolves.toMatchObject({ ownAddr: 'ark1own', displayOffchainAddr: 'ark1twin' })
     } finally {
       vi.useRealTimers()
     }

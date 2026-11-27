@@ -791,9 +791,9 @@ describe('Receive QR Code screen — asset pill', () => {
 
 // The addresses are read from the wallet on every mount, and the Executor registration decides which ones.
 describe('Receive QR Code screen — Executor addresses', () => {
-  type Settlement = { status: 'success' | 'failure' | 'no-executor'; renewalAddress?: string }
+  type Settlement = { status: 'success' | 'failure' | 'no-executor' }
   const OWN = 'ark1ownaddr'
-  const RENEWAL = 'ark1renewalcontract'
+  const TWIN = 'ark1twincontract'
   const OWN_BOARDING = 'bc1ownboarding'
   const DELEGATED = 'bc1delegatedboarding'
 
@@ -805,7 +805,12 @@ describe('Receive QR Code screen — Executor addresses', () => {
     return buildTree({ flow: { recvInfo, setRecvInfo } as any, wallet })
   }
   const walletOf = (boarding: () => Promise<string>) =>
-    ({ ...mockSvcWallet, getAddress: async () => OWN, getBoardingAddress: boarding }) as any
+    ({
+      ...mockSvcWallet,
+      getAddress: async () => TWIN,
+      getOwnAddress: async () => OWN,
+      getBoardingAddress: boarding,
+    }) as any
   const copied = async () => {
     const button = await screen.findByRole('button', { name: 'Copy QR code' })
     await act(async () => {
@@ -816,27 +821,28 @@ describe('Receive QR Code screen — Executor addresses', () => {
 
   beforeEach(() => copyToClipboardMock.mockClear())
 
-  it('shows the renewal contract as the Ark address of a registered static wallet', async () => {
+  it('shows getAddress(), the renewal contract once registered, and not the wallet own address', async () => {
     const svcWallet = walletOf(async () => DELEGATED)
-    const executorSettled = async (): Promise<Settlement> => ({ status: 'success', renewalAddress: RENEWAL })
+    const executorSettled = async (): Promise<Settlement> => ({ status: 'success' })
     render(<Harness wallet={{ svcWallet, executorSettled } as any} />)
 
     await screen.findByRole('button', { name: 'Copy QR code' })
     const uri = await copied()
-    expect(uri).toContain(RENEWAL)
+    expect(uri).toContain(TWIN)
     expect(uri).toContain(DELEGATED)
     expect(uri).not.toContain(OWN)
   })
 
   it.each<[string, Settlement]>([
-    ['no renewal address is recorded (HD wallet or failed registration)', { status: 'failure' }],
+    ['the registration failed', { status: 'failure' }],
     ['there is no Executor', { status: 'no-executor' }],
-  ])('shows getAddress() when %s', async (_name, settlement) => {
+  ])('shows what getAddress() answers when %s', async (_name, settlement) => {
     const svcWallet = walletOf(async () => OWN_BOARDING)
     render(<Harness wallet={{ svcWallet, executorSettled: async () => settlement } as any} />)
 
     const uri = await copied()
-    expect(uri).toContain(OWN)
+    expect(uri).toContain(TWIN)
+    expect(uri).not.toContain(OWN)
     expect(uri).toContain(OWN_BOARDING)
   })
 
@@ -850,7 +856,7 @@ describe('Receive QR Code screen — Executor addresses', () => {
 
     expect(screen.queryByRole('button', { name: 'Copy QR code' })).not.toBeInTheDocument()
     registered = true
-    await act(async () => settle({ status: 'success', renewalAddress: RENEWAL }))
+    await act(async () => settle({ status: 'success' }))
 
     const uri = await copied()
     expect(uri).toContain(DELEGATED)

@@ -333,35 +333,45 @@ export const getReceivingAddresses = async (wallet: IWallet): Promise<Addresses>
 /** How long Receive waits for the unlock-time Executor registration. The SDK's own request deadline is 30 s. */
 export const EXECUTOR_SETTLE_TIMEOUT_MS = 5_000
 
-/** What the user is shown to receive on. `ownAddr` is the wallet's own Ark address (`getAddress()`) and what every
- * other use keeps; `displayOffchainAddr` is the Executor renewal contract when one is recorded, else `ownAddr`. */
+/** What the user is shown to receive on. `ownAddr` is the wallet's own Ark address (`getOwnAddress()`), which the
+ * LNURL binding and support use; `displayOffchainAddr` is `getAddress()`, the Executor renewal contract when one is
+ * live, else the own address. */
 export type DisplayAddresses = {
   boardingAddr: string
   ownAddr: string
   displayOffchainAddr: string
 }
 
+/** The wallet's own Ark address, never the Executor twin `getAddress()` answers once renewal is registered. Falls back
+ * to `getAddress()` where the wallet has no `getOwnAddress` (a worker older than SDK 0.5.15 answers the own address
+ * there). */
+export const ownAddress = async (wallet: Pick<IWallet, 'getAddress' | 'getOwnAddress'>): Promise<string> =>
+  (await wallet.getOwnAddress?.()) ?? wallet.getAddress()
+
 /** Addresses for screens that show them to the user. Waits (bounded) for the Executor registration first: until it
- * settles the SDK answers `getBoardingAddress()` with an address the Executor does not watch. Never throws on a
- * failed or slow registration — the fallback is the SDK's own addresses. Does not change `getReceivingAddresses`. */
+ * settles the SDK can answer an unwatched boarding address and the own Ark address. Never throws on a failed or slow
+ * registration — the fallback is the SDK's own addresses. Does not change `getReceivingAddresses`. */
 export const getDisplayAddresses = async (
   wallet: IWallet,
-  executor?: { settled: () => Promise<{ status?: string; renewalAddress?: string }>; timeoutMs?: number },
+  executor?: { settled: () => Promise<unknown>; timeoutMs?: number },
 ): Promise<DisplayAddresses> => {
-  let renewalAddress: string | undefined
   if (executor) {
     let timer: number | undefined
     const timeout = new Promise<undefined>((resolve) => {
       timer = window.setTimeout(resolve, executor.timeoutMs ?? EXECUTOR_SETTLE_TIMEOUT_MS)
     })
     try {
-      renewalAddress = (await Promise.race([executor.settled().catch(() => undefined), timeout]))?.renewalAddress
+      await Promise.race([executor.settled().catch(() => undefined), timeout])
     } finally {
       window.clearTimeout(timer)
     }
   }
-  const { offchainAddr, boardingAddr } = await getReceivingAddresses(wallet)
-  return { boardingAddr, ownAddr: offchainAddr, displayOffchainAddr: renewalAddress || offchainAddr }
+  const [boardingAddr, ownAddr, displayOffchainAddr] = await Promise.all([
+    wallet.getBoardingAddress(),
+    ownAddress(wallet),
+    wallet.getAddress(),
+  ])
+  return { boardingAddr, ownAddr, displayOffchainAddr }
 }
 
 export const redeemNotes = async (wallet: IWallet, notes: string[]): Promise<void> => {
@@ -460,7 +470,7 @@ const captureSettleError = async (
 ): Promise<void> => {
   const settle: Record<string, number | string | undefined> = { ...context }
   try {
-    settle.wallet = walletFingerprint(await wallet.getAddress())
+    settle.wallet = walletFingerprint(await wallet.identity.xOnlyPublicKey())
   } catch {
     // report without it if the address is unavailable
   }
