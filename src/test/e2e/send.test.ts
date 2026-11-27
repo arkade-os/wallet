@@ -388,13 +388,13 @@ test('should send sats (some and max) to onchain address with collaborative exit
     await page.getByText(tr.send.tapToSign).click()
     await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
     await page.waitForSelector(`text=${tr.send.paymentSent}`, { timeout: 30000 })
-    await expect(page.getByText(successMessage(`${totalSent} sats`))).toBeVisible()
+    await expect(page.getByText(successMessage(`${prettyNumber(totalSent)} sats`))).toBeVisible()
 
     // main page
     await dismissPaymentSuccess(page)
     await expect(page.getByText(tr.transaction.received)).toBeVisible()
     await page.waitForSelector(`text=${tr.transaction.sent}`, { timeout: 10000 })
-    await expect(page.getByText(`- ${totalSent} sats`)).toBeVisible()
+    await expect(page.getByText(`- ${prettyNumber(totalSent)} sats`)).toBeVisible()
 
     const balance = 1800 - totalSent
 
