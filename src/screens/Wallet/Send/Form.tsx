@@ -62,7 +62,6 @@ import OpenInApp from '../../AppIntent/OpenInApp'
 import { decodeBip21, exactBip21Amount, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
 import { atomicToUnits, isValidAssetId, prettyAssetAmount, unitsToAtomic } from '../../../lib/assets'
-import { FeesContext } from '../../../providers/fees'
 import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
 import { overlaySlideUp, overlayStyle } from '../../../lib/animations'
@@ -210,7 +209,6 @@ function AssetIcon({ asset }: { asset: AssetOption | null }) {
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
   const { config, effectiveTheme, useFiat } = useContext(ConfigContext)
-  const { calcOnchainOutputFee } = useContext(FeesContext)
   const { toFiat, fromFiat, fiatDecimals } = useContext(FiatContext)
   const { appIntent, sendInfo, resetFlow, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
@@ -845,8 +843,8 @@ export default function SendForm() {
     if (sendInfo.arkAddress) {
       setDeductFromAmount(false)
     } else if (onlyBtcAddress && exactBip21Amount(sendInfo.address, sendInfo.recipient) === undefined) {
-      const fees = calcOnchainOutputFee()
-      setDeductFromAmount(satoshis + fees > liquidBalance)
+      // Only send-max pays its fees out of the amount; any other amount arrives in full.
+      setDeductFromAmount(satoshis > 0 && satoshis === liquidBalance)
     } else {
       setDeductFromAmount(false)
     }

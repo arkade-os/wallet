@@ -249,13 +249,12 @@ describe('Executor registration state', () => {
     return (await Promise.race([p, Promise.resolve(sentinel)])) === sentinel
   }
 
-  it('settles after both registrations and records the renewal address of a static wallet', async () => {
+  it('settles after both registrations', async () => {
     withExecutor()
     mocks.current.service.executor.registerRenewal.mockResolvedValue(registration(RENEWAL))
     await startWallet()
 
-    await expect(wallet.executorSettled()).resolves.toEqual({ status: 'success', renewalAddress: RENEWAL })
-    await vi.waitFor(() => expect(wallet.executorRenewalAddress).toBe(RENEWAL))
+    await expect(wallet.executorSettled()).resolves.toEqual({ status: 'success' })
     expect(wallet.executorStatus).toBe('success')
     expect(wallet.executorSettledCount).toBe(1)
   })
@@ -273,34 +272,21 @@ describe('Executor registration state', () => {
     await expect(wallet.executorSettled()).resolves.toMatchObject({ status: 'success' })
   })
 
-  it('does not record a renewal address on an HD wallet', async () => {
-    withExecutor()
-    mocks.current.service.executor.registerRenewal.mockResolvedValue(registration(RENEWAL))
-    await startWallet(mockConfigContextValue.config, {
-      mnemonic: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
-      walletMode: 'hd',
-    })
-
-    await expect(wallet.executorSettled()).resolves.toEqual({ status: 'success', renewalAddress: undefined })
-    expect(wallet.executorRenewalAddress).toBeUndefined()
-  })
-
-  it('settles as a failure when the boarding registration fails, keeping a renewal address it did get', async () => {
+  it('settles as a failure when the boarding registration fails', async () => {
     withExecutor()
     mocks.current.service.executor.registerBoarding.mockRejectedValue(new Error('unreachable'))
     mocks.current.service.executor.registerRenewal.mockResolvedValue(registration(RENEWAL))
     await startWallet()
 
-    await expect(wallet.executorSettled()).resolves.toEqual({ status: 'failure', renewalAddress: RENEWAL })
+    await expect(wallet.executorSettled()).resolves.toEqual({ status: 'failure' })
   })
 
-  it('settles as a failure, without an address, when the renewal registration fails', async () => {
+  it('settles as a failure when the renewal registration fails', async () => {
     withExecutor()
     mocks.current.service.executor.registerRenewal.mockRejectedValue(new Error('parameters differ'))
     await startWallet()
 
     await expect(wallet.executorSettled()).resolves.toEqual({ status: 'failure' })
-    expect(wallet.executorRenewalAddress).toBeUndefined()
   })
 
   it('settles at once without an Executor URL', async () => {
@@ -319,7 +305,7 @@ describe('Executor registration state', () => {
     await vi.waitFor(() => expect(wallet.executorSettledCount).toBe(1))
   })
 
-  it('settles, and forgets the address, on lock', async () => {
+  it('settles on lock', async () => {
     withExecutor()
     let renewed!: (r: unknown) => void
     mocks.current.service.executor.registerRenewal.mockReturnValue(new Promise((r) => (renewed = r)))
@@ -333,7 +319,6 @@ describe('Executor registration state', () => {
     await expect(pending).resolves.toEqual({ status: 'no-executor' })
     // the aborted session cannot come back with its late answer
     await act(async () => renewed(registration(RENEWAL)))
-    expect(wallet.executorRenewalAddress).toBeUndefined()
     expect(wallet.executorStatus).toBe('no-executor')
     expect(wallet.executorSettledCount).toBe(0)
   })
@@ -395,11 +380,10 @@ describe('Executor registration state', () => {
 
     await act(async () => first(registration('tark1old')))
     expect(await isPending(pending)).toBe(true)
-    expect(wallet.executorRenewalAddress).toBeUndefined()
     expect(wallet.executorSettledCount).toBe(0)
 
     await act(async () => second(registration(RENEWAL)))
-    await expect(pending).resolves.toEqual({ status: 'success', renewalAddress: RENEWAL })
+    await expect(pending).resolves.toEqual({ status: 'success' })
   })
 })
 

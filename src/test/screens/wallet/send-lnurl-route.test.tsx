@@ -221,7 +221,7 @@ describe('signing an LNURL send', () => {
     await waitFor(() =>
       expect(setSendInfo).toHaveBeenCalledWith(expect.objectContaining({ txid: 'onchain-exit-txid' })),
     )
-    expect(options).toHaveBeenCalledWith({ raw: address, amount: SATS - 500 })
+    expect(options).toHaveBeenCalledWith({ raw: address, amount: SATS })
     expect(exitSent).toHaveBeenCalledExactlyOnceWith(address)
     expect(sent).not.toHaveBeenCalled()
     expect(sendFailure()).toBeUndefined()

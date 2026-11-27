@@ -23,6 +23,7 @@ import { lnurlTokenRails, type LnurlTokenRail } from '../../lib/receive/lnurlTok
 import { prettyNumber } from '../../lib/format'
 import { consoleError } from '../../lib/logs'
 import { extractError } from '../../lib/error'
+import { ownAddress } from '../../lib/asp'
 import ErrorMessage from '../../components/Error'
 import { NameForm } from '../Wallet/Receive/LnurlRail'
 import type { AddressListEntry } from '@arkade-os/lnurl-client'
@@ -51,7 +52,7 @@ export default function Lnurl() {
     if (!svcWallet) return
     setAddressesError('')
     let stale = false
-    Promise.all([svcWallet.getAddress(), svcWallet.getBoardingAddress().catch(() => undefined)])
+    Promise.all([ownAddress(svcWallet), svcWallet.getBoardingAddress().catch(() => undefined)])
       .then(([arkade, boarding]) => {
         if (!stale) setAddresses({ wallet: svcWallet, arkade, boarding })
       })

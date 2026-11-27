@@ -118,7 +118,7 @@ test('registers on unlock, receives on the renewal address, spends it', async ({
 
   const { context, page, before, after } = await createExecutorWallet(browser)
   try {
-    // The static wallet shows the renewal contract as its Ark address...
+    // Any wallet with renewal registered shows the renewal contract as its Ark address...
     expect(after.ark).not.toBe(before.ark)
     // ...and the boarding address the Executor watches as its BTC address.
     expect(after.btc).not.toBe(before.btc)
