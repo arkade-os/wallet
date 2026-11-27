@@ -31,6 +31,7 @@ export type Config = {
   unit: Unit
   walletMode: ServiceWorkerWalletMode
   // deprecated
+  aspUrl?: string
   currencyDisplay?: string
   fiat?: Currencies
 }

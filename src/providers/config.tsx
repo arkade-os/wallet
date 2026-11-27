@@ -61,6 +61,8 @@ const updateDefaultConfig = (config: Partial<Config>): Config => {
   const updatedConfig: Config = {
     ...defaultConfig,
     ...config,
+    // older builds stored it as aspUrl, in local storage and in Nostr backups
+    operatorUrl: config.operatorUrl ?? config.aspUrl ?? defaultConfig.operatorUrl,
     // No UI sets this: the build flag always wins over a stored value
     executor: isExecutorEnabled(),
     announcementsSeen: [...announcementsSeen],
@@ -74,6 +76,7 @@ const updateDefaultConfig = (config: Partial<Config>): Config => {
     unit: normalizeBitcoinUnit(config.unit as `${Unit}`),
   }
   // Remove deprecated fields if present
+  if (updatedConfig.aspUrl) delete updatedConfig.aspUrl
   if (updatedConfig.currencyDisplay) delete updatedConfig.currencyDisplay
   if (updatedConfig.fiat) delete updatedConfig.fiat
   return updatedConfig
