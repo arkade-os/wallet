@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import type { ErrorEvent } from '@sentry/react'
 import { isProduction, scrubBreadcrumb, scrubEvent, shouldInitializeSentry, walletFingerprint } from '../../lib/sentry'
 import fixtures from '../fixtures.json'
+import { hex } from '@scure/base'
+import { sha256 } from '@noble/hashes/sha2.js'
 
 describe('Sentry utilities', () => {
   let originalHostname: string
@@ -229,22 +231,27 @@ describe('Sentry utilities', () => {
   })
 
   describe('walletFingerprint', () => {
-    const [first, second] = fixtures.lib.address.ark
+    const first = new Uint8Array(32).fill(1)
+    const second = new Uint8Array(32).fill(2)
 
-    it('is stable, short and does not contain the address', () => {
-      expect(walletFingerprint(first.address)).toBe(walletFingerprint(first.address))
-      expect(walletFingerprint(first.address)).toMatch(/^[0-9a-f]{16}$/)
-      expect(first.address).not.toContain(walletFingerprint(first.address))
+    it('is stable, short and does not contain the key', () => {
+      expect(walletFingerprint(first)).toBe(walletFingerprint(first))
+      expect(walletFingerprint(first)).toMatch(/^[0-9a-f]{16}$/)
+      expect('01'.repeat(32)).not.toContain(walletFingerprint(first))
     })
 
     it('separates wallets', () => {
-      expect(walletFingerprint(first.address)).not.toBe(walletFingerprint(second.address))
+      expect(walletFingerprint(first)).not.toBe(walletFingerprint(second))
+    })
+
+    it('is the fingerprint of the key, whatever address the wallet answers', () => {
+      expect(walletFingerprint(first)).toBe(hex.encode(sha256(first)).slice(0, 16))
     })
 
     it('survives scrubbing', () => {
-      const event = { contexts: { settle: { wallet: walletFingerprint(first.address) } } } as unknown as ErrorEvent
+      const event = { contexts: { settle: { wallet: walletFingerprint(first) } } } as unknown as ErrorEvent
 
-      expect(scrubEvent(event).contexts?.settle).toEqual({ wallet: walletFingerprint(first.address) })
+      expect(scrubEvent(event).contexts?.settle).toEqual({ wallet: walletFingerprint(first) })
     })
   })
 

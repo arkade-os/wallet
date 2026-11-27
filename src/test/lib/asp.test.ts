@@ -125,8 +125,10 @@ describe('getAspInfo', () => {
 })
 
 describe('settle failure reporting', () => {
+  const identityKey = new Uint8Array(32).fill(5)
   const failingWallet = {
     getAddress: async () => fixtures.lib.address.ark[0].address,
+    identity: { xOnlyPublicKey: async () => identityKey },
     getBoardingAddress: async () => fixtures.lib.address.btc[0],
     settle: async () => {
       throw new Error('settle failed')
@@ -144,7 +146,7 @@ describe('settle failure reporting', () => {
     expect(settle).toEqual({
       count: 1,
       totalValue: 1000,
-      wallet: walletFingerprint(fixtures.lib.address.ark[0].address),
+      wallet: walletFingerprint(identityKey),
     })
     expect(JSON.stringify(settle)).not.toMatch(/[0-9a-f]{20,}/i)
   })

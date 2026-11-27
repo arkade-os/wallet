@@ -470,7 +470,7 @@ const captureSettleError = async (
 ): Promise<void> => {
   const settle: Record<string, number | string | undefined> = { ...context }
   try {
-    settle.wallet = walletFingerprint(await wallet.getAddress())
+    settle.wallet = walletFingerprint(await wallet.identity.xOnlyPublicKey())
   } catch {
     // report without it if the address is unavailable
   }

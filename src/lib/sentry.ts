@@ -1,6 +1,6 @@
 import type { Breadcrumb, ErrorEvent, EventHint } from '@sentry/react'
 import { sha256 } from '@noble/hashes/sha2.js'
-import { hex, utf8 } from '@scure/base'
+import { hex } from '@scure/base'
 
 /**
  * Check if the current environment is production (not localhost)
@@ -91,10 +91,11 @@ export const scrubEvent = (event: ErrorEvent): ErrorEvent => {
 
 /**
  * Correlate reports coming from the same wallet without naming it. 16 hex chars
- * = 8 bytes, collision-free at wallet scale; the address hashed carries a
- * 32-byte key, so the digest has no enumerable input space.
+ * = 8 bytes, collision-free at wallet scale. The input is the 32-byte identity
+ * key, so the digest has no enumerable input space and, unlike an address, does
+ * not move when the Executor twin or an HD receive key does.
  */
-export const walletFingerprint = (address: string): string => hex.encode(sha256(utf8.decode(address))).slice(0, 16)
+export const walletFingerprint = (identityKey: Uint8Array): string => hex.encode(sha256(identityKey)).slice(0, 16)
 
 const isTranslateNoise = (event: ErrorEvent, hint: EventHint): boolean => {
   const error = hint.originalException
