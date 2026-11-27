@@ -116,6 +116,7 @@ const receiveTree = (
   recv: object = {},
   statefulFlow = false,
   wallet = svcWallet,
+  walletContext: object = {},
 ) => (
   <ToastProvider>
     <NavigationContext.Provider value={mockNavigationContextValue}>
@@ -146,7 +147,9 @@ const receiveTree = (
                   } as never
                 }
               >
-                <WalletContext.Provider value={{ ...mockWalletContextValue, svcWallet: wallet } as never}>
+                <WalletContext.Provider
+                  value={{ ...mockWalletContextValue, svcWallet: wallet, ...walletContext } as never}
+                >
                   <LimitsContext.Provider value={mockLimitsContextValue}>
                     <SwapsContext.Provider
                       value={{ receiveLightning, outcomeOf: () => undefined, errorOf: () => undefined } as never}
@@ -171,8 +174,13 @@ const receiveTree = (
     </NavigationContext.Provider>
   </ToastProvider>
 )
-const renderReceive = (satoshis = 0, config: Partial<Config> = {}, recv: object = {}, statefulFlow = false) =>
-  render(receiveTree(satoshis, config, vi.fn(), recv, statefulFlow))
+const renderReceive = (
+  satoshis = 0,
+  config: Partial<Config> = {},
+  recv: object = {},
+  statefulFlow = false,
+  walletContext: object = {},
+) => render(receiveTree(satoshis, config, vi.fn(), recv, statefulFlow, svcWallet, walletContext))
 // Keeps the amount the screen sets, for flows that clear or change it through the screen's own buttons.
 function LiveAmount({ initial, config }: { initial: number; config: Partial<Config> }) {
   const [satoshis, setSatoshis] = useState(initial)
@@ -287,6 +295,8 @@ describe('Receive screen, rail composition', () => {
     expect(qrValues.slice(before)).toEqual([])
     expect(screen.queryByTestId('ark-address-copy')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Share' })).toBeDisabled()
+    // the address read starts once the Executor settlement has been awaited
+    await waitFor(() => expect(release).toBeTypeOf('function'))
     await act(async () => release())
     expect(await screen.findByTestId('ark-address-copy')).toBeInTheDocument()
   })
@@ -530,6 +540,22 @@ describe('Receive screen, lnurl onboarding', () => {
     expect(JSON.parse(claims()[0][1]!.body as string)).toMatchObject({ nameless: true })
     expect(screen.queryByText(/@lnurl\.test/)).not.toBeInTheDocument()
     expect(await qrLightning()).toMatch(/^lnurl1/i)
+  })
+
+  it('binds the wallet own Ark address, not the displayed renewal contract', async () => {
+    serve({ modes: ['self', 'session'] })
+    const executorSettled = async () => ({ status: 'success' as const, renewalAddress: 'tark1renewalcontract' })
+    // the screen reads the addresses from the wallet, as it does at runtime
+    renderReceive(0, {}, { offchainAddr: '', boardingAddr: '' }, true, { executorSettled })
+
+    await screen.findByRole('button', { name: 'Add a name' })
+    await pickMethod('Arkade address')
+    expect(await copiedQr()).toBe('tark1renewalcontract')
+    const binds = server
+      .calls('POST', '/lnurl/address/sess1/arkade')
+      .map(([, init]) => JSON.parse(init!.body as string))
+    expect(binds.length).toBeGreaterThan(0)
+    for (const bind of binds) expect(bind.arkadeAddress).toBe(DECODABLE_ARK)
   })
 
   it('offers a name, never a claim code, when the server has no nameless mode', async () => {

@@ -14,7 +14,8 @@ export type Config = {
   }
   aspUrl: string
   currency: Currencies
-  delegate: boolean
+  /** Board deposits and renew them through the network's Executor while the wallet is offline. Not exposed in the UI: VITE_EXECUTOR_ENABLED sets it. */
+  executor: boolean
   importedAssets: string[]
   homeAssetVisibility?: Record<string, boolean>
   language?: Language
@@ -33,14 +34,6 @@ export type Config = {
   // deprecated
   currencyDisplay?: string
   fiat?: Currencies
-}
-
-export type Delegate = {
-  fee: number
-  url: string
-  name: string
-  pubkey: string
-  address: string
 }
 
 export enum Currencies {
@@ -77,7 +70,6 @@ export enum SettingsOptions {
   BitcoinUnit = 'bitcoin unit',
   Contracts = 'contracts',
   Currency = 'Currency',
-  Delegates = 'delegates',
   Display = 'display',
   General = 'general',
   Haptics = 'haptic feedback',
@@ -215,6 +207,10 @@ export type Wallet = {
   network?: NetworkName | ''
   nextRollover: number
   passkeyId?: string
+  /** Words derived from the passkey's PRF on each unlock; nothing secret is stored. */
+  passkeyPrf?: boolean
+  /** The site the passkey belongs to; the biometrics screens store none, and unlock falls back to the page's host. */
+  passkeyRpId?: string
   pubkey?: string
 }
 

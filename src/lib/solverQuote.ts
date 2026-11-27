@@ -12,6 +12,8 @@ import { ASSET_CARRIER_SATS, findMarket, QUOTE_OPTIONS, validatePlan } from '@ar
 import { effectiveSolverRouting } from './solverRouting'
 import { solverUsage } from './swapRecords'
 import { solverHealth } from './solverHealth'
+import { getActiveLanguage } from './language'
+import { translations } from './i18n'
 
 export class SolverDirectionUnavailable extends Error {
   readonly name: string = 'SolverDirectionUnavailable'
@@ -21,7 +23,8 @@ export class SolverAmountUnavailable extends SolverDirectionUnavailable {
   readonly name = 'SolverAmountUnavailable'
 
   constructor(readonly plan: OfferPlan) {
-    super('Amount outside solver bounds')
+    const lang = getActiveLanguage()
+    super(translations[lang].solvers.outOfBounds)
   }
 }
 

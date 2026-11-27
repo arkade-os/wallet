@@ -145,8 +145,35 @@ describe('BackupProvider restore', () => {
     expect(updateConfig.mock.calls[0][0]).toMatchObject({
       aspUrl: 'https://local.server',
       showBalance: false,
-      delegate: true,
+      executor: true,
     })
+  })
+
+  it('re-enables the Executor on restore even if the backup has it off', async () => {
+    const updateConfig = vi.fn()
+    mocks.events = [makeEvent({ config: { ...localConfig, executor: false } }, 100, 100)]
+
+    renderProvider(updateConfig)
+    await restore(new Uint8Array(32))
+
+    await waitFor(() => expect(updateConfig).toHaveBeenCalledTimes(1))
+    expect(updateConfig.mock.calls[0][0]).toMatchObject({ executor: true })
+  })
+
+  it('keeps the Executor off on restore when the build switches it off', async () => {
+    vi.stubEnv('VITE_EXECUTOR_ENABLED', 'false')
+    try {
+      const updateConfig = vi.fn()
+      mocks.events = [makeEvent({ config: { ...localConfig, executor: true } }, 100, 100)]
+
+      renderProvider(updateConfig)
+      await restore(new Uint8Array(32))
+
+      await waitFor(() => expect(updateConfig).toHaveBeenCalledTimes(1))
+      expect(updateConfig.mock.calls[0][0]).toMatchObject({ executor: false })
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 
   it('keeps unnamed contacts from a split backup on a fresh install', async () => {

@@ -30,7 +30,7 @@ jobs:
             test_files: >-
               src/test/e2e/backup.test.ts
               src/test/e2e/bip21.test.ts
-              src/test/e2e/delegate.test.ts
+              src/test/e2e/executor.test.ts
               src/test/e2e/form.test.ts
               src/test/e2e/init.test.ts
               src/test/e2e/keyboard.test.ts
@@ -78,6 +78,8 @@ jobs:
           docker logs --tail 50 mempool_mariadb || true
           echo "=== fulcrum logs (last 50) ==="
           docker logs --tail 50 fulcrum || true
+          echo "=== executor logs (last 100) ==="
+          docker logs --tail 100 executor || true
       - name: Cleanup
         if: always()
         run: |

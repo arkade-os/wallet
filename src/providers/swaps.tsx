@@ -128,6 +128,8 @@ import { consoleError } from '../lib/logs'
 import { extractError } from '../lib/error'
 import { prettyNumber } from '../lib/format'
 import { toast } from '../components/Toast'
+import { translations } from '@/lib/i18n'
+import { getActiveLanguage } from '@/lib/language'
 
 /** What the receive screen needs from a negotiated and driven receive. */
 export interface AcceptedLnReceive {
@@ -261,7 +263,8 @@ const FIRST_LOAD_GRACE_MS = 3_000
 /** Matched by `name`, the part that crosses tabs, so the swap screen re-quotes instead of retrying it. */
 class QuoteUnavailable extends Error {
   constructor() {
-    super('This quote is no longer available — refresh to try again')
+    const lang = getActiveLanguage()
+    super(translations[lang].swap.quoteUnavailableStale)
     this.name = 'QuoteUnavailable'
   }
 }

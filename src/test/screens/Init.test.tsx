@@ -1,12 +1,22 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Init from '../../screens/Init/Init'
 import { AspContext } from '../../providers/asp'
 import { FlowContext } from '../../providers/flow'
-import { NavigationContext } from '../../providers/navigation'
+import { NavigationContext, Pages } from '../../providers/navigation'
 import { WalletContext } from '../../providers/wallet'
 import { DevModeProvider } from '../../providers/devMode'
 import { mockAspContextValue, mockFlowContextValue, mockNavigationContextValue, mockWalletContextValue } from './mocks'
+import { createPasskeyWallet, loginWithPasskey, PasskeyNotConfirmed, type PasskeyWallet } from '../../lib/passkey'
+import { translations } from '@/lib/i18n'
+
+vi.mock('../../lib/passkey', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../lib/passkey')>()),
+  createPasskeyWallet: vi.fn(),
+  loginWithPasskey: vi.fn(),
+}))
+
+const tr = translations.en
 
 function withContexts(children: React.ReactNode) {
   return (
@@ -34,7 +44,7 @@ describe('Init screen — devMode triple-tap gesture (pristine wallet)', () => {
     renderInitWithProvider()
 
     // devMode starts off: creating a wallet skips the options sheet
-    fireEvent.click(screen.getByText('+ Create wallet'))
+    fireEvent.click(screen.getByText(tr.init.createWallet))
     expect(screen.queryByTestId('toggle-hd-rotation')).not.toBeInTheDocument()
 
     // Three taps on the welcome heading toggle devMode on
@@ -43,8 +53,184 @@ describe('Init screen — devMode triple-tap gesture (pristine wallet)', () => {
     fireEvent.click(heading)
     fireEvent.click(heading)
 
-    // Now "+ Create wallet" opens the advanced sheet with the rotation toggle
-    fireEvent.click(screen.getByText('+ Create wallet'))
+    // Now "Create wallet" opens the advanced sheet with the rotation toggle
+    fireEvent.click(screen.getByText(tr.init.createWallet))
     expect(await screen.findByTestId('toggle-hd-rotation')).toBeInTheDocument()
+  })
+})
+
+describe('Init screen — passkey wallets', () => {
+  const words = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
+
+  function renderWithSpies() {
+    const navigate = vi.fn()
+    const setInitInfo = vi.fn()
+    const updateWallet = vi.fn()
+    const { unmount } = render(
+      <DevModeProvider>
+        <AspContext.Provider value={mockAspContextValue as any}>
+          <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate } as any}>
+            <FlowContext.Provider value={{ ...mockFlowContextValue, setInitInfo } as any}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, updateWallet } as any}>
+                <Init />
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </NavigationContext.Provider>
+        </AspContext.Provider>
+      </DevModeProvider>,
+    )
+    return { navigate, setInitInfo, updateWallet, unmount }
+  }
+
+  beforeEach(() => {
+    localStorage.clear()
+    vi.clearAllMocks()
+    Object.defineProperty(navigator, 'credentials', { value: {}, configurable: true })
+  })
+
+  const startPasskeyWallet = async () => {
+    fireEvent.click(screen.getByText(tr.init.orUseAPasskey))
+    fireEvent.click(screen.getByText(tr.init.createWithPasskey))
+    expect(await screen.findByText(/press Cancel/)).toBeInTheDocument()
+    expect(createPasskeyWallet).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: tr.init.createPasskey }))
+  }
+
+  it('explains the prompts first, then creates a wallet whose words come from the new passkey', async () => {
+    vi.mocked(createPasskeyWallet).mockResolvedValue({
+      prf: true,
+      mnemonic: words,
+      passkeyId: 'ab',
+      passkeyRpId: 'localhost',
+      passkeyName: 'Arkade wallet · ab12cd34',
+    })
+    const { navigate, setInitInfo, updateWallet } = renderWithSpies()
+    await startPasskeyWallet()
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.InitConnect))
+    expect(updateWallet).not.toHaveBeenCalled()
+    expect(setInitInfo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mnemonic: words,
+        passkeyPrf: true,
+        restoring: false,
+        passkeyUnlock: { passkeyPrf: true, passkeyId: 'ab', passkeyRpId: 'localhost', lockedByBiometrics: false },
+      }),
+    )
+    expect(setInitInfo.mock.calls.at(-1)?.[0]).not.toHaveProperty('password')
+  })
+
+  const fallback = {
+    prf: false as const,
+    mnemonic: words,
+    password: 'cafe',
+    passkeyId: 'ab',
+    passkeyRpId: 'localhost',
+    passkeyName: 'Arkade wallet · ab12cd34',
+  }
+
+  it('asks before falling back when the passkey cannot derive the wallet keys', async () => {
+    vi.mocked(createPasskeyWallet).mockResolvedValue(fallback)
+    const { navigate, setInitInfo, updateWallet } = renderWithSpies()
+    await startPasskeyWallet()
+    expect(await screen.findByText(/stays on this device/)).toBeInTheDocument()
+    expect(screen.getByText(/not software running as you/)).toBeInTheDocument()
+    expect(navigate).not.toHaveBeenCalled()
+    expect(updateWallet).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: tr.init.continueWithPasskey }))
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.InitConnect))
+    expect(updateWallet).not.toHaveBeenCalled()
+    expect(setInitInfo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mnemonic: words,
+        password: 'cafe',
+        restoring: false,
+        passkeyUnlock: { lockedByBiometrics: true, passkeyId: 'ab', passkeyRpId: 'localhost' },
+      }),
+    )
+  })
+
+  it('creates nothing when the fallback is declined, and names the passkey left behind', async () => {
+    vi.mocked(createPasskeyWallet).mockResolvedValue(fallback)
+    const { navigate, updateWallet } = renderWithSpies()
+    await startPasskeyWallet()
+    await screen.findByText(/stays on this device/)
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(await screen.findByText(/Arkade wallet · ab12cd34/)).toBeInTheDocument()
+    expect(navigate).not.toHaveBeenCalled()
+    expect(updateWallet).not.toHaveBeenCalled()
+  })
+
+  it('logs in on a new device from a passkey alone', async () => {
+    vi.mocked(loginWithPasskey).mockResolvedValue({ mnemonic: words, passkeyId: 'cd', passkeyRpId: 'localhost' })
+    const { navigate, setInitInfo, updateWallet } = renderWithSpies()
+    fireEvent.click(await screen.findByText(tr.init.orUseAPasskey))
+    fireEvent.click(await screen.findByText(tr.init.logInWithPasskey))
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.InitConnect))
+    expect(updateWallet).not.toHaveBeenCalled()
+    expect(setInitInfo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mnemonic: words,
+        passkeyPrf: true,
+        restoring: true,
+        walletMode: 'static',
+        passkeyUnlock: { passkeyPrf: true, passkeyId: 'cd', passkeyRpId: 'localhost', lockedByBiometrics: false },
+      }),
+    )
+  })
+
+  it('ignores a passkey login that lands after the screen is gone', async () => {
+    let settle: (found: { mnemonic: string; passkeyId: string; passkeyRpId: string }) => void = () => {}
+    vi.mocked(loginWithPasskey).mockReturnValue(new Promise((resolve) => (settle = resolve)))
+    const { navigate, setInitInfo, unmount } = renderWithSpies()
+    fireEvent.click(await screen.findByText(tr.init.orUseAPasskey))
+    fireEvent.click(await screen.findByText(tr.init.logInWithPasskey))
+
+    unmount()
+    await act(async () => settle({ mnemonic: words, passkeyId: 'cd', passkeyRpId: 'localhost' }))
+
+    expect(setInitInfo).not.toHaveBeenCalled()
+    expect(navigate).not.toHaveBeenCalled()
+  })
+
+  it('ignores a passkey login that lands after the user chose to restore instead', async () => {
+    let settle: (found: { mnemonic: string; passkeyId: string; passkeyRpId: string }) => void = () => {}
+    vi.mocked(loginWithPasskey).mockReturnValue(new Promise((resolve) => (settle = resolve)))
+    const { navigate, setInitInfo } = renderWithSpies()
+    fireEvent.click(await screen.findByText(tr.init.orUseAPasskey))
+    fireEvent.click(await screen.findByText(tr.init.logInWithPasskey))
+    fireEvent.click(await screen.findByText(tr.init.orUseAMnemonic))
+
+    fireEvent.click(screen.getByRole('button', { name: tr.init.restoreWallet }))
+    await act(async () => settle({ mnemonic: words, passkeyId: 'cd', passkeyRpId: 'localhost' }))
+
+    expect(navigate).toHaveBeenCalledWith(Pages.InitRestore)
+    expect(navigate).not.toHaveBeenCalledWith(Pages.InitConnect)
+    expect(setInitInfo).not.toHaveBeenCalled()
+  })
+
+  it('ignores a passkey wallet that lands after the screen is gone', async () => {
+    let settle: (made: PasskeyWallet) => void = () => {}
+    vi.mocked(createPasskeyWallet).mockReturnValue(new Promise((resolve) => (settle = resolve)))
+    const { navigate, setInitInfo, unmount } = renderWithSpies()
+    await startPasskeyWallet()
+
+    unmount()
+    await act(async () =>
+      settle({ prf: true, mnemonic: words, passkeyId: 'ab', passkeyRpId: 'localhost', passkeyName: 'Arkade wallet' }),
+    )
+
+    expect(setInitInfo).not.toHaveBeenCalled()
+    expect(navigate).not.toHaveBeenCalled()
+  })
+
+  it('creates nothing when the new passkey fails its confirming use, and names it', async () => {
+    vi.mocked(createPasskeyWallet).mockRejectedValue(new PasskeyNotConfirmed('Arkade wallet · ab12cd34'))
+    const { navigate, setInitInfo, updateWallet } = renderWithSpies()
+    await startPasskeyWallet()
+    expect(await screen.findByText(/Arkade wallet · ab12cd34/)).toBeInTheDocument()
+    expect(screen.queryByText(/stays on this device/)).toBeNull()
+    expect(navigate).not.toHaveBeenCalled()
+    expect(setInitInfo).not.toHaveBeenCalled()
+    expect(updateWallet).not.toHaveBeenCalled()
   })
 })
