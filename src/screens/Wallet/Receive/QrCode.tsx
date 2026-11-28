@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import Button from '../../../components/Button'
 import Padded from '../../../components/Padded'
 import QrCode from '../../../components/QrCode'
@@ -15,7 +15,8 @@ import { LimitsContext } from '../../../providers/limits'
 import { Asset, Coin, ExtendedVirtualCoin } from '@arkade-os/sdk'
 import LoadingLogo from '../../../components/LoadingLogo'
 import { encodeBip21, encodeBip21Asset } from '../../../lib/bip21'
-import { atomicToUnits, unitsToAtomic } from '../../../lib/assets'
+import { assetVisibleOnHome, trackedAssetIds } from '../../../lib/assetLibrary'
+import { atomicToUnits, truncatedAssetId, unitsToAtomic } from '../../../lib/assets'
 import ErrorMessage from '../../../components/Error'
 import { getDisplayAddresses } from '../../../lib/asp'
 import { extractError } from '../../../lib/error'
@@ -39,7 +40,7 @@ import { isMobileBrowser } from '../../../lib/browser'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import { AssetOption, Currencies, Unit } from '../../../lib/types'
 import { EASE_OUT_QUINT } from '../../../lib/animations'
-import { walletAssetPresentationForId } from '../../../lib/accountAssets'
+import { rawAssetPresentation, walletAssetPresentationForId } from '../../../lib/accountAssets'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
 import { AspContext } from '../../../providers/asp'
@@ -67,6 +68,8 @@ import { TokenOnChainLogo } from '../../../components/ChainLogo'
 import TokenLogo, { tokenLogoTickerForTicker } from '../../../components/TokenLogo'
 import AssetAvatar from '../../../components/AssetAvatar'
 import SmallLogo from '../../../components/SmallLogo'
+import UnverifiedBadge from '../../../components/UnverifiedBadge'
+import { isValidUrl } from '../../../lib/validators'
 import BoltOutlineIcon from '../../../icons/BoltOutline'
 import CheckMarkIcon from '../../../icons/CheckMark'
 import CopyIcon from '../../../icons/Copy'
@@ -113,8 +116,15 @@ export default function ReceiveQRCode() {
   const { navigate } = useContext(NavigationContext)
   const { recvInfo, setRecvInfo } = useContext(FlowContext)
   const { notifyPaymentReceived } = useContext(NotificationsContext)
-  const { assetBalances, assetMetadataCache, svcWallet, executorSettled, executorSettledCount } =
-    useContext(WalletContext)
+  const {
+    assetBalances,
+    assetMetadataCache,
+    iconApprovalManager,
+    isVerifiedAsset,
+    svcWallet,
+    executorSettled,
+    executorSettledCount,
+  } = useContext(WalletContext)
   const { utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { t } = useTranslation()
 
@@ -149,6 +159,7 @@ export default function ReceiveQRCode() {
   const ownAddresses = addresses?.wallet === svcWallet ? addresses : undefined
   const addressesCurrent = addressesLoaded && Boolean(ownAddresses)
   const [qrTransform, setQrTransform] = useState('')
+  const [failedAssetIcon, setFailedAssetIcon] = useState<string>()
 
   // Amount sheet state
   const [showAmountSheet, setShowAmountSheet] = useState(false)
@@ -167,14 +178,14 @@ export default function ReceiveQRCode() {
 
   // Receive methods
   const { boardingAddr, offchainAddr, satoshis, assetId, addressError } = recvInfo
+  const entryAssetId = useRef(assetId ?? '').current
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
   const isAssetReceive = assetId && assetId !== ''
   const hasError = Boolean(addressError)
 
-  const [noPaymentMethods, setNoPaymentMethods] = useState(false)
-  const [arkAddress, setArkAddress] = useState(offchainAddr)
-  const [btcAddress, setBtcAddress] = useState(boardingAddr)
-  const [bip21Uri, setBip21Uri] = useState('')
+  const arkAddress = vtxoTxsAllowed() ? offchainAddr || '' : ''
+  const btcAddress = !isAssetReceive && utxoTxsAllowed() ? boardingAddr || '' : ''
+  const noPaymentMethods = !arkAddress && !btcAddress
 
   // Fetch addresses on mount, and again once the Executor registration settles: until then the SDK may answer with
   // the wallet's own boarding address, which the Executor does not watch. The read waits (bounded) for it.
@@ -225,11 +236,12 @@ export default function ReceiveQRCode() {
     primary: config.lnurlPrimary,
   })
   const swapRailOn =
-    !lnurlConfigured ||
-    lnurlRail.status === 'failed' ||
-    (lnurlRail.status === 'onboarding' && !lnurlRail.choices.includes('self'))
+    !isAssetReceive &&
+    (!lnurlConfigured ||
+      lnurlRail.status === 'failed' ||
+      (lnurlRail.status === 'onboarding' && !lnurlRail.choices.includes('self')))
   const swapRail = useSwapRail(swapRailOn)
-  const receiver = ownAddresses ? lnurlRail.receiver : undefined
+  const receiver = ownAddresses && !isAssetReceive ? lnurlRail.receiver : undefined
   const lnurl = addressesCurrent ? (lnurlRail.lnurl ?? '') : ''
   const lightningAddress = addressesCurrent ? (receiver?.lightningAddress ?? '') : ''
   // The payment listener writes the paid amount into `satoshis`; re-quoting it would mint an invoice nobody pays.
@@ -242,7 +254,12 @@ export default function ReceiveQRCode() {
   const invoice = addressesCurrent
     ? (swapRailOn ? recvInfo.invoice : undefined) || lnurlRails.targets.lightning || ''
     : ''
-  const generatingInvoice = swapRail.generatingInvoice || lnurlRails.generating
+  const generatingInvoice = !isAssetReceive && (swapRail.generatingInvoice || lnurlRails.generating)
+  const bip21Uri = noPaymentMethods
+    ? ''
+    : isAssetReceive
+      ? encodeBip21Asset(arkAddress, assetId, assetAmount, assetMeta?.metadata?.decimals)
+      : encodeBip21(btcAddress, arkAddress, invoice, satoshis, lnurl)
 
   // Not remembered: the sheet says to pick another format only when the payer's wallet asks for it.
   const [method, setMethod] = useState<ReceiveMethod>('lnaddress')
@@ -286,39 +303,6 @@ export default function ReceiveQRCode() {
     : receiveTarget(shown, inputs)
   const qrCodeValue = addressesCurrent ? (target?.qr ?? '') : ''
   const generating = shown === 'token' ? tokenRails.quoting : generatingInvoice
-  const createBip21 = (): { ark: string; btc: string; bip21: string } => {
-    const ark = vtxoTxsAllowed() ? ownAddresses?.displayAddr || '' : ''
-    const btc = utxoTxsAllowed() ? ownAddresses?.boardingAddr || '' : ''
-    const bip21 = isAssetReceive
-      ? encodeBip21Asset(ark, assetId, assetAmount, assetMeta?.metadata?.decimals)
-      : encodeBip21(btc, ark, invoice, satoshis, lnurl)
-
-    return { ark, btc, bip21 }
-  }
-
-  // Build BIP21 URI
-  useEffect(() => {
-    if (!addressesLoaded) return
-
-    const { ark, btc, bip21 } = createBip21()
-
-    setNoPaymentMethods(!ark && !btc && !isAssetReceive)
-    setArkAddress(ark)
-    setBtcAddress(btc)
-    setBip21Uri(bip21)
-    // assetId, not just isAssetReceive: switching one asset for another must re-link the QR to the new one.
-  }, [
-    assetAmount,
-    addressesLoaded,
-    isAssetReceive,
-    assetId,
-    assetMeta?.metadata?.decimals,
-    ownAddresses,
-    recvInfo.satoshis,
-    invoice,
-    lnurl,
-  ])
-
   // Payment listener
   useEffect(() => {
     if (!svcWallet) return
@@ -380,16 +364,20 @@ export default function ReceiveQRCode() {
   }
 
   const handleCopy = async (value: string) => {
-    if (generating) return
     if (!prefersReducedMotion) hapticSubtle()
     const copied = await copyToClipboard(value)
     if (copied) setCopied(value)
   }
 
+  const handlePaymentCopy = (value: string) => {
+    if (!generating) void handleCopy(value)
+  }
+
   const handleAmountConfirm = (value = amountTextValue, inputMode?: KeyboardInputMode) => {
     setShowKeys(false)
     setShowAmountSheet(false)
-    if (assetMeta) {
+    if (isAssetReceive) {
+      if (!assetMeta) return
       const decimals = assetMeta.metadata?.decimals
       const cents = unitsToAtomic(value, decimals)
       return setAssetAmount(cents)
@@ -428,7 +416,7 @@ export default function ReceiveQRCode() {
 
   const handleSheetAmountChange = (value: string) => {
     setAmountTextValue(value)
-    if (!assetMeta) setSheetSats(satsFromEntry(Number(value), fiatEntry, config.unit, fromFiat))
+    if (!isAssetReceive) setSheetSats(satsFromEntry(Number(value), fiatEntry, config.unit, fromFiat))
   }
 
   const handleEntryModeChange = (mode: InputAmountMode) => {
@@ -493,13 +481,19 @@ export default function ReceiveQRCode() {
     assetMeta?.metadata,
     '',
   )
+  const { name, ticker, icon } = rawAssetPresentation(assetMeta?.metadata, '')
+  const assetName = name.trim() || ticker || t('mint.unknownAsset')
+  const approvedIcon =
+    assetId && icon && icon !== failedAssetIcon && iconApprovalManager.isApproved(assetId) && isValidUrl(icon)
+      ? icon
+      : undefined
   const assetOption: AssetOption = {
     assetId: assetId ?? '',
     name: assetPresentation.name,
     ticker: assetPresentation.ticker,
     balance: BigInt(0),
     decimals: assetMeta?.metadata?.decimals ?? 0,
-    icon: assetPresentation.icon,
+    icon: approvedIcon,
     trusted: Boolean(assetId && isRegistered(assetId)),
   }
 
@@ -517,13 +511,11 @@ export default function ReceiveQRCode() {
   const copyValue = addressesCurrent ? (target?.copy ?? '') : ''
   const copyDisabled = hasError || !addressesCurrent || !copyValue || generating || quoteExpired || noPaymentMethods
 
-  // Whether an amount is currently requested. Keyed off assetMeta to match how
-  // handleAmountConfirm/handleAmountClear decide between asset units and sats.
-  const hasAmount = assetMeta ? assetAmount > BigInt(0) : satoshis > 0
+  const hasAmount = isAssetReceive ? assetAmount > BigInt(0) : satoshis > 0
   const amountHeadline = !hasAmount
     ? ''
-    : assetMeta
-      ? `${atomicToUnits(assetAmount, assetOption.decimals)} ${assetPresentation.ticker}`
+    : isAssetReceive
+      ? `${atomicToUnits(assetAmount, assetOption.decimals)} ${ticker || assetName}`
       : useFiat && currencyConversionUseful
         ? prettyFiatAmount(toFiat(satoshis), config.currency, { bitcoinUnit: config.unit })
         : prettyAmount(satoshis)
@@ -643,39 +635,80 @@ export default function ReceiveQRCode() {
   // Only a registered asset gets an official logo: a self-reported ticker could claim any.
   const assetRow = (id: string): FormatRow => {
     const p = id
-      ? walletAssetPresentationForId(aspInfo.network, id, isRegistered, assetMetadataCache.get(id)?.metadata, '')
+      ? rawAssetPresentation(assetMetadataCache.get(id)?.metadata, truncatedAssetId(id) || t('mint.unknownAsset'))
       : { name: t('send.bitcoin'), ticker: 'BTC' }
+    const title = p.name.trim() || p.ticker || t('mint.unknownAsset')
     const logo = !id ? 'BTC' : isRegistered(id) ? tokenLogoTickerForTicker(p.ticker) : undefined
     return {
       id,
-      title: p.name || p.ticker,
+      title,
       subtitle: p.ticker,
       icon: (
-        <span className='flex size-7 shrink-0 [&>svg]:size-full'>
+        <span aria-hidden='true' className='flex size-7 shrink-0 [&>svg]:size-full'>
           {logo ? <TokenLogo ticker={logo} /> : <AssetAvatar name={p.name} ticker={p.ticker} size={28} />}
         </span>
       ),
+      details: id ? (
+        <>
+          {isVerifiedAsset(id) ? null : (
+            <span className='shrink-0 [&>span]:ml-0'>
+              <UnverifiedBadge />
+            </span>
+          )}
+          <button
+            type='button'
+            aria-label={t('receive.copyAria', { title: `${t('mint.assetId')} · ${title}` })}
+            data-testid={`receive-asset-id-copy-${id}`}
+            className='min-h-8 cursor-pointer truncate rounded-sm text-left font-mono text-xs text-neutral-600 underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-purple-700'
+            title={id}
+            onClick={() => handleCopy(id)}
+          >
+            {copied === id ? t('common.copied') : prettyLongText(id, 6)}
+          </button>
+        </>
+      ) : undefined,
     }
   }
-  // An asset opened from its detail screen is listed even when the wallet holds none of it yet. A held one waits
-  // for its metadata: without it this screen would read an amount typed for it as sats.
-  const held = assetBalances.filter((a) => a.amount > 0 && assetMetadataCache.has(a.assetId)).map((a) => a.assetId)
-  const assetIds = new Set([assetId ?? '', ...held])
-  const assetRows = ['', ...[...assetIds].filter(Boolean)].map(assetRow)
-  const current = assetRows.find((r) => r.id === (assetId ?? '')) ?? assetRows[0]
+  const visibleOnHome = (id: string, held: boolean) =>
+    assetVisibleOnHome(id, held, isVerifiedAsset(id), config.homeAssetVisibility)
+  const heldChoices = assetBalances
+    .filter(({ assetId: id, amount }) => (amount > 0 && assetMetadataCache.has(id)) || visibleOnHome(id, amount > 0))
+    .map(({ assetId: id }) => id)
+  const pinnedChoices = trackedAssetIds(config.importedAssets).filter((id) => visibleOnHome(id, false))
+  // Keep the asset that opened Receive available for this visit, including after switching to Bitcoin.
+  const assetRows = [...new Set(['', entryAssetId, assetId ?? '', ...heldChoices, ...pinnedChoices])].map(assetRow)
+  const current = assetRows.find((row) => row.id === (assetId ?? '')) ?? assetRows[0]
   const pill = (
     <>
       {current.icon}
-      <span className='truncate'>{current.title}</span>
+      <span className='truncate'>{isAssetReceive ? assetName : current.title}</span>
       {assetRows.length > 1 ? <ChevronDownIcon /> : null}
     </>
   )
-  const pillClass = 'flex min-w-0 items-center gap-2 rounded-full bg-neutral-50 py-1.5 pr-4 pl-1.5 font-semibold'
+  const pillClass =
+    'flex min-w-0 max-w-full items-center gap-2 rounded-full bg-neutral-50 py-1.5 pr-4 pl-1.5 font-semibold'
   const showingQr = addressesCurrent && !hasError && !noPaymentMethods && Boolean(bip21Uri)
+  const qrLogo =
+    shown === 'token' && activeToken ? (
+      railLogo(activeToken, '#ffffff')
+    ) : approvedIcon ? (
+      <span className='relative block size-full'>
+        <img
+          src={approvedIcon}
+          alt=''
+          className='size-full rounded-full object-cover'
+          referrerPolicy='no-referrer'
+          onError={() => setFailedAssetIcon(approvedIcon)}
+        />
+        <span className='absolute -right-[10%] -bottom-[10%] flex size-[55%] items-center justify-center rounded-full bg-white ring-2 ring-white [--logo-color:#391998] [&>svg]:size-2/3'>
+          <SmallLogo />
+        </span>
+      </span>
+    ) : undefined
 
   return (
     <>
-      <div className='grid min-h-16 grid-cols-[1fr_auto_1fr] items-center gap-2 px-4'>
+      <div className='grid min-h-16 shrink-0 grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-start gap-2 px-4 py-3'>
         <button
           type='button'
           onClick={() => navigate(Pages.Wallet)}
@@ -685,21 +718,28 @@ export default function ReceiveQRCode() {
         >
           <CloseIcon />
         </button>
-        {assetRows.length > 1 ? (
-          <button
-            type='button'
-            onClick={() => setAssetsOpen(true)}
-            aria-haspopup='dialog'
-            data-testid='receive-asset-pill'
-            className={pillClass}
-          >
-            {pill}
-          </button>
-        ) : (
-          <span className={pillClass} data-testid='receive-asset-pill'>
-            {pill}
-          </span>
-        )}
+        <div className='flex min-w-0 flex-col items-center gap-1'>
+          {assetRows.length > 1 ? (
+            <button
+              type='button'
+              onClick={() => setAssetsOpen(true)}
+              aria-haspopup='dialog'
+              data-testid='receive-asset-pill'
+              className={pillClass}
+            >
+              {pill}
+            </button>
+          ) : (
+            <span className={pillClass} data-testid='receive-asset-pill'>
+              {pill}
+            </span>
+          )}
+          {assetId && !isVerifiedAsset(assetId) ? (
+            <span className='[&>span]:ml-0'>
+              <UnverifiedBadge />
+            </span>
+          ) : null}
+        </div>
       </div>
       <Content noFade>
         <Padded>
@@ -773,7 +813,7 @@ export default function ReceiveQRCode() {
                       className='receive-invoice-qr focusable'
                       disabled={generating || !qrCodeValue}
                       aria-hidden={generating}
-                      onClick={() => handleCopy(qrCodeValue)}
+                      onClick={() => handlePaymentCopy(qrCodeValue)}
                       onPointerDown={() => setQrTransform(prefersReducedMotion ? '' : 'scale(0.97)')}
                       onPointerUp={() => setQrTransform('')}
                       onPointerLeave={() => setQrTransform('')}
@@ -799,10 +839,7 @@ export default function ReceiveQRCode() {
                             : `transform 240ms cubic-bezier(${EASE_OUT_QUINT.join(',')})`,
                         }}
                       >
-                        <QrCode
-                          value={qrCodeValue}
-                          logo={shown === 'token' && activeToken ? railLogo(activeToken, '#ffffff') : undefined}
-                        />
+                        <QrCode value={qrCodeValue} logo={qrLogo} />
                       </div>
                     </button>
                   )}
@@ -825,13 +862,18 @@ export default function ReceiveQRCode() {
                         label={t('receive.copyAria', { title: copyLabel })}
                         testId={`${target.kind}-address-copy`}
                         done={copied === copyValue}
-                        onClick={() => handleCopy(copyValue)}
+                        onClick={() => handlePaymentCopy(copyValue)}
                         disabled={copyDisabled}
                       />
                     </div>
                   ) : null}
                   {shown === 'token' && activeToken && tokenRails.quote ? (
-                    <TokenQuoteNote rail={activeToken} quote={tokenRails.quote} copied={copied} onCopy={handleCopy} />
+                    <TokenQuoteNote
+                      rail={activeToken}
+                      quote={tokenRails.quote}
+                      copied={copied}
+                      onCopy={handlePaymentCopy}
+                    />
                   ) : caption ? (
                     <Text small color='neutral-500' wrap centered>
                       {caption}
@@ -858,14 +900,19 @@ export default function ReceiveQRCode() {
             onClose={() => setAssetsOpen(false)}
             title={t('swap.chooseAssetToReceive')}
             formats={assetRows}
-            active={current.id}
+            active={assetId ?? ''}
             onPick={switchAsset}
           />
         </Padded>
       </Content>
       <ButtonsOnBottom>
         <FlexRow gap='0.75rem'>
-          <Button label={amountLabel} onClick={openAmountEntry} secondary />
+          <Button
+            label={amountLabel}
+            onClick={openAmountEntry}
+            disabled={Boolean(isAssetReceive && !assetMeta)}
+            secondary
+          />
           <Button label={t('receive.share')} onClick={handleShare} disabled={shareDisabled} />
         </FlexRow>
       </ButtonsOnBottom>

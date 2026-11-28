@@ -45,30 +45,35 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { asset, type Asset, type IntentFeeConfig, type NetworkName, type PaymentRouter } from '@arkade-os/sdk'
+import { btcTarget, type Asset, type IntentFeeConfig, type NetworkName, type PaymentRouter } from '@arkade-os/sdk'
 import { generateSecretKey } from 'nostr-tools'
-import { BTC_ASSET_ID, findMarket } from '@arkade-os/swap/protocol'
+import { BTC_ASSET_ID, findMarket, ONCHAIN_DUST_SATS } from '@arkade-os/swap/protocol'
 import {
-  arkadeAsset,
+  assetSwapIdOf,
   btcOn,
+  claimFeeSats,
+  isSwapError,
   type AssetId,
   type AssetSwapId,
   type Outcome,
   type OpenRfqAuction,
   type Quote,
+  type QuoteInput,
   type Swap,
   type SwapClient,
 } from '@arkade-os/swap'
+import { fundingWasNotSubmitted, recordOutcome, swapOf, walletLockupIndexer } from '@arkade-os/swap/advanced'
 import {
   isRfqMarket,
   marketCorridor,
   sideLimits,
+  solverId,
   type DiscoveredMarket,
   type OfferPlan,
 } from '@arkade-os/solver-discovery'
 import { AspContext } from './asp'
 import { WalletContext } from './wallet'
-import { discoverMarkets, marketAssetDisplay, marketLegId, watchSwapMarkets } from '../lib/swapMarkets'
+import { discoverMarkets, marketAssetDisplay, marketLegId, swapAssetId, watchSwapMarkets } from '../lib/swapMarkets'
 import { getSolverCardsVersion, subscribeSolverCards } from '../lib/solverCards'
 import { createSendRouter, isLightningMarket } from '../lib/sendRouter'
 import { claimFeeRate } from '../lib/claimFee'
@@ -77,7 +82,31 @@ import { toInvoiceFacts } from '../lib/lnSwap'
 import { nostrRelayUrls } from '../lib/nostr'
 import { newRequestId } from '../lib/requestId'
 import { makeSwapClient, SwapsHeldElsewhere } from '../lib/swapClient'
-import { isSolverEnabled } from '../lib/solverRouting'
+import { isSolverEnabled, subscribeSolverRouting } from '../lib/solverRouting'
+import { readOnchainSendPreference, readOpenOfferPolicy } from '../lib/openOfferPolicy'
+import {
+  assertAssetPaymentQuote,
+  assertOpenPaymentQuote,
+  paymentAttemptKey,
+  paymentQuoteExpiry,
+  paymentQuoteInput,
+  quoteProviderMarket,
+  type AssetPaymentRequest,
+  type PaymentQuoteRequest,
+} from '../lib/paymentQuotes'
+import {
+  canReplaceMissingPaymentRecord,
+  checkpointPaymentRecord,
+  claimPaymentFunding,
+  hasConfirmedPaymentRefund,
+  PaymentNotSubmitted,
+  PaymentRequiresNewInvoice,
+  PaymentSubmissionPending,
+  readPaymentFunding,
+  releasePaymentFunding,
+  withPaymentFundingCheckpoint,
+  withPaymentFundingLock,
+} from '../lib/paymentFunding'
 import {
   DriverPromoted,
   DriverUnavailable,
@@ -86,7 +115,12 @@ import {
   type DriverOp,
   type DriverUpdate,
 } from '../lib/swapDriverChannel'
-import { saveQuoteSnapshot, type AssetSwapQuoteSnapshot, type WalletAssetSwap } from '../lib/swapRepository'
+import {
+  assetSwapRepository,
+  saveQuoteSnapshot,
+  type AssetSwapQuoteSnapshot,
+  type WalletAssetSwap,
+} from '../lib/swapRepository'
 import { displayAssetOf, offerSwaps } from '../lib/swapRecords'
 import { isValidAssetId } from '../lib/assets'
 import { getEmulatorPubkeyForNetwork } from '../lib/constants'
@@ -127,9 +161,15 @@ interface SwapsContextProps {
     requestId?: string,
     destination?: string,
   ) => Promise<OpenRfqAuction>
+  openPaymentQuotes: (request: PaymentQuoteRequest, requestId: string, consent?: boolean) => Promise<OpenRfqAuction>
   cancelOpenSwapQuotes: (requestId: string) => Promise<void>
   chooseSwapQuote: (auctionId: string, bidId: string) => Promise<Quote>
   acceptSwapQuote: (quote: Quote, snapshot?: AssetSwapQuoteSnapshot) => Promise<Swap>
+  quoteAssetPayment: (request: AssetPaymentRequest) => Promise<Quote>
+  quotePaymentRoute: (request: PaymentQuoteRequest, solverId?: string) => Promise<Quote>
+  paymentRouteCandidates: (request: PaymentQuoteRequest) => Promise<{ id: string; name: string }[]>
+  onchainPaymentRouteCandidates: (address: string, amount: number) => Promise<{ id: string; name: string }[]>
+  acceptPaymentQuote: (quote: Quote, request: PaymentQuoteRequest, reviewId?: string) => Promise<Swap>
   cancelSwap: (id: string) => Promise<void>
   /** Run a recovery round for a swept offer deposit. Resolves with whether THIS
    * deposit went home; throws `SwapDriveRefusedError` (by `name` across tabs) or
@@ -144,12 +184,15 @@ interface SwapsContextProps {
   /** The send path's router. Throws `SwapsHeldElsewhere` rather than dropping
    * the solver rails and offboarding through the costlier exit. `swapsOptional`
    * opts out for a caller with no exit rail to fall to (LNURL): a tab not driving
-   * the swap client gets a router without the solver rails instead. */
+   * the swap client gets a router without the solver rails instead.
+   * `exitOnly` prepares the explicitly selected collaborative exit. */
   sendRouter: (deps?: {
     outputFee?: () => number
     intentFee?: () => IntentFeeConfig | undefined
     assets?: Asset[]
     swapsOptional?: boolean
+    exitOnly?: boolean
+    onchainSolverId?: string
   }) => Promise<PaymentRouter>
   /** Where a driven swap stands, or undefined when it is not monitored. */
   outcomeOf: (id: string) => Outcome | undefined
@@ -172,9 +215,15 @@ export const SwapsContext = createContext<SwapsContextProps>({
   },
   quoteExchange: notInitialized,
   openSwapQuotes: notInitialized,
+  openPaymentQuotes: notInitialized,
   cancelOpenSwapQuotes: notInitialized,
   chooseSwapQuote: notInitialized,
   acceptSwapQuote: notInitialized,
+  quoteAssetPayment: notInitialized,
+  quotePaymentRoute: notInitialized,
+  paymentRouteCandidates: notInitialized,
+  onchainPaymentRouteCandidates: notInitialized,
+  acceptPaymentQuote: notInitialized,
   cancelSwap: notInitialized,
   recoverSwap: notInitialized,
   quotePay: notInitialized,
@@ -224,8 +273,8 @@ class QuoteUnavailable extends Error {
  *  directions succeed, so every send announced itself as money received; only a
  *  receive takes delivery inside Arkade. Optional so `announce` cannot throw. */
 const isSendLeg = (swap: Swap): boolean => {
-  const takes = swap.route?.take?.corridor
-  return takes !== undefined && takes !== 'arkade'
+  const takes = swap.route?.take
+  return Boolean(takes && (takes.corridor !== 'arkade' || (swap.assetPayment && takes.instrument.kind === 'address')))
 }
 
 /** Outcomes worth telling the user about, and what they mean to them. */
@@ -243,6 +292,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const {
     dataReady,
     svcWallet,
+    wallet,
     reloadWallet,
     setAssetSwaps,
     isVerifiedAsset,
@@ -477,7 +527,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     if (ended === 'received')
       toast.success(isSendLeg(swap) ? 'Payment complete' : `Swap completed, ${tickerFor(swap.take.asset)} received`)
     else if (ended === 'returned') toast.success('Swap cancelled, funds returned')
-    else toast.error('Lightning payment was not received')
+    else toast.error(isSendLeg(swap) ? 'Payment did not complete' : 'Lightning payment was not received')
     // The claim and the refund land through the client's own broadcaster, so
     // the service worker never emits the VTXO_UPDATE the balance listener waits
     // for. Nothing else would refresh it. Behind the same gate: a restore
@@ -719,10 +769,20 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       case 'cancelOpenSwapQuotes':
         auctionRequests.current.get(args[0] as string)?.abort()
         return Promise.resolve()
+      case 'openPaymentQuotes':
+        return openPaymentQuotesHere(args[0] as PaymentQuoteRequest, args[1] as string, args[2] === true)
       case 'chooseSwapQuote':
         return chooseSwapQuoteHere(args[0] as string, args[1] as string)
       case 'acceptSwapQuote':
         return acceptSwapQuoteHere(args[0] as string, args[1] as AssetSwapQuoteSnapshot | undefined)
+      case 'quoteAssetPayment':
+        return quotePaymentRouteHere({ ...(args[0] as AssetPaymentRequest), kind: 'asset' })
+      case 'quotePaymentRoute':
+        return quotePaymentRouteHere(args[0] as PaymentQuoteRequest, args[1] as string | undefined)
+      case 'paymentRouteCandidates':
+        return paymentRouteCandidatesHere(args[0] as PaymentQuoteRequest)
+      case 'acceptPaymentQuote':
+        return acceptPaymentQuoteHere(args[0] as string, args[1] as PaymentQuoteRequest, args[2] as string | undefined)
       case 'cancelSwap':
         return cancelSwapHere(args[0] as string)
       case 'recoverSwap':
@@ -749,14 +809,6 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
   // ----------------------------------------------------------- asset swaps
 
-  /** The composer's asset ids are discovery's; the client's are CAIP-19. */
-  const assetIdFor = (network: NetworkName, discoveryId: string): AssetId =>
-    discoveryId.includes('/')
-      ? (discoveryId as AssetId)
-      : discoveryId === BTC_ASSET_ID
-        ? btcOn('arkade', network)
-        : arkadeAsset(network, asset.AssetId.fromString(discoveryId))
-
   /** The market is the client's to select, so only the plan reaches the tab that will fund this. */
   const quoteExchange = (plan: OfferPlan): Promise<Quote> => runOnDriver('quoteExchange', [plan])
 
@@ -768,6 +820,12 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     destination?: string,
   ): Promise<OpenRfqAuction> => runOnDriver('openSwapQuotes', [from, to, amount, requestId, destination])
 
+  const openPaymentQuotes = (
+    request: PaymentQuoteRequest,
+    requestId: string,
+    consent = false,
+  ): Promise<OpenRfqAuction> => runOnDriver('openPaymentQuotes', [request, requestId, consent])
+
   const cancelOpenSwapQuotes = (requestId: string): Promise<void> => runOnDriver('cancelOpenSwapQuotes', [requestId])
 
   const openSwapQuotesHere = async (
@@ -778,13 +836,54 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     destination?: string,
   ): Promise<OpenRfqAuction> => {
     if (amount <= 0n) throw new Error('Enter an amount greater than zero')
+    const network = aspInfo.network as NetworkName
+    return openAuction(
+      {
+        give: swapAssetId(network, from),
+        take: swapAssetId(network, to),
+        amount,
+        amountOn: 'give',
+        ...(destination ? { to: destination } : {}),
+      },
+      requestId,
+      from,
+      to,
+      true,
+    )
+  }
+
+  const openPaymentQuotesHere = async (
+    request: PaymentQuoteRequest,
+    requestId: string,
+    consent: boolean,
+  ): Promise<OpenRfqAuction> => {
+    const network = aspInfo.network as NetworkName
+    const input = paymentQuoteInput(request, network)
+    return openAuction(input, requestId, btcOn('arkade', network), input.take ?? btcOn('bolt11', network), consent)
+  }
+
+  const openAuction = async (
+    input: QuoteInput,
+    requestId: string,
+    from: string,
+    to: string,
+    consent: boolean,
+  ): Promise<OpenRfqAuction> => {
+    const canSearch = () => {
+      const policy = readOpenOfferPolicy(aspInfo.network)
+      return policy !== 'off' && (policy === 'when-needed' || consent)
+    }
+    if (!canSearch()) throw new Error('Allow open offers before searching')
     auctionRequests.current.get(requestId)?.abort()
     const controller = new AbortController()
     auctionRequests.current.set(requestId, controller)
+    const unsubscribe = subscribeSolverRouting(() => {
+      if (!canSearch()) controller.abort()
+    })
     try {
       const client = await driving()
       controller.signal.throwIfAborted()
-      const network = aspInfo.network as NetworkName
+      if (!canSearch()) throw new Error('Allow open offers before searching')
       const serves = (market: DiscoveredMarket) => Boolean(findMarket([market], from, to)?.market)
       // The pair's own cards go first so unrelated ones cannot use up the 16 slots.
       const cards = [...allMarketsRef.current.filter(serves), ...allMarketsRef.current.filter((m) => !serves(m))]
@@ -803,16 +902,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
           }),
         ),
       ].slice(0, 16)
-      const auction = await client.openRfq(
-        {
-          give: assetIdFor(network, from),
-          take: assetIdFor(network, to),
-          amount,
-          amountOn: 'give',
-          ...(destination ? { to: destination } : {}),
-        },
-        { secretKey: generateSecretKey(), signal: controller.signal, relays },
-      )
+      const auction = await client.openRfq(input, { secretKey: generateSecretKey(), signal: controller.signal, relays })
       controller.signal.throwIfAborted()
       const now = Math.floor(Date.now() / 1000)
       for (const [id, kept] of auctions.current) {
@@ -822,6 +912,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       auctions.current.set(auction.id, auction)
       return auction
     } finally {
+      unsubscribe()
       if (auctionRequests.current.get(requestId) === controller) auctionRequests.current.delete(requestId)
     }
   }
@@ -832,6 +923,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const chooseSwapQuoteHere = async (auctionId: string, bidId: string): Promise<Quote> => {
     const issuer = held.current
     const client = await driving()
+    if (readOpenOfferPolicy(aspInfo.network) === 'off') throw new Error('Open offers are turned off')
     const auction = auctions.current.get(auctionId)
     const bid = auction?.bids.find((offer) => offer.id === bidId)
     if (!auction || !bid) throw new Error('These offers are no longer available — refresh to try again')
@@ -844,13 +936,17 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
   const acceptSwapQuote = (quote: Quote, snapshot?: AssetSwapQuoteSnapshot): Promise<Swap> =>
     runOnDriver('acceptSwapQuote', [quote.id, snapshot])
 
+  const acceptPaymentQuote = (quote: Quote, request: PaymentQuoteRequest, reviewId?: string): Promise<Swap> =>
+    runOnDriver('acceptPaymentQuote', [quote.id, request, reviewId])
+
   const acceptSwapQuoteHere = async (id: string, snapshot?: AssetSwapQuoteSnapshot): Promise<Swap> => {
     const client = await driving()
     const quote = issued.current.get(id)
     // Deliberate: a quote lives only in the client that derived it, which refuses to accept
     // another's. After a lock handoff the user quotes again; it is short-lived, so little is lost.
     if (!quote) throw new QuoteUnavailable()
-    const swap = await client.accept(quote, { validUntil: quote.expiresAt })
+    if (quote.auction && readOpenOfferPolicy(aspInfo.network) === 'off') throw new Error('Open offers are turned off')
+    const swap = await client.accept(quote, { validUntil: paymentQuoteExpiry(quote) })
     issued.current.delete(id)
     if (snapshot) {
       try {
@@ -865,6 +961,165 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     return swap
   }
 
+  const quoteAssetPayment = (request: AssetPaymentRequest): Promise<Quote> =>
+    runOnDriver('quoteAssetPayment', [request])
+
+  const assertPaymentQuote = (quote: Quote, request: PaymentQuoteRequest, network: NetworkName): void => {
+    if (quote.auction && readOpenOfferPolicy(network) === 'off') throw new Error('Open offers are turned off')
+    if (request.kind === 'asset') assertAssetPaymentQuote(quote, request, network)
+    else assertOpenPaymentQuote(quote, request, network)
+  }
+
+  const quotePaymentRoute = (request: PaymentQuoteRequest, preferredId?: string): Promise<Quote> =>
+    runOnDriver('quotePaymentRoute', [request, preferredId])
+
+  const paymentRouteCandidates = (request: PaymentQuoteRequest): Promise<{ id: string; name: string }[]> =>
+    runOnDriver('paymentRouteCandidates', [request])
+
+  const routeCandidates = async (client: SwapClient, input: QuoteInput) => {
+    const candidates = await client.candidates(input)
+    const ranked = candidates.filter(({ backend }) => backend === 'rfq')
+    return [...new Map(ranked.map(({ solverId: id, card }) => [id, { id, name: card.solver }])).values()]
+  }
+
+  const paymentRouteCandidatesHere = async (request: PaymentQuoteRequest) =>
+    routeCandidates(await driving(), paymentQuoteInput(request, aspInfo.network as NetworkName))
+
+  const onchainPaymentRouteCandidates = async (address: string, amount: number) => {
+    const to = btcTarget(address)
+    const issuer = held.current
+    if (!to || !Number.isSafeInteger(amount) || BigInt(amount) < ONCHAIN_DUST_SATS || !issuer) return []
+    const [client, claimFeeRateSatVb] = await Promise.all([
+      issuer,
+      claimFeeRate(onchainClaimEndpoint(aspInfo.network as NetworkName)),
+    ])
+    if (!claimFeeRateSatVb || held.current !== issuer) return []
+    const candidates = await routeCandidates(client, {
+      to,
+      amount: BigInt(amount) + claimFeeSats({ claimFeeRateSatVb }),
+      amountOn: 'take',
+    })
+    return held.current === issuer ? candidates : []
+  }
+
+  const quotePaymentRouteHere = async (request: PaymentQuoteRequest, preferredId?: string): Promise<Quote> => {
+    const network = aspInfo.network as NetworkName
+    const issuer = held.current
+    const client = await driving()
+    const input = paymentQuoteInput(request, network)
+    const quote = await (preferredId ? client.quote(input, { solverId: preferredId }) : client.quote(input))
+    if (held.current !== issuer) throw new QuoteUnavailable()
+    assertPaymentQuote(quote, request, network)
+    if (preferredId) {
+      const provider = quoteProviderMarket(quote)
+      if (!provider || solverId(provider, network) !== preferredId)
+        throw new Error('The selected provider did not quote this payment')
+    }
+    remember(quote)
+    return quote
+  }
+
+  const acceptPaymentQuoteHere = async (id: string, request: PaymentQuoteRequest, reviewId?: string): Promise<Swap> => {
+    const network = aspInfo.network as NetworkName
+    const key = paymentAttemptKey(request, network, wallet.pubkey, reviewId)
+    return withPaymentFundingLock(key, (guarded) => acceptReservedPayment(id, request, network, key, guarded))
+  }
+
+  const acceptReservedPayment = async (
+    id: string,
+    request: PaymentQuoteRequest,
+    network: NetworkName,
+    key: string,
+    guarded: boolean,
+  ): Promise<Swap> => {
+    const issuer = held.current
+    const client = await driving()
+    const previous = await readPaymentFunding(key)
+    if (previous) {
+      const record = await assetSwapRepository.getSwapRecord(previous.quoteId)
+      if (!record) {
+        if (!canReplaceMissingPaymentRecord(previous, guarded)) throw new PaymentSubmissionPending(previous.swapId)
+      } else if (!fundingWasNotSubmitted(record)) {
+        if (!record.fundingTxid) {
+          // The record is committed and this checkpoint awaited before funding, so a reservation
+          // that never reached it stopped short of submitting. The record alone proves nothing.
+          if (!canReplaceMissingPaymentRecord(previous, guarded)) throw new PaymentSubmissionPending(previous.swapId)
+        } else if (record.family !== 'rfq' || record.kind !== 'lightning_send' || record.state !== 'refunded') {
+          return swapOf(record, recordOutcome(record))
+        } else {
+          const refunded = svcWallet && (await hasConfirmedPaymentRefund(record, walletLockupIndexer(svcWallet)))
+          // A refunded covenant cannot prove the payee never revealed the invoice's preimage.
+          if (refunded) throw new PaymentRequiresNewInvoice(previous.swapId)
+          throw new PaymentSubmissionPending(previous.swapId)
+        }
+      }
+      if (previous.quoteId === id) throw new QuoteUnavailable()
+    }
+    const quote = issued.current.get(id)
+    if (!quote) throw new QuoteUnavailable()
+    try {
+      assertPaymentQuote(quote, request, network)
+    } catch (error) {
+      throw new PaymentNotSubmitted(error)
+    }
+    const swapId = assetSwapIdOf(request.kind === 'asset' ? 'offer' : 'rfq', id)
+    const attempt = { quoteId: id, swapId, ...(guarded ? { guarded: true as const } : {}) }
+    const raced = await claimPaymentFunding(key, attempt, previous?.quoteId)
+    if (raced) throw new PaymentSubmissionPending(raced.swapId)
+    try {
+      if (held.current !== issuer) throw new QuoteUnavailable()
+      assertPaymentQuote(quote, request, network)
+    } catch (error) {
+      await releasePaymentFunding(key, id)
+      if (error instanceof QuoteUnavailable) throw error
+      throw new PaymentNotSubmitted(error)
+    }
+
+    let swap: Swap
+    try {
+      swap = await withPaymentFundingCheckpoint(key, id, async () => {
+        // A record the client already stored is funded without being written again, so the
+        // checkpoint has to run here instead: an unreached one must stay proof of non-submission.
+        if (await assetSwapRepository.getSwapRecord(id)) await checkpointPaymentRecord(id)
+        return client.accept(quote, { validUntil: paymentQuoteExpiry(quote) })
+      })
+    } catch (error) {
+      const stored = await assetSwapRepository
+        .getSwapRecord(id)
+        .then((record) => ({ record }))
+        .catch(() => undefined)
+      const record = stored?.record
+      if (record?.fundingTxid) return swapOf(record, recordOutcome(record))
+      const reservation = stored && !record ? await readPaymentFunding(key).catch(() => undefined) : undefined
+      if (
+        record
+          ? fundingWasNotSubmitted(record)
+          : stored &&
+            (isSwapError(error, 'InsufficientFunds') ||
+              isSwapError(error, 'QuoteExpired') ||
+              (reservation?.quoteId === id && canReplaceMissingPaymentRecord(reservation, guarded)))
+      ) {
+        await releasePaymentFunding(key, id)
+        throw new PaymentNotSubmitted(error)
+      }
+      void refreshSwaps().catch(consoleError)
+      throw new PaymentSubmissionPending(swapId)
+    }
+    issued.current.delete(id)
+    announceHere(swap)
+    void refreshSwaps().catch(consoleError)
+    reloadRef.current().catch(consoleError)
+    if (!swap.fundingTxid) {
+      const record = await assetSwapRepository.getSwapRecord(id).catch(() => undefined)
+      if (record && fundingWasNotSubmitted(record)) {
+        await releasePaymentFunding(key, id)
+        throw new PaymentNotSubmitted(new Error('The previous payment quote was not funded. Refresh to try again.'))
+      }
+      throw new PaymentSubmissionPending(swap.id)
+    }
+    return swap
+  }
+
   // Not `client.exchange`, which re-quotes and funds whatever comes back. The
   // estimate and this firm quote are priced independently — a carrier the card
   // omits, a rounding unit — so the composer compares them and decides what the
@@ -875,8 +1130,8 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
     const network = aspInfo.network as NetworkName
     const issuer = held.current
     const client = await driving()
-    const give = assetIdFor(network, plan.deposit.asset.id)
-    const take = assetIdFor(network, plan.receive.asset.id)
+    const give = swapAssetId(network, plan.deposit.asset.id)
+    const take = swapAssetId(network, plan.receive.asset.id)
     const quoted = await client.quote({ give, take, amount: plan.deposit.atomic, amountOn: 'give' })
     // A client replaced mid-quote was disposed with this quote's preparation.
     if (held.current !== issuer) throw new QuoteUnavailable()
@@ -1036,15 +1291,13 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
 
   /** The fee rate is read per router, not pinned: the solver rail grosses the
    *  take leg up by it, so a stale one short-pays the recipient. */
-  const sendRouter = async ({
+  const sendRouter: SwapsContextProps['sendRouter'] = async ({
     swapsOptional,
+    exitOnly,
+    onchainSolverId,
     ...deps
-  }: {
-    outputFee?: () => number
-    intentFee?: () => IntentFeeConfig | undefined
-    assets?: Asset[]
-    swapsOptional?: boolean
   } = {}): Promise<PaymentRouter> => {
+    if (exitOnly) return createSendRouter({ wallet: svcWallet!, dust: () => Number(aspInfo.dust), ...deps })
     if (!held.current && granted.current) {
       await Promise.race([granted.current, new Promise((resolve) => setTimeout(resolve, LOCK_GRACE_MS))])
     }
@@ -1062,7 +1315,9 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       wallet: svcWallet!,
       client,
       claimFeeRateSatVb,
+      onchainRouting: { network: aspInfo.network, preferredSolverId: onchainSolverId },
       dust: () => Number(aspInfo.dust),
+      preferExit: readOnchainSendPreference(aspInfo.network) === 'exit',
       ...deps,
     })
   }
@@ -1092,9 +1347,15 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       runDiscovery,
       quoteExchange,
       openSwapQuotes,
+      openPaymentQuotes,
       cancelOpenSwapQuotes,
       chooseSwapQuote,
       acceptSwapQuote,
+      quoteAssetPayment,
+      quotePaymentRoute,
+      paymentRouteCandidates,
+      onchainPaymentRouteCandidates,
+      acceptPaymentQuote,
       cancelSwap,
       recoverSwap,
       quotePay,
@@ -1113,6 +1374,7 @@ export const SwapsProvider = ({ children }: { children: ReactNode }) => {
       swapAvailable,
       swaps,
       svcWallet,
+      wallet.pubkey,
       emulatorPubkey,
       aspInfo.url,
       aspInfo.network,

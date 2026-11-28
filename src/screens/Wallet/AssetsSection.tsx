@@ -8,19 +8,54 @@ import { prettyFiatAmount } from '../../lib/format'
 import { FlowContext } from '../../providers/flow'
 import { WalletContext } from '../../providers/wallet'
 import { useTranslation } from '../../providers/language'
+import { AspContext } from '../../providers/asp'
+import { rawAssetPresentation, verifiedDesignatedCurrency } from '../../lib/accountAssets'
+import { assetVisibleOnHome, normalizeAssetId, trackedAssetIds } from '../../lib/assetLibrary'
+import { truncatedAssetId } from '../../lib/assets'
+import { hapticLight } from '../../lib/haptics'
+import ArrowIcon from '../../icons/Arrow'
 
 export default function AssetsSection() {
   const { config } = useContext(ConfigContext)
   const { fiatDecimals } = useContext(FiatContext)
   const { setAssetInfo } = useContext(FlowContext)
   const { navigate } = useContext(NavigationContext)
-  const { booting, dataReady, isVerifiedAsset } = useContext(WalletContext)
+  const { aspInfo } = useContext(AspContext)
+  const { assetMetadataCache, booting, dataReady, isVerifiedAsset } = useContext(WalletContext)
   const { t } = useTranslation()
+  const homeBusy = Boolean(booting) && !dataReady
 
   const { rows } = usePortfolioFiat()
-  // unverified assets are spoofable, so they never show on home at all —
-  // they stay manageable in the Arkade Mint app
-  const accountRows = rows.filter((row) => row.assetId === 'btc' || isVerifiedAsset(row.assetId))
+  const accountRows = rows.filter(
+    (row) =>
+      row.assetId === 'btc' ||
+      assetVisibleOnHome(row.assetId, row.balance > 0, isVerifiedAsset(row.assetId), config.homeAssetVisibility),
+  )
+  const ownedIds = new Set(rows.map((row) => normalizeAssetId(row.assetId)))
+  for (const assetId of trackedAssetIds(config.importedAssets)) {
+    if (
+      ownedIds.has(assetId) ||
+      !assetVisibleOnHome(assetId, false, isVerifiedAsset(assetId), config.homeAssetVisibility)
+    ) {
+      continue
+    }
+    const meta = assetMetadataCache.get(assetId)?.metadata
+    const fiatCurrency = verifiedDesignatedCurrency(aspInfo.network, assetId, isVerifiedAsset)
+    const presentation = rawAssetPresentation(meta, truncatedAssetId(assetId) || t('mint.unknownAsset'))
+    accountRows.push({
+      assetId,
+      ...presentation,
+      name: fiatCurrency ?? presentation.name,
+      ticker: fiatCurrency ?? presentation.ticker,
+      fiatCurrency,
+      decimals: meta?.decimals ?? 0,
+      balance: 0n,
+      spendableBalance: 0n,
+      fiatAmount: 0,
+      satsEquivalent: 0,
+      hasFiatPrice: false,
+    })
+  }
 
   const fiatLabel = (amount: number) => {
     const decimals = fiatDecimals()
@@ -32,10 +67,10 @@ export default function AssetsSection() {
   }
 
   const handleAssetClick = (row: PortfolioRow) => {
-    if (Boolean(booting) && !dataReady) return
+    if (homeBusy) return
     if (row.assetId === 'btc') {
       navigate(Pages.BitcoinDetail)
-    } else if (row.fiatCurrency) {
+    } else if (row.fiatCurrency && row.balance > 0) {
       setAssetInfo({ assetId: row.assetId, supply: BigInt(0) })
       navigate(Pages.AccountDetail)
     } else {
@@ -48,6 +83,20 @@ export default function AssetsSection() {
     <section className='home-section'>
       <div className='flex w-full items-center justify-between px-1'>
         <span className='home-section-label'>{t('wallet.accounts')}</span>
+        <button
+          type='button'
+          aria-label={t('wallet.manageAssets')}
+          data-testid='home-manage-assets'
+          className='home-section-action -my-3 min-h-11 touch-manipulation disabled:opacity-50'
+          disabled={homeBusy}
+          onClick={() => {
+            hapticLight()
+            navigate(Pages.AppAssets)
+          }}
+        >
+          {t('wallet.manage')}
+          <ArrowIcon small />
+        </button>
       </div>
       <div className='home-section__content'>
         {accountRows.map((row) => (

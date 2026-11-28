@@ -40,6 +40,7 @@ import { FlowContext, type InitInfo } from './flow'
 import { arkNoteInUrl } from '../lib/arknote'
 import { deepLinkInUrl } from '../lib/deepLink'
 import { assetNameChanged, referencedAssetIds } from '../lib/assets'
+import { trackedAssetIds } from '../lib/assetLibrary'
 import { consoleError } from '../lib/logs'
 import { Tx, Vtxo, Wallet } from '../lib/types'
 import { activitiesToTxs, getActivities } from '../lib/activityHistory'
@@ -773,6 +774,7 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
           activity.txs.flatMap((tx) => (arkTransactionToTx(tx).assets ?? []).map((asset) => asset.assetId)),
         ),
         swaps: await readSwapRecordAssets(),
+        tracked: trackedAssetIds(configRef.current.importedAssets),
       })
       if (!stillThisWallet()) return
       referencedAssetIdsRef.current = referenced

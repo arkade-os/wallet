@@ -220,9 +220,12 @@ export default function Transaction() {
 
   if (!tx) return <></>
 
-  // Only a reusable destination that is not already a contact earns the action;
-  // an invoice or a Lightning-only send has nothing stable to name.
-  const destinationAddress = tx.type === 'sent' && !tx.boardingTxid ? savableActivityAddress(tx) : undefined
+  const destination = swapTx
+    ? tx.assetSwap?.paymentDestination
+    : tx.type === 'sent' && !boardingTx && !issuanceTx && !burnTx
+      ? (tx.destination ?? tx.lnurl?.address)
+      : undefined
+  const destinationAddress = destination ? savableActivityAddress(tx) : undefined
   const destinationContact = contactForAddress(destinationAddress)
   const canSaveContact = Boolean(destinationAddress && !destinationContact && !savedContact)
   const contactBadge = destinationContact ? destinationContact.name?.trim() || t('contacts.badge') : undefined
@@ -234,6 +237,21 @@ export default function Transaction() {
     setSavedContact(true)
     setSaveContactOpen(false)
     setSaveContactName('')
+  }
+
+  const recipientDetails = {
+    destination,
+    contactBadge,
+    saveContactAction: canSaveContact
+      ? {
+          label: t('contacts.convert'),
+          onClick: () => {
+            setSaveContactName('')
+            setError('')
+            setSaveContactOpen(true)
+          },
+        }
+      : undefined,
   }
 
   // Status booleans mirror the state machine; the translated `status` string is
@@ -316,8 +334,11 @@ export default function Transaction() {
 
   const details: DetailsProps = swapTx
     ? {
+        ...recipientDetails,
         assetIds: swapAssetIds,
-        assetTotals: swapReceived ? [{ ...swapReceived, label: t('transaction.totalReceived') }] : undefined,
+        assetTotals: swapReceived
+          ? [{ ...swapReceived, label: t(destination ? 'send.recipientGets' : 'transaction.totalReceived') }]
+          : undefined,
         date,
         fees: 0,
         fundedTxid: tx.assetSwap?.fundingTxid,
@@ -333,22 +354,11 @@ export default function Transaction() {
         wallet,
       }
     : {
+        ...recipientDetails,
         amountDisplay,
         assetIds,
         assetTotals,
         date,
-        destination: tx.type === 'sent' && !boardingTx && !issuanceTx && !burnTx ? tx.destination : undefined,
-        contactBadge,
-        saveContactAction: canSaveContact
-          ? {
-              label: t('contacts.convert'),
-              onClick: () => {
-                setSaveContactName('')
-                setError('')
-                setSaveContactOpen(true)
-              },
-            }
-          : undefined,
         fees,
         // Sends already carry their target as `destination`, saved at send time;
         // the resolver's address/rail is the only source for a receive.

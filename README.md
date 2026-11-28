@@ -18,6 +18,10 @@ Arkade Wallet is the entry-point to the Arkade ecosystem—a self-custodial Bitc
 
 ## Recovering an asset mint
 
+Open **Settings → Advanced → Arkade Mint** to enable minting or resume a previous mint.
+Open **Home → Accounts → Manage** to find your existing assets or track new ones. Use **Show on Home** to set whether
+an asset appears under Accounts, including tracked assets with a zero balance. Unverified assets are hidden by default.
+
 Minting with a new control asset requires two separate issuances. The wallet saves a local recovery record before
 submitting each one and imports the control asset as soon as its issuance is known. If the control asset is not yet
 spendable, the wait ends after 60 seconds; return to the mint screen and resume the original mint without issuing
@@ -221,13 +225,27 @@ web+arkade://send?request=<percent-encoded BIP21>&callback=https%3A%2F%2Farkade.
 
 The browser asks once before it lets the installed app own that protocol. Safari has no manifest protocol handler, so an iOS app uses the https link, which opens in the browser. That page shows **Open in App**: Chrome and Edge launch `web+arkade://` in the installed app, and Safari explains that it cannot switch there, so the request stays on this page. Ark notes keep using `web+arkade://` and are not treated as connect or send.
 
-## Solver priority
+## Payment routes
 
-Settings > Solvers has a compact Priority view with one row per give/receive direction. Open a direction to set its order in a sheet; the Cards view manages built-in and pasted cards, with add/edit forms in separate sheets. Manual priority is the default; move buttons adjust its saved order. Most used counts successful swaps from this wallet's persisted history and falls back to saved priority when that history cannot be read. Cost order estimates the requested trade amount from advertised fees and price feeds when quoting; Settings does not quote a reference amount.
+**Settings → Advanced → Payment routes** has two views. **Routes** shows the asset and rail on each side of a payment pair. Open a pair to set its provider order. **Providers** manages built-in, registry, and pasted cards.
+
+**Manual order** is the default. Use the move buttons to arrange providers. **Most used** counts completed swaps from wallet history and falls back to manual order when history is unavailable. **Lowest estimated fee** ranks providers when quoting the requested amount, using advertised fees and price feeds.
 
 Switch off a card to pause it across all directions, or switch off a solver in a direction sheet to pause only that route. Cards and saved priorities stay intact, and card-wide pauses preserve each direction's choices. A card's declared key also pauses its registry mirrors; cards without a key remain scoped to their local source. Pauses exclude new quote preparation, including cost-feed requests, while issued quotes and active swaps retain their selected solver.
 
-Choose Prefer first in a direction sheet to try one enabled solver before the others. Sort the rest by Most used or Lowest estimated cost; a failed preferred solver still falls back to those candidates. No preference restores normal sorting. A missing or paused preferred solver is skipped while its saved choice remains available for later. Manual ordering also keeps the preferred solver first and lets you reorder the remainder.
+Choose **Try first** on a provider row to prioritize it when it can quote. Other providers follow the pair's selected order. **Clear** returns the preferred provider to the regular order. A missing or paused first choice stays saved and eligible fallbacks can still quote.
+
+For BTC from Arkade to Bitcoin, **Collaborative exit** is a row after the providers. Choose **Try first** on it to try the collaborative exit before any solver, or on a provider to put the solver route first again. Provider ordering applies within the solver route. The solver's recipient amount is an estimate because the claim fee can change. A Bitcoin URI with a fixed amount uses the collaborative exit to pay that exact amount. Lightning receive uses the wallet's LNURL server.
+
+On the send review, **Change route** shows the current provider and other eligible saved providers. For an address-only Bitcoin send it also offers collaborative exit. Tick **Remember this next time** in the picker before choosing a route to save that choice after funding.
+
+**Open offers** starts at **When needed**. If saved providers cannot quote a payment, review opens a public search for the pair and amount. Choose **Ask first** to approve searches as they come up or **Off** to disable them.
+
+On supported routes, **Open offers** is an entry in the solver list. Choose **Try first** on that entry to open the public offer picker before requesting a saved quote for that direction. Enabled providers can still bid. The wallet-wide **Open offers** setting controls when the search starts.
+
+An asset payment link names the recipient and asset, and may also fix the amount. **Pay with** offers direct payment when the wallet holds enough of the requested asset, or a Bitcoin-funded swap. You choose an open offer before reviewing its firm quote. Only the selected provider gets the recipient address.
+
+Payment swap receipts and Activity details show the recorded payee. Use **Save as contact** for a reusable address. One-time Lightning invoices appear in the receipt for reference.
 
 Repeated quote failures temporarily move a solver behind healthy alternatives, including a saved preferred solver. Two consecutive failures start a one-minute cooldown; further failures double it up to fifteen minutes. A verified quote restores priority, and thirty quiet minutes forget the streak. Reliability is retained across reloads per network and direction. Cooling solvers remain enabled as last-resort fallbacks; the direction sheet explains their reduced priority without changing the saved preference. Cancellations and request limits do not count as solver faults.
 

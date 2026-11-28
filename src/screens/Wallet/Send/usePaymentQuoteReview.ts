@@ -1,0 +1,181 @@
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import type { NetworkName } from '@arkade-os/sdk'
+import type { OpenRfqOffer, Quote } from '@arkade-os/swap'
+import {
+  assertAssetPaymentQuote,
+  assertOpenPaymentQuote,
+  paymentQuoteExpiry,
+  type PaymentQuoteRequest,
+} from '../../../lib/paymentQuotes'
+import { SwapsContext } from '../../../providers/swaps'
+
+export type ReviewedQuote = { quote: Quote; offer?: OpenRfqOffer; solverId?: string }
+
+type QuoteReviewError = 'expired' | 'unverified' | 'no-provider' | 'unavailable'
+
+function classifyQuoteError(error: unknown, quote: Quote | undefined, solverId?: string): QuoteReviewError {
+  const { name, message } = error instanceof Error ? error : {}
+  const refusal = name === 'SwapRefusal' && error instanceof Error && 'reason' in error ? error.reason : undefined
+  if (
+    name === 'QuoteExpired' ||
+    refusal === 'invoice_expired' ||
+    (quote && paymentQuoteExpiry(quote) * 1000 <= Date.now())
+  )
+    return 'expired'
+  if (quote || name === 'QuoteVerificationFailed' || name === 'SolverResponseInvalid') return 'unverified'
+  if (
+    solverId === undefined &&
+    (name === 'SolverRoutesUnavailable' ||
+      name === 'SolverUnavailable' ||
+      name === 'DiscoverySnapshotUnavailable' ||
+      (name === 'UnsupportedRoute' && message?.startsWith('unsupported route: no market serves ')) ||
+      (typeof refusal === 'string' &&
+        ['unsupported_pair', 'amount_out_of_range', 'exposure_cap', 'pricing_unavailable', 'rate_limited'].includes(
+          refusal,
+        )))
+  )
+    return 'no-provider'
+  return 'unavailable'
+}
+
+export default function usePaymentQuoteReview(
+  request: PaymentQuoteRequest | undefined,
+  network: NetworkName,
+  openOffersFirst = false,
+) {
+  const { quotePaymentRoute, paymentRouteCandidates } = useContext(SwapsContext)
+  const api = useRef({ quotePaymentRoute, paymentRouteCandidates })
+  api.current = { quotePaymentRoute, paymentRouteCandidates }
+  const scope = useMemo(() => ({ request, network }), [request, network])
+  const currentScope = useRef(scope)
+  currentScope.current = scope
+  const [reviewScope, setReviewScope] = useState(scope)
+  const generation = useRef(0)
+  const requestedSolver = useRef<string>()
+  const previous = useRef<Quote>()
+  const startedScope = useRef<typeof scope>()
+  const [reviewed, setReviewed] = useState<ReviewedQuote>()
+  const reviewedNow = useRef(reviewed)
+  reviewedNow.current = reviewed
+  const [candidates, setCandidates] = useState<{ id: string; name: string }[]>([])
+  const [loading, setLoading] = useState(Boolean(request) && !openOffersFirst)
+  const [quoteError, setQuoteError] = useState<QuoteReviewError>()
+  const [termsChanged, setTermsChanged] = useState(false)
+
+  const publish = useCallback((next: ReviewedQuote) => {
+    const prior = previous.current
+    previous.current = next.quote
+    setTermsChanged(
+      Boolean(
+        prior &&
+          (prior.give.amount !== next.quote.give.amount ||
+            prior.take.amount !== next.quote.take.amount ||
+            prior.fee.amount !== next.quote.fee.amount ||
+            prior.solver !== next.quote.solver),
+      ),
+    )
+    setReviewed(next)
+  }, [])
+
+  const validate = useCallback(
+    (quote: Quote) => {
+      if (!request) throw new Error('Missing payment request')
+      if (request.kind === 'asset') assertAssetPaymentQuote(quote, request, network)
+      else assertOpenPaymentQuote(quote, request, network)
+    },
+    [request, network],
+  )
+
+  const load = useCallback(
+    async (solverId?: string) => {
+      if (!request) return
+      requestedSolver.current = solverId
+      const started = ++generation.current
+      const isCurrent = () => started === generation.current && currentScope.current === scope
+      setReviewScope(scope)
+      setLoading(true)
+      setQuoteError(undefined)
+      setReviewed(undefined)
+      let quote: Quote | undefined
+      try {
+        quote = await api.current.quotePaymentRoute(request, solverId)
+        if (!isCurrent()) return
+        validate(quote)
+        publish({ quote, solverId })
+      } catch (error) {
+        if (isCurrent()) setQuoteError(classifyQuoteError(error, quote, solverId))
+      } finally {
+        if (isCurrent()) setLoading(false)
+      }
+    },
+    [request, scope, validate, publish],
+  )
+
+  useEffect(() => {
+    if (!request) return
+    let active = true
+    previous.current = undefined
+    requestedSolver.current = undefined
+    setCandidates([])
+    void api.current
+      .paymentRouteCandidates(request)
+      .then((routes) => {
+        if (active) setCandidates(routes)
+      })
+      .catch(() => undefined)
+    return () => {
+      active = false
+    }
+  }, [request, scope])
+
+  useEffect(() => {
+    if (!request) return
+    // The open-offers preference starts a review; it never replaces a saved provider's quote.
+    const saved = reviewedNow.current && !reviewedNow.current.offer
+    if (startedScope.current === scope && saved) return
+    startedScope.current = scope
+    if (openOffersFirst) {
+      setReviewScope(scope)
+      setReviewed(undefined)
+      setQuoteError(undefined)
+      setTermsChanged(false)
+      setLoading(false)
+    } else void load()
+    return () => {
+      generation.current += 1
+    }
+  }, [request, load, openOffersFirst, scope])
+
+  const chooseOpenQuote = (quote: Quote, offer: OpenRfqOffer) => {
+    validate(quote)
+    generation.current += 1
+    requestedSolver.current = undefined
+    setReviewScope(scope)
+    setLoading(false)
+    setQuoteError(undefined)
+    publish({ quote, offer })
+  }
+
+  const expiresAt = reviewed ? paymentQuoteExpiry(reviewed.quote) : undefined
+  const [expired, setExpired] = useState(false)
+  useEffect(() => {
+    setExpired(false)
+    if (!expiresAt) return
+    const timer = window.setTimeout(() => setExpired(true), Math.max(0, expiresAt * 1000 - Date.now()))
+    return () => window.clearTimeout(timer)
+  }, [reviewed, expiresAt])
+
+  const sameScope = reviewScope === scope
+  return {
+    reviewed: sameScope ? reviewed : undefined,
+    candidates: sameScope ? candidates : [],
+    loading: Boolean(request) && (!sameScope || loading),
+    quoteError: sameScope ? quoteError : undefined,
+    expired: sameScope && expired,
+    termsChanged: sameScope && termsChanged,
+    load,
+    retry: () => load(requestedSolver.current),
+    validate,
+    chooseOpenQuote,
+  }
+}

@@ -84,12 +84,12 @@ const HomeHeader = forwardRef<HTMLDivElement, HomeHeaderProps>(function HomeHead
         </div>
         {balance ? (
           <div
-            className='absolute inset-y-0 left-1/2 flex -translate-x-1/2 items-center justify-center text-center'
+            className='pointer-events-none absolute inset-y-0 right-28 left-16 flex min-w-0 items-center justify-center text-center'
             aria-hidden={clampedBalanceProgress < 0.5}
             data-testid='sticky-balance'
           >
             <div
-              className='flex max-w-[12rem] items-baseline gap-1'
+              className='flex min-w-0 max-w-[12rem] items-baseline gap-1'
               style={{
                 opacity: clampedBalanceProgress,
                 transform: `translate3d(0, ${10 * (1 - clampedBalanceProgress)}px, 0) scale(${0.94 + 0.06 * clampedBalanceProgress})`,

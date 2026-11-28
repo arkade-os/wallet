@@ -304,15 +304,29 @@ describe('Transaction screen', () => {
     expect(screen.getByTestId('Total')).toHaveTextContent('10,000')
   })
 
-  it('saves a sent destination locally and reports a backup failure', async () => {
-    const address = 'alice@pay.example'
+  it.each(['send', 'asset payment'])('saves the %s destination locally and reports a backup failure', async (kind) => {
+    localStorage.clear()
+    const payment = kind === 'asset payment'
+    const address = payment
+      ? 'tark1qplnj2gett9j483fchy6chaxn4y52c4g7n5djh9xua3ywdxw0ldatc3e9xcj9xpx0r5tmr0dgvu2f4s352muklg0tcxx0scnnkraajy9jgz4xl'
+      : 'alice@pay.example'
     const backupContacts = vi.fn().mockRejectedValue(new Error('Relay unavailable'))
     const sentTx = {
       ...mockTxInfo,
       boardingTxid: '',
       destination: address,
       redeemTxid: 'send-destination',
-      type: 'sent' as const,
+      type: payment ? 'swap' : 'sent',
+      ...(payment
+        ? {
+            assetSwap: {
+              fromTicker: 'sats',
+              toTicker: 'USD',
+              status: 'completed' as const,
+              paymentDestination: address,
+            },
+          }
+        : {}),
     }
 
     render(
@@ -331,6 +345,8 @@ describe('Transaction screen', () => {
       </BackupContext.Provider>,
     )
 
+    if (payment) expect(screen.getByRole('heading', { name: 'Payment sent' })).toBeInTheDocument()
+    expect(screen.getByTestId('Destination')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Save as contact' }))
     fireEvent.change(screen.getByLabelText('Name (optional)'), { target: { value: 'Alice' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save contact' }))
@@ -572,6 +588,7 @@ describe('Transaction screen', () => {
     expect(screen.getByTestId('Swap to')).toHaveTextContent('68.094 BET')
     expect(screen.getByTestId('Status')).toHaveTextContent('Completed')
     expect(screen.queryByTestId('Type')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('Destination')).not.toBeInTheDocument()
     expect(screen.getByTestId('Funded')).toHaveTextContent('funding-txid')
     expect(screen.getByTestId('Completed')).toHaveTextContent('fill-txid')
     expect(screen.getByTestId('From asset ID (unverified)')).toHaveTextContent('asset-alpha')

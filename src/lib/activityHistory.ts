@@ -90,14 +90,18 @@ const corridorSendTx = (
   activity: Activity,
   metadata: Record<string, TransactionActivityMetadata>,
   lnSends: LnSendView[],
+  sentLnurls: ReadonlyMap<string, NonNullable<Tx['lnurl']>>,
 ): Tx | undefined => {
   const leg = activity.txs.find((tx) => tx.type === 'SENT')
   if (!leg) return undefined
   const record = lnSends.find((view) => view.rfqId === rfqIdOf(activity))
   const fundingTxid = record?.fundingTxid ?? txidOfArkTransaction(leg)
   const base = arkTransactionToTx(leg, metadata[fundingTxid])
+  const lnurl = sentLnurls.get(fundingTxid)
   return {
     ...base,
+    ...(lnurl ? { lnurl } : {}),
+    destination: lnurl?.address ?? base.destination ?? record?.destination,
     amount: Math.abs(activity.amount),
     // Signed by the net, not by the funding leg: a refund larger than the
     // funding is not a thing this corridor can produce, but reading the
@@ -184,6 +188,7 @@ const ungroupedLnSendTx = (send: LnSendView, metadata: Record<string, Transactio
       amount: send.amount,
       boardingTxid: '',
       createdAt: send.createdAt,
+      destination: send.destination,
       // Offchain: there is no on-chain transaction to open in an explorer.
       explorable: undefined,
       // The wallet's own send convention (see `arkTransactionToTx`): an
@@ -258,9 +263,15 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
   const { swaps, metadata, network, assetDisplay, lnSends = [], exits = [] } = options
   const rows: Tx[] = []
   const groupsOf = new Map<string, number>()
-  for (const tx of activities.flatMap((activity) => activity.txs)) {
-    const txid = txidOfArkTransaction(tx)
-    groupsOf.set(txid, (groupsOf.get(txid) ?? 0) + 1)
+  const sentLnurls = new Map<string, NonNullable<Tx['lnurl']>>()
+  for (const activity of activities) {
+    const lnurl = lnurlActivity(activity)
+    for (const tx of activity.txs) {
+      const txid = txidOfArkTransaction(tx)
+      groupsOf.set(txid, (groupsOf.get(txid) ?? 0) + 1)
+      if (lnurl?.direction === 'sent' && lnurl.address)
+        sentLnurls.set(txid, { address: lnurl.address, rail: lnurl.rail })
+    }
   }
   for (const activity of activities) {
     // The SDK emits a tx under every group claiming it; a swap's row already stands for its LNURL send.
@@ -273,7 +284,7 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
     }
     const swapKind = rfqSwapKindOf(activity)
     if (swapKind === 'lightning_send' || swapKind === 'onchain_send') {
-      const row = corridorSendTx(activity, metadata, lnSends)
+      const row = corridorSendTx(activity, metadata, lnSends, sentLnurls)
       if (row) {
         rows.push(row)
         continue
@@ -293,13 +304,13 @@ export const activitiesToTxs = (activities: Activity[], options: ActivityHistory
     const swap = swapId ? swaps.find((record) => record.id === swapId) : undefined
     if (swap) {
       const members = activity.txs.map((tx) => arkTransactionToTx(tx))
-      // a grouped row takes its metadata from the tx the group is anchored on
-      const funding = activity.txs.find((tx) => txidOfArkTransaction(tx) === swap.fundingTxid)
+      const row = graftMetadata(
+        buildAssetSwapActivityTx(swap, members, { network, assetDisplay }),
+        swap.fundingTxid ? metadata[swap.fundingTxid] : undefined,
+      )
       rows.push({
-        ...graftMetadata(
-          buildAssetSwapActivityTx(swap, members, { network, assetDisplay }),
-          funding && metadata[txidOfArkTransaction(funding)],
-        ),
+        ...row,
+        destination: swap.paymentDestination ?? row.destination,
         historyKey: activity.id,
       })
       continue

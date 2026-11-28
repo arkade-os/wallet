@@ -32,6 +32,7 @@
 // so a bolt11 BIP21 fits and an unbounded URL does not. One action per link.
 
 import { decodeBip21, isBip21 } from './bip21'
+import type { TrackedPaymentRail } from './sendRouter'
 
 export const APP_INTENT_MAX_SEARCH_LENGTH = 6_000
 const MAX_CALLBACK_LENGTH = 2_000
@@ -62,6 +63,7 @@ export type AppIntentState =
       callback?: string
       started?: boolean
       readonly committedOnchain?: Readonly<{ swapId?: string; fundingTxid?: string }>
+      readonly committedSwap?: Readonly<{ swapId: string; railId: TrackedPaymentRail; fundingTxid?: string }>
     }
   | { status: 'invalid'; error: AppIntentErrorCode; callback?: string }
 
@@ -161,7 +163,8 @@ export const appIntentHandoff = (
   if (!intent?.callback) return undefined
   if (outcome === 'sent') {
     if (intent.status !== 'send') return undefined
-    const fundingTxid = intent.committedOnchain ? intent.committedOnchain.fundingTxid : txid
+    const commitment = intent.committedSwap ?? intent.committedOnchain
+    const fundingTxid = commitment ? commitment.fundingTxid : txid
     return { callback: intent.callback, params: { status: 'sent', txid: fundingTxid || undefined } }
   }
   if (intent.status !== 'send' && intent.status !== 'connect') return undefined

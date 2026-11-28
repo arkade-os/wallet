@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useId, useState } from 'react'
 import Button from '../../../components/Button'
 import ButtonsOnBottom from '../../../components/ButtonsOnBottom'
 import Content from '../../../components/Content'
@@ -10,23 +10,28 @@ import Padded from '../../../components/Padded'
 import Shadow from '../../../components/Shadow'
 import Text, { TextSecondary } from '../../../components/Text'
 import AssetAvatar from '../../../components/AssetAvatar'
+import UnverifiedBadge from '../../../components/UnverifiedBadge'
+import { Switch } from '../../../components/ui/switch'
 import { NavigationContext, Pages } from '../../../providers/navigation'
 import { ConfigContext } from '../../../providers/config'
 import { FlowContext, emptyRecvInfo, emptySendInfo } from '../../../providers/flow'
 import { WalletContext } from '../../../providers/wallet'
 import { consoleError } from '../../../lib/logs'
 import type { AssetDetails } from '@arkade-os/sdk'
-import { prettyAssetAmount } from '../../../lib/assets'
+import { isValidAssetId, prettyAssetAmount } from '../../../lib/assets'
+import { assetVisibleOnHome, normalizeAssetId, trackedAssetIds } from '../../../lib/assetLibrary'
 import { BackupContext } from '@/providers/backup'
 import { useTranslation } from '../../../providers/language'
 
 export default function AppAssetDetail() {
   const { config } = useContext(ConfigContext)
   const { backupAndUpdateConfig } = useContext(BackupContext)
-  const { navigate, replace } = useContext(NavigationContext)
+  const { goBack, navigate } = useContext(NavigationContext)
   const { assetInfo, setAssetInfo, setRecvInfo, setSendInfo } = useContext(FlowContext)
-  const { assetBalances, svcWallet, assetMetadataCache, setCacheEntry, iconApprovalManager } = useContext(WalletContext)
+  const { assetBalances, svcWallet, assetMetadataCache, setCacheEntry, iconApprovalManager, isVerifiedAsset } =
+    useContext(WalletContext)
   const { t } = useTranslation()
+  const showOnHomeLabelId = useId()
 
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -81,8 +86,9 @@ export default function AppAssetDetail() {
     ? assetBalances.some((a) => a.assetId === controlAssetId && a.amount > 0)
     : false
 
-  const isImported = config.importedAssets.includes(assetInfo.assetId)
-  const canRemove = isImported && balance === BigInt(0)
+  const id = normalizeAssetId(assetInfo.assetId)
+  const verified = isVerifiedAsset(id)
+  const canRemove = trackedAssetIds(config.importedAssets).includes(id) && balance === 0n
 
   const handleSend = () => {
     setSendInfo({ ...emptySendInfo, assets: [{ assetId: assetInfo.assetId, amount: BigInt(0) }] })
@@ -102,10 +108,16 @@ export default function AppAssetDetail() {
     navigate(Pages.AppAssetBurn)
   }
 
-  const handleRemove = () => {
-    const updated = config.importedAssets.filter((id) => id !== assetInfo.assetId)
-    backupAndUpdateConfig({ ...config, importedAssets: updated })
-    replace(Pages.AppAssets, [Pages.Settings, Pages.Settings])
+  const handleStopTracking = () => {
+    if (!canRemove) return
+    const homeAssetVisibility = { ...config.homeAssetVisibility }
+    delete homeAssetVisibility[id]
+    backupAndUpdateConfig({
+      ...config,
+      importedAssets: trackedAssetIds(config.importedAssets).filter((assetId) => assetId !== id),
+      homeAssetVisibility,
+    })
+    goBack()
   }
 
   return (
@@ -114,13 +126,16 @@ export default function AppAssetDetail() {
       <Content>
         <Padded>
           <FlexCol gap='1rem' centered>
-            <AssetAvatar icon={meta?.icon} ticker={ticker} name={name} size={64} />
+            <AssetAvatar icon={meta?.icon} ticker={ticker} name={name} assetId={id} size={64} />
 
             <FlexCol gap='0.25rem' centered>
               <Text bigger bold centered>
                 {prettyAssetAmount(balance, decimals)} {ticker}
               </Text>
-              <TextSecondary centered>{name}</TextSecondary>
+              <FlexRow centered>
+                <TextSecondary centered>{name}</TextSecondary>
+                {verified ? null : <UnverifiedBadge />}
+              </FlexRow>
             </FlexCol>
 
             <FlexCol gap='0.25rem' centered>
@@ -208,6 +223,38 @@ export default function AppAssetDetail() {
                 secondary
               />
             ) : null}
+            {isValidAssetId(id) ? (
+              <div className='settings-row-group w-full'>
+                <div className='settings-row'>
+                  <span id={showOnHomeLabelId} className='settings-row__label'>
+                    {t('assets.showOnHome')}
+                  </span>
+                  <Switch
+                    aria-labelledby={showOnHomeLabelId}
+                    checked={assetVisibleOnHome(id, balance > 0n, verified, config.homeAssetVisibility)}
+                    onCheckedChange={(show) =>
+                      backupAndUpdateConfig({
+                        ...config,
+                        homeAssetVisibility: { ...config.homeAssetVisibility, [id]: show },
+                      })
+                    }
+                    size='lg'
+                  />
+                </div>
+              </div>
+            ) : null}
+            {canRemove ? <Button label={t('assets.stopTracking')} onClick={handleStopTracking} secondary /> : null}
+            {config.apps.assets.enabled && (holdsControlAsset || balance > 0n) ? (
+              <details className='w-full'>
+                <summary className='min-h-11 cursor-pointer content-center text-sm text-muted-foreground'>
+                  {t('assets.advanced')}
+                </summary>
+                <FlexRow gap='0.75rem'>
+                  <Button label={t('mint.reissue')} onClick={handleReissue} secondary disabled={!holdsControlAsset} />
+                  {balance > 0n ? <Button label={t('mint.burn')} onClick={handleBurn} secondary /> : null}
+                </FlexRow>
+              </details>
+            ) : null}
           </FlexCol>
         </Padded>
       </Content>
@@ -216,11 +263,6 @@ export default function AppAssetDetail() {
           <Button label={t('mint.send')} onClick={handleSend} disabled={balance === BigInt(0)} />
           <Button label={t('mint.receive')} onClick={handleReceive} />
         </FlexRow>
-        <FlexRow gap='0.75rem'>
-          <Button label={t('mint.reissue')} onClick={handleReissue} secondary disabled={!holdsControlAsset} />
-          {balance > 0 ? <Button label={t('mint.burn')} onClick={handleBurn} secondary /> : null}
-        </FlexRow>
-        {canRemove ? <Button label={t('mint.remove')} onClick={handleRemove} secondary /> : null}
       </ButtonsOnBottom>
     </>
   )

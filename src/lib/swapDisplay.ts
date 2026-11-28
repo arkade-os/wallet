@@ -39,6 +39,10 @@ export function swapStatusForTx(tx: Tx): SwapStatus {
   return tx.settled ? 'completed' : 'pending'
 }
 
+export function isCompletedAssetPayment(tx: Tx): boolean {
+  return tx.type === 'swap' && tx.assetSwap?.status === 'completed' && Boolean(tx.assetSwap.paymentDestination)
+}
+
 export type Translate = (key: string, params?: Record<string, string | number>) => string
 
 export function swapStatusLabel(tx: Tx, t: Translate): string {
@@ -305,6 +309,7 @@ export const buildAssetSwapActivityTx = (
     amount: members[0]?.amount ?? 0,
     boardingTxid: '',
     createdAt: Math.floor(swap.createdAt / 1000),
+    ...(swap.paymentDestination ? { destination: swap.paymentDestination } : {}),
     explorable: undefined,
     preconfirmed: status === 'pending',
     redeemTxid: swap.spentTxid ?? swap.fundingTxid,
@@ -312,6 +317,7 @@ export const buildAssetSwapActivityTx = (
     settled: status !== 'pending',
     type: 'swap',
     assetSwap: {
+      ...(swap.paymentDestination ? { paymentDestination: swap.paymentDestination } : {}),
       fromAssetId: swap.fromAsset,
       fromTicker: quote?.fromTicker ?? derivedTicker(swap.fromAsset),
       fromDecimals: quote?.fromDecimals ?? derivedDecimals(swap.fromAsset),

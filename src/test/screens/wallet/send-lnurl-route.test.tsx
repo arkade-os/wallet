@@ -10,6 +10,7 @@ import { FiatContext } from '../../../providers/fiat'
 import { FlowContext, type SendInfo } from '../../../providers/flow'
 import { LimitsContext } from '../../../providers/limits'
 import { NavigationContext } from '../../../providers/navigation'
+import { SwapsContext } from '../../../providers/swaps'
 import { WalletContext } from '../../../providers/wallet'
 import { LanguageContext, translate } from '../../../providers/language'
 import { Language } from '../../../lib/types'
@@ -68,21 +69,28 @@ const lnurlQuote = (
 
 const setSendInfo = vi.fn()
 
-const renderSign = (sendInfo: SendInfo, limits = mockLimitsContextValue, language = Language.English) =>
+const renderSign = (
+  sendInfo: SendInfo,
+  limits = mockLimitsContextValue,
+  language = Language.English,
+  sendRouter?: (request: unknown) => Promise<unknown>,
+) =>
   render(
     <LanguageContext.Provider value={{ language, t: (key, params) => translate(language, key, params) }}>
       <NavigationContext.Provider value={mockNavigationContextValue}>
         <ConfigContext.Provider value={mockConfigContextValue}>
           <FiatContext.Provider value={mockFiatContextValue}>
             <AspContext.Provider value={mockAspContextValue}>
-              <FeesContext.Provider value={{ calcOnchainOutputFee: () => 500 } as never}>
+              <FeesContext.Provider value={{ calcOnchainOutputFee: () => 500, intentFee: () => undefined } as never}>
                 <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo, setSendInfo }}>
                   <WalletContext.Provider
                     value={{ ...mockWalletContextValue, balance: 1_000_000, svcWallet: mockSvcWallet as never }}
                   >
-                    <LimitsContext.Provider value={limits}>
-                      <SendDetails />
-                    </LimitsContext.Provider>
+                    <SwapsContext.Provider value={{ sendRouter } as never}>
+                      <LimitsContext.Provider value={limits}>
+                        <SendDetails />
+                      </LimitsContext.Provider>
+                    </SwapsContext.Provider>
                   </WalletContext.Provider>
                 </FlowContext.Provider>
               </FeesContext.Provider>
@@ -177,21 +185,46 @@ describe('signing an LNURL send', () => {
 
   it('pays the BIP21 address it shows, not the LNURL, on an account that may not send offchain', async () => {
     const sent = vi.fn()
+    const address = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
+    const exitSent = vi.fn<(address: string) => Promise<string>>().mockResolvedValue('onchain-exit-txid')
+    const options = vi.fn(async ({ raw, amount }: { raw: string; amount: number }) => [
+      {
+        railId: 'onchain',
+        quote: async () => ({
+          railId: 'onchain',
+          amount,
+          fee: 500,
+          total: amount + 500,
+          send: async () =>
+            makeHandle('onchain', async (emit) => {
+              const result = { railId: 'onchain', txid: await exitSent(raw) }
+              emit({ status: 'settled', result })
+              return result
+            }),
+        }),
+      },
+    ])
     renderSign(
       {
-        address: 'bc1qfallback',
+        address,
         lnUrl: TARGET,
         satoshis: SATS,
         pendingLnSend: lnurlQuote(LNURL_ARKADE_RAIL, sent) as never,
       },
       { ...mockLimitsContextValue, vtxoTxsAllowed: () => false },
+      Language.English,
+      async () => ({ options }),
     )
     expect(await screen.findByText('Paying to mainnet')).toBeInTheDocument()
     await sign()
 
-    await waitFor(() => expect(sendFailure() ?? setSendInfo.mock.calls.at(-1)).toBeDefined())
+    await waitFor(() =>
+      expect(setSendInfo).toHaveBeenCalledWith(expect.objectContaining({ txid: 'onchain-exit-txid' })),
+    )
+    expect(options).toHaveBeenCalledWith({ raw: address, amount: SATS })
+    expect(exitSent).toHaveBeenCalledExactlyOnceWith(address)
     expect(sent).not.toHaveBeenCalled()
-    expect(String(sendFailure() ?? '')).not.toMatch(/offchain not allowed/i)
+    expect(sendFailure()).toBeUndefined()
   })
 })
 

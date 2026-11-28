@@ -1,18 +1,23 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import Advanced from '../../../screens/Settings/Advanced'
 import { DevModeContext } from '../../../providers/devMode'
+import { NavigationContext, Pages } from '../../../providers/navigation'
 import { OptionsContext } from '../../../providers/options'
-import { mockOptionsContextValue } from '../mocks'
+import { mockNavigationContextValue, mockOptionsContextValue } from '../mocks'
 
 function renderAdvanced(devMode: boolean) {
-  return render(
-    <DevModeContext.Provider value={{ devMode, handleTap: () => {} }}>
-      <OptionsContext.Provider value={mockOptionsContextValue as any}>
-        <Advanced />
-      </OptionsContext.Provider>
-    </DevModeContext.Provider>,
+  const navigate = vi.fn()
+  render(
+    <NavigationContext.Provider value={{ ...mockNavigationContextValue, navigate }}>
+      <DevModeContext.Provider value={{ devMode, handleTap: () => {} }}>
+        <OptionsContext.Provider value={mockOptionsContextValue as any}>
+          <Advanced />
+        </OptionsContext.Provider>
+      </DevModeContext.Provider>
+    </NavigationContext.Provider>,
   )
+  return navigate
 }
 
 describe('Advanced screen', () => {
@@ -25,5 +30,11 @@ describe('Advanced screen', () => {
   it('shows Contracts when dev mode is on', () => {
     renderAdvanced(true)
     expect(screen.getByText('Contracts')).toBeInTheDocument()
+  })
+
+  it('opens Arkade Mint settings directly from Advanced', () => {
+    const navigate = renderAdvanced(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Arkade Mint' }))
+    expect(navigate).toHaveBeenCalledWith(Pages.AppAssetsSettings)
   })
 })

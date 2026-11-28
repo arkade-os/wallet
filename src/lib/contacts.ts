@@ -237,6 +237,7 @@ export function recentForSend(send: Parameters<typeof sendDestination>[0]): Rece
 }
 
 export function contactAddressForActivity(tx: Tx): string | undefined {
+  if (tx.type === 'swap') return tx.assetSwap?.paymentDestination
   if (tx.type !== 'sent' || tx.lnSend || tx.assetSwap) return undefined
   if (tx.lnurl?.address) return tx.lnurl.address
   return tx.destination

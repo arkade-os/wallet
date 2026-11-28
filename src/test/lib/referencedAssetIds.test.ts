@@ -12,14 +12,15 @@ describe('referencedAssetIds', () => {
     expect([...ids]).toEqual([DEPIX_ID])
   })
 
-  it('unions owned balances, history rows and swap legs without duplicates', () => {
+  it('unions owned balances, history, swap legs and tracked assets without duplicates', () => {
     const ids = referencedAssetIds({
       owned: [{ assetId: USDT_ID }],
       rows: [USDT_ID, DEPIX_ID],
       swaps: [DEPIX_ID, 'btc'],
+      tracked: ['tracking-only', DEPIX_ID],
     })
 
-    expect(ids).toEqual(new Set([USDT_ID, DEPIX_ID]))
+    expect([...ids]).toEqual([USDT_ID, DEPIX_ID, 'tracking-only'])
   })
 
   it('excludes the btc sentinel and empty ids', () => {

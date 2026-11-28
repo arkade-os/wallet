@@ -24,6 +24,7 @@ import { SwapsContext } from '../../../providers/swaps'
 import { ToastProvider } from '../../../components/Toast'
 import { LanguageContext, translate } from '../../../providers/language'
 import { Currencies, Language, Unit } from '../../../lib/types'
+import { AssetIconApprovalManager } from '../../../lib/assetIconApproval'
 import ReceiveQRCode from '../../../screens/Wallet/Receive/QrCode'
 import fixtures from '../../fixtures.json'
 
@@ -89,7 +90,7 @@ const mockNotificationsContextValue = {
 type RenderOverrides = {
   flow?: Partial<typeof mockFlowContextValue>
   wallet?: Partial<typeof mockWalletContextValue>
-  config?: Partial<typeof mockConfigContextValue>
+  config?: Partial<React.ContextType<typeof ConfigContext>>
   fiat?: Partial<typeof mockFiatContextValue>
   limits?: Partial<typeof mockLimitsContextValue>
   language?: Language
@@ -517,6 +518,74 @@ describe('Receive QR Code screen', () => {
       expect(screen.getAllByTestId(/-address-copy$/)).toHaveLength(1)
       expect(screen.queryByRole('button', { name: /^Other formats/ })).not.toBeInTheDocument()
     })
+
+    it.each([false, true])('identifies the requested asset above the QR with icon approval %s', async (approved) => {
+      const assetId = 'ab'.repeat(34)
+      const icon = 'https://assets.example.com/token.png'
+      const fixture = tapFixture()
+      const iconApprovalManager = new AssetIconApprovalManager()
+      vi.spyOn(iconApprovalManager, 'isApproved').mockImplementation((id) => approved && id === assetId)
+      renderReceiveQrCode({
+        ...fixture,
+        flow: { recvInfo: { ...fixture.flow!.recvInfo!, assetId } },
+        wallet: {
+          ...fixture.wallet,
+          assetMetadataCache: new Map([
+            [assetId, { assetId, cachedAt: 0, supply: 100n, metadata: { name: 'Northstar', ticker: 'STAR', icon } }],
+          ]),
+          iconApprovalManager,
+          isVerifiedAsset: () => false,
+        },
+      })
+
+      const qr = await screen.findByRole('button', { name: 'Copy QR code' })
+      const picker = screen.getByRole('button', { name: 'Northstar' })
+      const badge = screen.getByText('Unverified')
+      expect(within(picker).getByText('Northstar')).toBe(screen.getByText('Northstar'))
+      expect(picker.compareDocumentPosition(badge) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(badge.compareDocumentPosition(qr) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(screen.queryByRole('button', { name: /^Copy Asset ID/ })).not.toBeInTheDocument()
+      if (approved) {
+        expect(qr.querySelector('img')).toHaveAttribute('src', icon)
+        expect(qr.querySelector('img + span svg')).toBeInTheDocument()
+        fireEvent.error(qr.querySelector('img')!)
+      }
+      expect(qr.querySelector('img')).toBeNull()
+
+      fireEvent.click(picker)
+      const selected = activeFormat()
+      const row = within(selected.parentElement!)
+      const copyId = row.getByRole('button', { name: 'Copy Asset ID · Northstar' })
+      expect(copyId).toHaveAttribute('title', assetId)
+      expect(copyId.parentElement).toContainElement(row.getByText('Unverified'))
+      expect(selected).not.toContainElement(copyId)
+      expect(await tap(copyId)).toBe(assetId)
+      expect(copyId).toHaveTextContent('Copied!')
+      expect(activeFormat()).toBe(selected)
+    })
+
+    it('keeps the asset ID copyable when Arkade receive is unavailable', async () => {
+      const assetId = 'ac'.repeat(34)
+      const fixture = tapFixture()
+      renderReceiveQrCode({
+        ...fixture,
+        flow: { recvInfo: { ...fixture.flow!.recvInfo!, assetId } },
+        wallet: {
+          ...fixture.wallet,
+          assetMetadataCache: new Map([
+            [assetId, { assetId, cachedAt: 0, supply: 100n, metadata: { name: ' ', ticker: 'STAR' } }],
+          ]),
+        },
+        limits: { vtxoTxsAllowed: () => false, utxoTxsAllowed: () => true },
+      })
+
+      expect(await screen.findByText('No valid payment methods available for this amount')).toBeVisible()
+      expect(screen.getByRole('button', { name: 'STAR' })).toBeVisible()
+      expect(screen.queryByRole('button', { name: 'Copy QR code' })).not.toBeInTheDocument()
+      expect(screen.queryByTestId('bip21-address-copy')).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'STAR' }))
+      expect(await copyFrom(`receive-asset-id-copy-${assetId}`)).toBe(assetId)
+    })
   })
 })
 
@@ -771,21 +840,63 @@ describe('Receive QR Code screen — asset pill', () => {
     await waitFor(async () => expect(await qr()).toContain(`assetid=${other}`))
   })
 
-  it('lists the asset it was opened for even with no balance, and switches back to Bitcoin', async () => {
+  it('keeps the asset it was opened for selectable from Bitcoin even with no balance', async () => {
     const setRecvInfo = vi.fn()
-    renderReceiveQrCode({
-      flow: { recvInfo: { ...tapFixture().flow!.recvInfo!, assetId }, setRecvInfo },
-      wallet: { svcWallet: mockSvcWallet as any, assetMetadataCache },
-    })
-    fireEvent.click(await screen.findByTestId('receive-asset-pill'))
+    const wallet = { svcWallet: mockSvcWallet as any, assetMetadataCache }
+    const fromAsset = { ...prev, assetId }
+    const { rerender } = renderReceiveQrCode({ flow: { recvInfo: fromAsset, setRecvInfo }, wallet })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Token' }))
     expect(screen.getByRole('radio', { name: /^Token/ })).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(screen.getByRole('radio', { name: /^Bitcoin/ }))
 
-    expect(setRecvInfo.mock.calls.at(-1)![0]({ ...prev, assetId })).toEqual({
+    const fromBitcoin = setRecvInfo.mock.calls.at(-1)![0](fromAsset)
+    expect(fromBitcoin).toEqual({
       ...emptyRecvInfo,
       offchainAddr: 'ark1testaddr',
       boardingAddr: 'bc1testaddr',
     })
+    await act(async () => rerender(buildTree({ flow: { recvInfo: fromBitcoin, setRecvInfo }, wallet })))
+    await pickAsset(/^Token/)
+    expect(setRecvInfo.mock.calls.at(-1)![0](fromBitcoin)).toMatchObject({ assetId })
+  })
+
+  it('offers assets pinned to Home with no balance and waits for metadata before accepting an amount', async () => {
+    const pinnedId = 'de'.repeat(34)
+    const hiddenId = 'ef'.repeat(34)
+    const config = {
+      config: {
+        ...mockConfigContextValue.config,
+        importedAssets: [pinnedId, hiddenId],
+        homeAssetVisibility: { [pinnedId]: true },
+      },
+    }
+    const setRecvInfo = vi.fn()
+    const fixture = tapFixture()
+    const recvInfo = fixture.flow!.recvInfo!
+    const { rerender } = renderReceiveQrCode({ ...fixture, flow: { recvInfo, setRecvInfo }, config })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bitcoin' }))
+    expect(screen.getAllByRole('radio')).toHaveLength(2)
+    const pinned = screen.getByRole('radio', { name: /^dededededede/ })
+    const pinnedRow = within(pinned.parentElement!)
+    await act(async () => fireEvent.click(pinnedRow.getByRole('button', { name: /^Copy Asset ID/ })))
+    expect(copyToClipboardMock).toHaveBeenLastCalledWith(pinnedId)
+    expect(screen.getByRole('radio', { name: /^Bitcoin/ })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(pinned)
+
+    const selected = setRecvInfo.mock.calls.at(-1)![0](recvInfo)
+    expect(selected.assetId).toBe(pinnedId)
+    await act(async () => rerender(buildTree({ ...fixture, flow: { recvInfo: selected, setRecvInfo }, config })))
+    expect(screen.getByRole('button', { name: 'Add amount' })).toBeDisabled()
+    await act(async () => fireEvent.click(await screen.findByRole('button', { name: 'Copy QR code' })))
+    expect(copyToClipboardMock.mock.calls.at(-1)![0]).toContain(`assetid=${pinnedId}&amount=0`)
+
+    await pickAsset(/^Bitcoin/)
+    const backToBitcoin = setRecvInfo.mock.calls.at(-1)![0](selected)
+    await act(async () => rerender(buildTree({ ...fixture, flow: { recvInfo: backToBitcoin, setRecvInfo }, config })))
+    await pickAsset(/^dededededede/)
+    expect(setRecvInfo.mock.calls.at(-1)![0](backToBitcoin)).toMatchObject({ assetId: pinnedId })
   })
 })
 

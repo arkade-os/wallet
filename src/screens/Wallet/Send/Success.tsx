@@ -19,15 +19,23 @@ import AssetCard from '../../../components/AssetCard'
 import { accountAssetLabel, rawAssetPresentation, verifiedDesignatedCurrency } from '../../../lib/accountAssets'
 import {
   appSendNeedsDriver,
+  ASSET_SWAP_PAYMENT_RAIL,
+  LIGHTNING_RAIL,
   LNURL_ARKADE_RAIL,
   LNURL_LIGHTNING_RAIL,
+  ONCHAIN_SWAP_RAIL,
   onchainSendNeedsDriver,
+  paymentEndedWithoutDelivery,
+  paymentWasDelivered,
+  trackedAppSwapPayment,
+  trackedSwapPayment,
   WALLET_EXIT_RAIL,
 } from '../../../lib/sendRouter'
 import { SwapsContext } from '../../../providers/swaps'
 import { AspContext } from '../../../providers/asp'
 import { useTranslation } from '../../../providers/language'
 import { appIntentHandoff, callbackHost, redirectToCallback } from '../../../lib/appIntent'
+import PaymentReceipt from './PaymentReceipt'
 
 export default function SendSuccess() {
   const { config, useFiat } = useContext(ConfigContext)
@@ -40,12 +48,19 @@ export default function SendSuccess() {
   const { t } = useTranslation()
   const { outcomeOf } = useContext(SwapsContext)
   const handedOff = useRef(false)
+  const notified = useRef(false)
   const needsDriver = onchainSendNeedsDriver(sendInfo, outcomeOf)
   const appNeedsDriver = appSendNeedsDriver(appIntent, sendInfo, outcomeOf)
-  const pendingWarning = t('send.pendingOnchain')
+  const tracked = trackedSwapPayment(sendInfo)
+  const outcome = tracked && outcomeOf(tracked.swapId)
+  const delivered = Boolean(tracked && paymentWasDelivered(tracked.railId, outcome))
+  const committedSwap = appIntent?.status === 'send' ? appIntent.committedSwap : undefined
+  const pendingWarning = t(
+    committedSwap && committedSwap.railId !== ONCHAIN_SWAP_RAIL ? 'send.paymentProcessing' : 'send.pendingOnchain',
+  )
 
-  const isAssetSend = Boolean(sendInfo.account || sendInfo.assets?.length)
-  const assetId = sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
+  const isAssetSend = Boolean(sendInfo.assetPayment || sendInfo.account || sendInfo.assets?.length)
+  const assetId = sendInfo.assetPayment?.assetId ?? sendInfo.account?.assetId ?? sendInfo.assets?.[0]?.assetId
   const assetMeta = assetId ? assetMetadataCache.get(assetId) : undefined
   const assetPresentation = sendInfo.account
     ? { name: sendInfo.account.ticker, ticker: sendInfo.account.ticker }
@@ -57,15 +72,19 @@ export default function SendSuccess() {
   const assetName = accountAssetLabel(designatedCurrency, { name: assetPresentation.name, ticker: '' })
   const assetTicker = assetPresentation.ticker
   const assetIcon = assetPresentation.icon
-  const assetAmountValue = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
+  const assetAmountValue =
+    sendInfo.assetPayment?.amount ?? sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? 0n
   const assetDecimals = sendInfo.account?.decimals ?? assetMeta?.metadata?.decimals ?? 0
 
-  // Show payment sent notification
+  const paymentConfirmed = !tracked || delivered
   useEffect(() => {
-    if (sendInfo.total) notifyPaymentSent(sendInfo.total)
-  }, [sendInfo.total])
+    if (!notified.current && sendInfo.total && paymentConfirmed) {
+      notified.current = true
+      notifyPaymentSent(sendInfo.total)
+    }
+  }, [notifyPaymentSent, paymentConfirmed, sendInfo.total])
 
-  const totalSats = sendInfo.total ?? 0
+  const totalSats = (tracked ? sendInfo.satoshis : undefined) ?? sendInfo.total ?? 0
   // currency formatting keys on the ticker string; a spoofed "USD" mint must
   // not earn it (account sends are designated, hence verified by id)
   const trustedTicker = sendInfo.account || (assetId && isVerifiedAsset(assetId)) ? assetTicker : undefined
@@ -89,7 +108,9 @@ export default function SendSuccess() {
   // Only on-chain, and not a hedge: THIS wallet holds the L1 claim key and the
   // drive spending it runs in the page, so a closed tab forfeits the fill.
   const detail =
-    appNeedsDriver && appIntent?.status === 'send' && appIntent.committedOnchain?.swapId !== sendInfo.swapId
+    appNeedsDriver &&
+    appIntent?.status === 'send' &&
+    (committedSwap ?? appIntent.committedOnchain)?.swapId !== sendInfo.swapId
       ? pendingWarning
       : isOnchainSend && (!appIntent || needsDriver)
         ? t('send.onTheWayKeepOpen', { amount: displayAmount })
@@ -100,7 +121,14 @@ export default function SendSuccess() {
             : t('send.sentSuccessfully', { amount: displayAmount })
 
   const finish = () => {
-    if (appNeedsDriver) {
+    if (appNeedsDriver || (tracked && !delivered)) {
+      const commitment = trackedAppSwapPayment(appIntent, sendInfo)
+      if (
+        appIntent?.status === 'send' &&
+        (!appIntent.callback || (commitment && paymentEndedWithoutDelivery(outcomeOf(commitment.swapId))))
+      ) {
+        setAppIntent(undefined)
+      }
       navigate(Pages.Wallet)
       return
     }
@@ -113,6 +141,33 @@ export default function SendSuccess() {
       return
     }
     navigate(Pages.Wallet)
+  }
+
+  if (tracked) {
+    const onchain = tracked.railId === ONCHAIN_SWAP_RAIL
+    const lnurlTarget =
+      sendInfo.lnurlInvoice && sendInfo.lnurlInvoice.pr === sendInfo.invoice ? sendInfo.lnUrl : undefined
+    const destination = onchain
+      ? sendInfo.address
+      : tracked.railId === ASSET_SWAP_PAYMENT_RAIL
+        ? sendInfo.assetPayment?.address
+        : lnurlTarget
+    return (
+      <PaymentReceipt
+        amount={displayAmount}
+        unverifiedAsset={isAssetSend ? trustedTicker === undefined : false}
+        destination={destination}
+        invoice={tracked.railId === LIGHTNING_RAIL && !destination ? sendInfo.invoice : undefined}
+        onchain={onchain}
+        delivered={delivered}
+        outcome={outcome}
+        offer={sendInfo.openOffer}
+        network={aspInfo.network}
+        returnHost={appNeedsDriver ? '' : returnHost}
+        onActivity={() => navigate(Pages.Activity)}
+        onDone={finish}
+      />
+    )
   }
 
   if (isAssetSend && assetId) {

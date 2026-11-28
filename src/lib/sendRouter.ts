@@ -2,8 +2,8 @@
  * The send path's `PaymentRouter`. The fallback is not written here: a rail whose
  * `available()` returns false or throws is dropped from `options()` without
  * taking the router with it, replacing a six-case refusal enum. Amounts are
- * receiver-exact; the screen translates from "what leaves" at the boundary,
- * which keeps "send max" working.
+ * receiver-exact, as on the screen; only "send max" takes its fees out of the
+ * amount.
  */
 import {
   PaymentRouter,
@@ -27,9 +27,10 @@ import {
   lightningRail,
   onchainSwapRail,
   type Outcome,
+  type SwapClient,
   type SwapRailClient,
 } from '@arkade-os/swap'
-import { assetIdOf, marketCorridor, sideLimits, type DiscoveredMarket } from '@arkade-os/solver-discovery'
+import { assetIdOf, marketCorridor, sideLimits, solverId, type DiscoveredMarket } from '@arkade-os/solver-discovery'
 import { createLnurlClient, type LnurlClient } from '@arkade-os/lnurl-client'
 import {
   firstQuote,
@@ -45,12 +46,14 @@ import { prettyNumber } from './format'
 import type { AppIntentState } from './appIntent'
 import type { SendInfo } from '../providers/flow'
 import { defaultFee } from './constants'
+import { quoteProviderMarket } from './paymentQuotes'
 import { getActiveLanguage } from './language'
 import { translations } from './i18n'
 
 export const WALLET_EXIT_RAIL = 'onchain'
 
 export const ASSET_RAIL = 'asset'
+export const ASSET_SWAP_PAYMENT_RAIL = 'asset-swap-payment'
 
 export const ONCHAIN_ROUTE_LOG = 'onchain send:'
 
@@ -115,9 +118,10 @@ export const assetRail = (deps: { assets: Asset[] }): PaymentRail => ({
 export interface SendRouterDeps {
   wallet: IWallet
   /** The driving tab's client; a tab without the Web Lock has none. */
-  client?: SwapRailClient
+  client?: SwapRailClient & Pick<SwapClient, 'quote'>
   /** sat/vB the L1 claim is priced at; it comes out of the recipient's payout. */
   claimFeeRateSatVb?: number
+  onchainRouting?: { network: string; preferredSolverId?: string }
   outputFee?: () => number
   /** The operator's programs, which price each coin the exit spends. */
   intentFee?: () => IntentFeeConfig | undefined
@@ -125,6 +129,43 @@ export interface SendRouterDeps {
   dust?: () => number
   assets?: Asset[]
   lnurl?: LnurlClient
+  preferExit?: boolean
+}
+
+function namedOnchainRail(
+  client: NonNullable<SendRouterDeps['client']>,
+  claimFeeRateSatVb: number,
+  { network, preferredSolverId }: NonNullable<SendRouterDeps['onchainRouting']>,
+): PaymentRail {
+  const fees = { claimFeeRateSatVb }
+  return {
+    ...onchainSwapRail(client, fees),
+    async quote(req, ctx) {
+      let provider: { providerName: string; providerId: string } | undefined
+      const scopedClient: SwapRailClient = {
+        resolve: (input) => client.resolve(input),
+        quote: async (input) => {
+          const quote = await (preferredSolverId
+            ? client.quote(input, { solverId: preferredSolverId })
+            : client.quote(input))
+          const market = quoteProviderMarket(quote)
+          if (market) provider = { providerName: market.solver, providerId: solverId(market, network) }
+          if (preferredSolverId && provider?.providerId !== preferredSolverId)
+            throw new Error('The selected provider did not quote this payment')
+          return quote
+        },
+        accept: (quote) => client.accept(quote),
+        onUpdate: (listener) => client.onUpdate(listener),
+      }
+      const priced = await onchainSwapRail(scopedClient, fees).quote(req, ctx)
+      const expiresAt = priced.meta?.expiresAt
+      return {
+        ...priced,
+        ...(typeof expiresAt === 'number' && Number.isSafeInteger(expiresAt) ? { validUntil: expiresAt } : {}),
+        ...(provider ? { meta: { ...priced.meta, ...provider } } : {}),
+      }
+    },
+  }
 }
 
 export const createSendRouter = (deps: SendRouterDeps): PaymentRouter => {
@@ -132,8 +173,7 @@ export const createSendRouter = (deps: SendRouterDeps): PaymentRouter => {
     wallet: deps.wallet,
     prefs: {
       priority: [
-        ONCHAIN_SWAP_RAIL,
-        WALLET_EXIT_RAIL,
+        ...(deps.preferExit ? [WALLET_EXIT_RAIL, ONCHAIN_SWAP_RAIL] : [ONCHAIN_SWAP_RAIL, WALLET_EXIT_RAIL]),
         LNURL_ARKADE_RAIL,
         LNURL_LIGHTNING_RAIL,
         LIGHTNING_RAIL,
@@ -143,7 +183,12 @@ export const createSendRouter = (deps: SendRouterDeps): PaymentRouter => {
   })
 
   if (deps.client && deps.claimFeeRateSatVb) {
-    router.use(onchainSwapRail(deps.client, { claimFeeRateSatVb: deps.claimFeeRateSatVb }))
+    const { client, claimFeeRateSatVb, onchainRouting } = deps
+    router.use(
+      onchainRouting
+        ? namedOnchainRail(client, claimFeeRateSatVb, onchainRouting)
+        : onchainSwapRail(client, { claimFeeRateSatVb }),
+    )
   }
   if (deps.outputFee) {
     // Refused at wiring rather than dropped: without them an exit underpays or emits a change arkd refuses.
@@ -246,11 +291,23 @@ export const previewOnchainCost = async (
   address: string,
   amount: number,
 ): Promise<Pick<RouteQuote, 'amount' | 'fee' | 'total'> | undefined> => {
-  for (const option of await router.options({ raw: address, amount })) {
+  const quote = await prepareOnchainSend(router, address, amount)
+  return quote && { amount: quote.amount, fee: quote.fee, total: quote.total }
+}
+
+export const prepareOnchainSend = async (
+  router: PaymentRouter,
+  address: string,
+  amount: number,
+  railId?: string,
+): Promise<RouteQuote | undefined> => {
+  const options = await router.options({ raw: address, amount })
+  for (const option of options) {
+    if (railId && option.railId !== railId) continue
     try {
       const quote = await option.quote()
       // A rail paying something else is not the one being priced.
-      if (quote.amount === amount) return { amount: quote.amount, fee: quote.fee, total: quote.total }
+      if (quote.amount === amount) return quote
     } catch (err) {
       // Not left to the spend: it can reach a different answer, and then the
       // screen is committed to this pass's price with nobody having logged why.
@@ -320,12 +377,42 @@ export const onchainSendNeedsDriver = (sendInfo: SendInfo, outcomeOf: (id: strin
   Boolean(sendInfo.swapId || sendInfo.txid || sendInfo.railId === ONCHAIN_SWAP_RAIL) &&
   (!sendInfo.swapId || outcomeOf(sendInfo.swapId) !== 'claimed')
 
+const deliveryByRail = {
+  [LIGHTNING_RAIL]: 'paid',
+  [ONCHAIN_SWAP_RAIL]: 'claimed',
+  [ASSET_SWAP_PAYMENT_RAIL]: 'filled',
+} satisfies Record<string, Outcome>
+
+export type TrackedPaymentRail = keyof typeof deliveryByRail
+
+export const trackedPaymentRail = (railId?: string): TrackedPaymentRail | undefined =>
+  railId === LIGHTNING_RAIL || railId === ONCHAIN_SWAP_RAIL || railId === ASSET_SWAP_PAYMENT_RAIL ? railId : undefined
+
+export const trackedSwapPayment = (sendInfo: SendInfo): { railId: TrackedPaymentRail; swapId: string } | undefined => {
+  if (!sendInfo.swapId || !(sendInfo.reviewId || sendInfo.openOffer || sendInfo.assetPayment)) return
+  const railId = trackedPaymentRail(sendInfo.railId)
+  if (railId) return { railId, swapId: sendInfo.swapId }
+}
+
+export const paymentWasDelivered = (railId: TrackedPaymentRail, outcome: Outcome | undefined): boolean =>
+  outcome === deliveryByRail[railId]
+
+export const paymentEndedWithoutDelivery = (outcome: Outcome | undefined): boolean =>
+  outcome === 'refunded' || outcome === 'cancelled' || outcome === 'lapsed'
+
+export const trackedAppSwapPayment = (intent: AppIntentState | undefined, sendInfo: SendInfo) => {
+  if (intent?.status !== 'send') return
+  return intent.committedSwap ?? (intent.committedOnchain ? undefined : trackedSwapPayment(sendInfo))
+}
+
 export const appSendNeedsDriver = (
   intent: AppIntentState | undefined,
   sendInfo: SendInfo,
   outcomeOf: (id: string) => Outcome | undefined,
 ): boolean => {
   if (intent?.status !== 'send' || !intent.callback) return false
+  const tracked = trackedAppSwapPayment(intent, sendInfo)
+  if (tracked) return !paymentWasDelivered(tracked.railId, outcomeOf(tracked.swapId))
   const committed = intent.committedOnchain
   return (
     Boolean(committed && (!committed.swapId || outcomeOf(committed.swapId) !== 'claimed')) ||

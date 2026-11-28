@@ -15,6 +15,7 @@ const defaultConfig: Config = {
   executor: isExecutorEnabled(),
   currency: getCurrency(navigator.language),
   importedAssets: [],
+  homeAssetVisibility: {},
   language: detectLanguage(navigator.language),
   haptics: true,
   nostrBackup: false,
@@ -58,6 +59,11 @@ const updateDefaultConfig = (config: Partial<Config>): Config => {
     ? config.announcementsSeen
     : defaultConfig.announcementsSeen
   const importedAssets = Array.isArray(config.importedAssets) ? config.importedAssets : defaultConfig.importedAssets
+  const homeAssetVisibility = Object.fromEntries(
+    Object.entries(config.homeAssetVisibility ?? {}).filter(
+      ([id, visible]) => /^[0-9a-f]{68}$/.test(id) && typeof visible === 'boolean',
+    ),
+  )
   const updatedConfig: Config = {
     ...defaultConfig,
     ...config,
@@ -65,6 +71,7 @@ const updateDefaultConfig = (config: Partial<Config>): Config => {
     executor: isExecutorEnabled(),
     announcementsSeen: [...announcementsSeen],
     importedAssets: [...importedAssets],
+    homeAssetVisibility,
     apps: {
       assets: { enabled: config.apps?.assets?.enabled ?? defaultConfig.apps.assets.enabled },
     },

@@ -35,6 +35,7 @@ vi.mock('../../../lib/swapMarkets', () => ({ discoverMarkets: async () => [] }))
 const INVOICE = fixtures.lib.bolt11.invoice
 const INVOICE_SATS = decodeInvoice(INVOICE).amountSats
 const BALANCE = 1_000_000
+const ADDRESS = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
 
 /** A price where the invoice's sats do not survive two fiat decimals: the
  *  field renders "1.65" and reading that back gives 2,103, not 2,100. One cent
@@ -53,14 +54,14 @@ const setSendInfo = vi.fn()
 const formWallet = { ...mockSvcWallet, getAddress: async () => 'ark1self', getBoardingAddress: async () => 'bcrt1self' }
 const swaps = { sendRouter: async () => ({ options: async () => [] }) }
 
-const renderForm = () =>
+const renderForm = (sendInfo = emptySendInfo) =>
   render(
     <NavigationContext.Provider value={mockNavigationContextValue}>
       <AspContext.Provider value={mockAspContextValue}>
         <ConfigContext.Provider value={mockConfigContextValue as never}>
           <FiatContext.Provider value={rate as never}>
             <OptionsContext.Provider value={mockOptionsContextValue as never}>
-              <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo: emptySendInfo, setSendInfo } as never}>
+              <FlowContext.Provider value={{ ...mockFlowContextValue, sendInfo, setSendInfo } as never}>
                 <WalletContext.Provider
                   value={
                     {
@@ -91,7 +92,9 @@ const renderForm = () =>
 const pasteInvoice = async (container: HTMLElement) => {
   const recipient = container.querySelector('input[name="send-address"]')!
   fireEvent.change(recipient, { target: { value: INVOICE } })
-  await waitFor(() => expect(setSendInfo).toHaveBeenCalled(), { timeout: 3_000 })
+  await waitFor(() => expect(container.querySelector('input[name="send-amount"]')).toHaveAttribute('readonly'), {
+    timeout: 3_000,
+  })
 }
 
 const satoshisWritten = () =>
@@ -124,5 +127,14 @@ describe('an amount the destination pinned', () => {
 
     fireEvent.click(offered)
     expect(satoshisWritten()).not.toContain(BALANCE)
+  })
+
+  it.each([
+    ['an address', ADDRESS, true],
+    ['a payment request', `bitcoin:${ADDRESS}?amount=0.01`, false],
+  ])('warns that fees come out of the whole balance only for %s', async (_, recipient, warns) => {
+    renderForm({ ...emptySendInfo, address: ADDRESS, recipient, satoshis: BALANCE })
+    await screen.findByText(/available$/)
+    expect(Boolean(screen.queryByText('Fees will be deducted from the amount sent'))).toBe(warns)
   })
 })

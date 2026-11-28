@@ -218,9 +218,10 @@ export default function Keyboard({
   // over-balance paints the amount red, matching the swap composer; the
   // available>0 gate avoids a false red before the wallet loads
   const overBalance =
-    inputMode === 'asset'
+    !hideBalance &&
+    (inputMode === 'asset'
       ? Boolean(asset) && assetInCents > (asset?.balance ?? BigInt(0))
-      : available > 0 && amountInSats > available
+      : available > 0 && amountInSats > available)
 
   const disabled = !amountInSats && !assetInCents
 

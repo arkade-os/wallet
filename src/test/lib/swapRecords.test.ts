@@ -5,11 +5,12 @@ vi.mock('../../lib/swapRepository', () => ({
   assetSwapRepository: {
     getSwapRecordsPage: async () => ({ items: stored }),
   },
+  quoteSnapshotOf: () => undefined,
 }))
 
 import { solverId, type DiscoveredMarket } from '@arkade-os/solver-discovery'
 import type { Swap } from '@arkade-os/swap/advanced'
-import { candidateUsage, lnSendViews, solverUsage } from '../../lib/swapRecords'
+import { candidateUsage, lnSendViews, offerSwaps, solverUsage } from '../../lib/swapRecords'
 import { assetSwapRepository } from '../../lib/swapRepository'
 
 // Plain JSON, as the store hands it back.
@@ -50,6 +51,80 @@ describe('lnSendViews', () => {
   it('keeps history readable when the repository is unavailable', async () => {
     vi.spyOn(assetSwapRepository, 'getSwapRecordsPage').mockRejectedValueOnce(new Error('history unavailable'))
     await expect(lnSendViews()).resolves.toEqual([])
+  })
+
+  it('reads sent destinations from the stored endpoint', async () => {
+    const payment = send({ kind: 'restored', backend: 'rfq' })
+    stored.splice(
+      0,
+      stored.length,
+      {
+        ...payment,
+        route: {
+          ...payment.route,
+          take: {
+            ...payment.route.take,
+            instrument: { kind: 'invoice', bolt11: 'lnbc1recipient', paymentHash: 'ab'.repeat(32), expiresAt: 1030 },
+          },
+        },
+      },
+      {
+        ...payment,
+        id: 'rfq-2',
+        kind: 'onchain_send',
+        route: {
+          ...payment.route,
+          take: {
+            corridor: 'onchain',
+            asset: 'bitcoin:bitcoin/slip44:0',
+            instrument: { kind: 'address', address: 'bc1recipient' },
+          },
+        },
+      },
+    )
+
+    const views = await lnSendViews()
+    expect(views.map((view) => view.destination)).toEqual(['lnbc1recipient', 'bc1recipient'])
+  })
+})
+
+describe('offerSwaps', () => {
+  it('only projects the matching directed payment recipient', async () => {
+    const recipient = 'ark1recipient'
+    const payment = send({ kind: 'restored', backend: 'rfq' })
+    const offer = {
+      ...payment,
+      id: 'offer-1',
+      family: 'offer',
+      status: 'fulfilled',
+      swapAddress: 'ark1lockup',
+      swapPkScript: '51',
+      offerHex: '0100',
+      expiresAt: 1030,
+      take: { asset: `arkade:bitcoin/asset:${'ab'.repeat(34)}`, amount: '20' },
+      route: {
+        ...payment.route,
+        take: {
+          corridor: 'arkade',
+          asset: `arkade:bitcoin/asset:${'ab'.repeat(34)}`,
+          instrument: { kind: 'address', address: recipient },
+        },
+      },
+    }
+
+    stored.splice(
+      0,
+      stored.length,
+      { ...offer, assetPayment: { receiveAddress: recipient, validUntil: 1030 } },
+      { ...offer, id: 'offer-2', assetPayment: { receiveAddress: offer.swapAddress, validUntil: 1030 } },
+      { ...offer, id: 'offer-3' },
+    )
+
+    const swaps = await offerSwaps()
+    expect(swaps).toHaveLength(3)
+    expect(swaps[0]).toMatchObject({ paymentDestination: recipient, swapAddress: 'ark1lockup' })
+    expect(swaps[1].paymentDestination).toBeUndefined()
+    expect(swaps[2].paymentDestination).toBeUndefined()
   })
 })
 

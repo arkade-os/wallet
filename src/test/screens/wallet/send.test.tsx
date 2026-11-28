@@ -181,7 +181,6 @@ describe('Send screen', () => {
         getBalance: () => Promise.resolve({ available: 1_000_000 }),
       } as any,
     }
-    // A lightning leg that is never reached: the client refuses the invoice first.
     const sendRouter = vi.fn(async () => createSendRouter({ wallet: walletValue.svcWallet, client: {} as never }))
     renderSendForm({ flowContext: flowValue, walletContext: walletValue, swapsContext: { sendRouter } })
     await waitFor(() => screen.getByDisplayValue(String(requested)))
@@ -190,7 +189,7 @@ describe('Send screen', () => {
     fireEvent.click(continueButton)
 
     expect(await screen.findByTestId('error-message')).toHaveTextContent(/not the requested/)
-    expect(sendRouter).toHaveBeenCalled()
+    expect(sendRouter).not.toHaveBeenCalled()
     const updates = setSendInfo.mock.calls.map(([update]) =>
       typeof update === 'function' ? update(flowValue.sendInfo) : update,
     )
@@ -507,10 +506,11 @@ describe('Send screen', () => {
 
     const addressInput = document.querySelector('input[name="send-address"]') as HTMLInputElement
     const amountInput = document.querySelector('input[name="send-amount"]') as HTMLInputElement
+    const waitForParsedRecipient = (check: () => void) => waitFor(check, { timeout: 3_000 })
 
     // lightning= carries a malformed invoice alongside a valid address=
     fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?lightning=malformedinvoice` } })
-    await waitFor(() => {
+    await waitForParsedRecipient(() => {
       expect(currentSendInfo.recipient).toBe(`bitcoin:${BTC_ADDRESS}?lightning=malformedinvoice`)
       expect(currentSendInfo.invoice).toBeUndefined()
       expect(currentSendInfo.satoshis).toBe(0)
@@ -519,7 +519,7 @@ describe('Send screen', () => {
 
     // URI with both lightning and amount: amount is ignored, invoice takes precedence
     fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?lightning=${INVOICE}&amount=0.0001` } })
-    await waitFor(() => {
+    await waitForParsedRecipient(() => {
       expect(amountInput.value).toBe(sats2btc(INVOICE_SATS))
       expect(currentSendInfo.satoshis).toBe(INVOICE_SATS)
       expect(currentSendInfo.invoice).toBe(INVOICE)
@@ -527,7 +527,7 @@ describe('Send screen', () => {
 
     // Amount-only URI (no invoice): should clear invoice and update satoshis
     fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?amount=0.0001` } })
-    await waitFor(() => {
+    await waitForParsedRecipient(() => {
       expect(amountInput.value).toBe('0.0001')
       expect(currentSendInfo.invoice).toBeUndefined()
       expect(currentSendInfo.satoshis).toBe(10000)
@@ -535,7 +535,7 @@ describe('Send screen', () => {
 
     // Invoice-only URI starts with a different displayed and stored amount.
     fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?lightning=${INVOICE}` } })
-    await waitFor(() => {
+    await waitForParsedRecipient(() => {
       expect(amountInput.value).toBe(sats2btc(INVOICE_SATS))
       expect(currentSendInfo.satoshis).toBe(INVOICE_SATS)
       expect(currentSendInfo.invoice).toBe(INVOICE)
@@ -543,7 +543,7 @@ describe('Send screen', () => {
 
     // The same invoice with a conflicting BIP21 amount must be revalidated.
     fireEvent.change(addressInput, { target: { value: `bitcoin:${BTC_ADDRESS}?lightning=${INVOICE}&amount=0.0001` } })
-    await waitFor(() => {
+    await waitForParsedRecipient(() => {
       expect(currentSendInfo.recipient).toBe(`bitcoin:${BTC_ADDRESS}?lightning=${INVOICE}&amount=0.0001`)
       expect(amountInput.value).toBe(sats2btc(INVOICE_SATS))
       expect(currentSendInfo.satoshis).toBe(INVOICE_SATS)
@@ -847,6 +847,49 @@ describe('a changed recipient', () => {
     fireEvent.click(button)
   }
 
+  it('opens payment review for a plain Lightning address without asking a saved provider', async () => {
+    const { invoice, amountSats } = fixtures.lib.bolt11
+    const verify = 'https://pay.example/verify'
+    const verifyBatch = 'https://pay.example/verify-batch'
+    const fetchMocker = createFetchMock(vi)
+    fetchMocker.enableMocks()
+    fetchMocker.mockResponse((req) =>
+      JSON.stringify(
+        req.url.includes('amount=')
+          ? { pr: invoice, verify, verifyBatch }
+          : {
+              tag: 'payRequest',
+              callback: 'https://pay.example/cb',
+              minSendable: amountSats * 1_000,
+              maxSendable: amountSats * 1_000,
+              metadata: '[]',
+            },
+      ),
+    )
+    try {
+      const { sendRouter, navigate, type } = renderStateful()
+      type(LNURL)
+      await waitFor(() => expect(current.satoshis).toBe(amountSats), settle)
+      await clickContinue()
+      await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails), settle)
+      expect(sendRouter).not.toHaveBeenCalled()
+      expect(fetchMocker.mock.calls.map(([request]) => String(request))).toEqual([
+        'https://pay.example/.well-known/lnurlp/alice',
+        `https://pay.example/cb?amount=${amountSats * 1_000}`,
+      ])
+      expect(current).toMatchObject({
+        lnUrl: LNURL,
+        invoice,
+        lnurlInvoice: { pr: invoice },
+        reviewId: expect.any(String),
+        pendingLnSend: undefined,
+        satoshis: amountSats,
+      })
+    } finally {
+      fetchMocker.disableMocks()
+    }
+  })
+
   it('pays the BTC address typed after an LNURL, not the LNURL', async () => {
     const fetchMocker = lnurlServer()
     const { sendRouter, navigate, type } = renderStateful()
@@ -879,13 +922,10 @@ describe('a changed recipient', () => {
     fetchMocker.disableMocks()
   })
 
-  it('quotes the invoice pasted after an LNURL, not the LNURL', async () => {
+  it('opens payment review for the invoice pasted after an LNURL', async () => {
     const INVOICE = fixtures.lib.bolt11.invoice
     const fetchMocker = lnurlServer()
-    const { sendRouter, type } = renderStateful()
-    const router = createSendRouter({ wallet: svcWallet })
-    const options = vi.spyOn(router, 'options')
-    sendRouter.mockResolvedValue(router)
+    const { sendRouter, navigate, type } = renderStateful()
     type(LNURL)
     await waitFor(() => screen.getByDisplayValue(String(SATS)), settle)
 
@@ -893,12 +933,15 @@ describe('a changed recipient', () => {
     await waitFor(() => expect(current.invoice).toBe(INVOICE), settle)
     expect(current).toMatchObject({
       lnUrl: undefined,
+      lnurlInvoice: undefined,
       pendingLnSend: undefined,
       satoshis: fixtures.lib.bolt11.amountSats,
     })
     await clickContinue()
 
-    await waitFor(() => expect(options).toHaveBeenCalledWith({ raw: INVOICE }), settle)
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith(Pages.SendDetails), settle)
+    expect(current).toMatchObject({ invoice: INVOICE, reviewId: expect.any(String) })
+    expect(sendRouter).not.toHaveBeenCalled()
     expect(fetchMocker.requests().some((r) => r.url.includes('paymentOption='))).toBe(false)
     fetchMocker.disableMocks()
   })
@@ -1307,7 +1350,7 @@ describe('a changed recipient', () => {
     await waitFor(() => expect(sendDestination(current)).toBe(ARK), settle)
 
     type(BTC)
-    await waitFor(() => expect(current.arkAddress).toBeUndefined(), settle)
+    await waitFor(() => expect(current.address).toBe(BTC), settle)
     expect(sendDestination(current)).toBe(BTC)
   })
 

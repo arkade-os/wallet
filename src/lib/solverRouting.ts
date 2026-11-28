@@ -11,6 +11,7 @@ import {
 
 const STORAGE_KEY = 'solverRouting'
 export const SOLVER_HEALTH_STORAGE_KEY = 'solverHealth'
+export const PAYMENT_ROUTE_POLICY_PREFIX = 'paymentRoutePolicy:'
 let version = 0
 const listeners = new Set<() => void>()
 export const notifySolverRouting = (): void => {
@@ -18,21 +19,29 @@ export const notifySolverRouting = (): void => {
   listeners.forEach((fn) => fn())
 }
 const onStorage = (event: StorageEvent) => {
-  if (event.key === STORAGE_KEY || event.key === SOLVER_HEALTH_STORAGE_KEY || event.key === null) {
+  if (
+    event.key === STORAGE_KEY ||
+    event.key === SOLVER_HEALTH_STORAGE_KEY ||
+    event.key?.startsWith(PAYMENT_ROUTE_POLICY_PREFIX) ||
+    event.key === null
+  ) {
     notifySolverRouting()
   }
 }
 const cleanIds = (value: unknown): string[] =>
   Array.isArray(value) ? [...new Set(value.filter((id): id is string => typeof id === 'string' && Boolean(id)))] : []
 
-const clean = (value: unknown): SolverRoutingPreferences => {
-  const prefs = value && typeof value === 'object' ? (value as SolverRoutingPreferences) : {}
+export type WalletSolverRoutingPreferences = SolverRoutingPreferences & { openOffersFirst?: boolean }
+
+const clean = (value: unknown): WalletSolverRoutingPreferences => {
+  const prefs = value && typeof value === 'object' ? (value as WalletSolverRoutingPreferences) : {}
   const disabled = cleanIds(prefs.disabled)
   return {
     mode: prefs.mode === 'usage' || prefs.mode === 'cost' ? prefs.mode : 'manual',
     priority: cleanIds(prefs.priority),
     ...(typeof prefs.preferFirst === 'string' && prefs.preferFirst ? { preferFirst: prefs.preferFirst } : {}),
     ...(disabled.length ? { disabled } : {}),
+    ...(typeof prefs.openOffersFirst === 'boolean' ? { openOffersFirst: prefs.openOffersFirst } : {}),
   }
 }
 const read = (): Record<string, unknown> => {
@@ -43,14 +52,20 @@ const read = (): Record<string, unknown> => {
     return {}
   }
 }
-export const readSolverRouting = (network: string, direction: string): SolverRoutingPreferences =>
+export const readSolverRouting = (network: string, direction: string): WalletSolverRoutingPreferences =>
   clean(read()[JSON.stringify([network, direction])])
 const write = (key: string, value: unknown): void => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...read(), [key]: value }))
   notifySolverRouting()
 }
-export const saveSolverRouting = (network: string, direction: string, prefs: SolverRoutingPreferences): void =>
-  write(JSON.stringify([network, direction]), clean(prefs))
+export const saveSolverRouting = (network: string, direction: string, prefs: WalletSolverRoutingPreferences): void =>
+  write(
+    JSON.stringify([network, direction]),
+    clean({
+      ...prefs,
+      openOffersFirst: prefs.openOffersFirst ?? readSolverRouting(network, direction).openOffersFirst,
+    }),
+  )
 
 const cardPreferenceId = (network: string, card: Pick<Card, 'name' | 'discovery_pubkey'>, source: string): string =>
   JSON.stringify([network, card.discovery_pubkey?.toLowerCase() ?? [source, card.name]])

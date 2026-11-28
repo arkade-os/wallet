@@ -19,6 +19,7 @@ interface InputAmountProps {
   disabled?: boolean
   focus?: boolean
   label?: string
+  labelledBy?: string
   min?: number
   max?: number
   /** Controlled entry denomination; omit to let the input own it */
@@ -41,6 +42,7 @@ export default function InputAmount({
   disabled,
   focus,
   label,
+  labelledBy,
   min,
   max,
   mode: controlledMode,
@@ -181,6 +183,7 @@ export default function InputAmount({
         <TextSecondary>{leftLabel}</TextSecondary>
         <input
           ref={input}
+          aria-labelledby={labelledBy}
           name={name}
           type='number'
           onFocus={onFocus}

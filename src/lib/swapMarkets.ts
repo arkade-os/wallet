@@ -22,8 +22,8 @@ import {
   type LocalCardInput,
   type OfferPlan,
 } from '@arkade-os/solver-discovery'
-import type { NetworkName } from '@arkade-os/sdk'
-import type { AssetId } from '@arkade-os/swap'
+import { asset, type NetworkName } from '@arkade-os/sdk'
+import { arkadeAsset, btcOn, type AssetId } from '@arkade-os/swap'
 import betaSolverCard from './beta-solver.card.json'
 import { verifiedDesignatedCurrency } from './accountAssets'
 import { getSolverRegistryUrl } from './constants'
@@ -32,6 +32,14 @@ import { readSolverCards } from './solverCards'
 import { sharedTransportCards } from './solverCardRemote'
 import { displayAssetOf } from './swapRecords'
 import { assetSwapRepository } from './swapRepository'
+
+/** The composer's asset IDs are discovery IDs, while the client uses CAIP-19. */
+export const swapAssetId = (network: NetworkName, discoveryId: string): AssetId =>
+  discoveryId.includes('/')
+    ? (discoveryId as AssetId)
+    : discoveryId === BTC_ASSET_ID
+      ? btcOn('arkade', network)
+      : arkadeAsset(network, asset.AssetId.fromString(discoveryId))
 
 /**
  * Solver cards shipped with the wallet.

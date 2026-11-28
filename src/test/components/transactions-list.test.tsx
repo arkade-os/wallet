@@ -86,6 +86,45 @@ describe('TransactionsList', () => {
     expect(screen.queryByText('Sent')).not.toBeInTheDocument()
   })
 
+  it('distinguishes external payments from ordinary swaps and preserves pending and failed states', () => {
+    const address =
+      'tark1qplnj2gett9j483fchy6chaxn4y52c4g7n5djh9xua3ywdxw0ldatc3e9xcj9xpx0r5tmr0dgvu2f4s352muklg0tcxx0scnnkraajy9jgz4xl'
+    saveContact(address, 'Alice')
+    const cases = [
+      { id: 'self', status: 'completed', paymentDestination: undefined },
+      { id: 'paid', status: 'completed', paymentDestination: address },
+      { id: 'pending', status: 'pending', paymentDestination: address },
+      { id: 'failed', status: 'failed', paymentDestination: address },
+    ] as const
+    const txs = cases.map<Tx>(({ id, status, paymentDestination }) => ({
+      ...mockWalletContextValue.txs[0],
+      redeemTxid: id,
+      settled: true,
+      type: 'swap',
+      assetSwap: { fromTicker: 'BTC', toTicker: 'GUCCI', status, paymentDestination },
+    }))
+
+    render(
+      <NavigationContext.Provider value={mockNavigationContextValue}>
+        <ConfigContext.Provider value={mockConfigContextValue}>
+          <FiatContext.Provider value={mockFiatContextValue}>
+            <FlowContext.Provider value={mockFlowContextValue}>
+              <WalletContext.Provider value={{ ...mockWalletContextValue, txs }}>
+                <TransactionsList mode='static' />
+              </WalletContext.Provider>
+            </FlowContext.Provider>
+          </FiatContext.Provider>
+        </ConfigContext.Provider>
+      </NavigationContext.Provider>,
+    )
+
+    expect(screen.getByText('Swap', { exact: true })).toBeInTheDocument()
+    expect(screen.getByText('Payment sent', { exact: true })).toBeInTheDocument()
+    expect(screen.getByText('Swap pending', { exact: true })).toBeInTheDocument()
+    expect(screen.getByText('Swap failed', { exact: true })).toBeInTheDocument()
+    expect(screen.getAllByText(/To Alice · BTC to GUCCI/)).toHaveLength(3)
+  })
+
   it('shows the address an LNURL receive arrived at, and who a send paid', () => {
     const receivedTx: Tx = {
       amount: 1_000,

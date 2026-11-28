@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { BrantaEnvironment, BrantaService, VerifyStatus, type Payment, type VerifyResult } from '@branta-ops/branta'
 import Button from '../../../components/Button'
 import ErrorMessage from '../../../components/Error'
@@ -42,24 +42,26 @@ import { aspErrorText, getReceivingAddresses } from '../../../lib/asp'
 import { isMobileBrowser } from '../../../lib/browser'
 import { ConfigContext } from '../../../providers/config'
 import { FiatContext } from '../../../providers/fiat'
-import { ArkNote, AssetDetails, isValidArkAddress, type NetworkName } from '@arkade-os/sdk'
+import { ArkNote, AssetDetails, isValidArkAddress } from '@arkade-os/sdk'
 import { LimitsContext } from '../../../providers/limits'
 import { createLnurlClient, isValidLnUrl, LnurlError, type PayRequest } from '@arkade-os/lnurl-client'
 import { lnurlPayableRanges } from '@arkade-os/lnurl-client/arkade'
 import { fetchArkAddress } from '../../../lib/lnurl'
 import { extractError } from '../../../lib/error'
-import { decodeInvoice } from '../../../lib/bolt11'
-import { appSendNeedsDriver, LIGHTNING_RAIL, lnSendRefusal, lnSendRequest, quoteLnurl } from '../../../lib/sendRouter'
-import { marketCorridor } from '@arkade-os/solver-discovery'
-import { isSolverEnabled } from '../../../lib/solverRouting'
+import { decodeInvoice, isInvoiceExpired } from '../../../lib/bolt11'
+import {
+  appSendNeedsDriver,
+  paymentEndedWithoutDelivery,
+  quoteLnurl,
+  trackedAppSwapPayment,
+} from '../../../lib/sendRouter'
 import { SwapsContext } from '../../../providers/swaps'
-import { discoverMarkets } from '../../../lib/swapMarkets'
+import { newRequestId } from '../../../lib/requestId'
 import { appIntentHandoff, redirectToCallback } from '../../../lib/appIntent'
 import OpenInApp from '../../AppIntent/OpenInApp'
-import { decodeBip21, isBip21 } from '../../../lib/bip21'
+import { decodeBip21, exactBip21Amount, isBip21 } from '../../../lib/bip21'
 import { InfoLine } from '../../../components/Info'
-import { atomicToUnits, prettyAssetAmount, unitsToAtomic } from '../../../lib/assets'
-import { FeesContext } from '../../../providers/fees'
+import { atomicToUnits, isValidAssetId, prettyAssetAmount, unitsToAtomic } from '../../../lib/assets'
 import SheetModal from '../../../components/SheetModal'
 import { AnimatePresence, motion } from 'framer-motion'
 import { overlaySlideUp, overlayStyle } from '../../../lib/animations'
@@ -70,6 +72,7 @@ import {
   normalizeAssetMinorUnits,
   rawAssetPresentation,
   verifiedDesignatedCurrency,
+  walletAssetLabel,
 } from '../../../lib/accountAssets'
 import {
   DropdownMenu,
@@ -94,18 +97,34 @@ const brantaClient = new BrantaService({
 
 const lnurlClient = createLnurlClient()
 
-// resolve() spreads the raw server body, so transferAmounts survives at runtime though PayRequest omits it
-type LnUrlConditions = PayRequest & {
-  sendRanges: { min: number; max: number }[]
+// resolve() preserves the legacy transferAmounts field although PayRequest omits it.
+type LnurlPayRequest = PayRequest & {
   transferAmounts?: { method: string; available: boolean }[]
+}
+
+type LnUrlConditions = {
+  target: string
+  payRequest: LnurlPayRequest
+  sendRanges: { min: number; max: number }[]
+  minSendable: number
+  maxSendable: number
+}
+
+type LinkedAssetPayment = {
+  recipient: string
+  address: string
+  asset: AssetOption
+  fixedAmount?: { atomic: bigint; units: string }
 }
 
 /** Spread before the one target a recipient sets, so the previous one cannot be paid instead. */
 const noTarget = {
   address: undefined,
   arkAddress: undefined,
+  assetPayment: undefined,
   invoice: undefined,
   lnUrl: undefined,
+  lnurlInvoice: undefined,
   pendingLnSend: undefined,
 }
 
@@ -190,13 +209,13 @@ function AssetIcon({ asset }: { asset: AssetOption | null }) {
 export default function SendForm() {
   const { aspInfo } = useContext(AspContext)
   const { config, effectiveTheme, useFiat } = useContext(ConfigContext)
-  const { calcOnchainOutputFee } = useContext(FeesContext)
   const { toFiat, fromFiat, fiatDecimals } = useContext(FiatContext)
   const { appIntent, sendInfo, resetFlow, setNoteInfo, setSendInfo } = useContext(FlowContext)
   const { amountIsAboveMaxLimit, amountIsBelowMinLimit, utxoTxsAllowed, vtxoTxsAllowed } = useContext(LimitsContext)
   const { navigate } = useContext(NavigationContext)
   const { outcomeOf, sendRouter } = useContext(SwapsContext)
   const { t } = useTranslation()
+  const recipientAssetLabelId = useId()
   const {
     assetBalances,
     availableAssetBalances,
@@ -216,7 +235,8 @@ export default function SendForm() {
   const [error, setError] = useState('')
   const [focus, setFocus] = useState('recipient')
   const [label, setLabel] = useState('')
-  const [lnUrlResponse, setLnUrlResponse] = useState<LnUrlConditions>()
+  const [resolvedLnurl, setResolvedLnurl] = useState<LnUrlConditions>()
+  const lnUrlResponse = resolvedLnurl?.target === sendInfo.lnUrl ? resolvedLnurl : undefined
   const [keys, setKeys] = useState(false)
   const [proceed, setProceed] = useState(false)
   const [processing, setProcessing] = useState(false)
@@ -231,6 +251,10 @@ export default function SendForm() {
   const [brantaVerifyUrl, setBrantaVerifyUrl] = useState<string | undefined>(undefined)
   const [brantaLoading, setBrantaLoading] = useState(false)
   const [selectedAsset, setSelectedAsset] = useState<AssetOption | null>(null)
+  const [linkedAssetPayment, setLinkedAssetPayment] = useState<LinkedAssetPayment>()
+  const [linkedFunding, setLinkedFunding] = useState<'btc' | 'requested' | undefined>(
+    sendInfo.assetPayment ? 'btc' : undefined,
+  )
   const [showAssetSelector, setShowAssetSelector] = useState(false)
   const [showReserveModal, setShowReserveModal] = useState(false)
   const [contactSheetFor, setContactSheetFor] = useState<string>()
@@ -244,10 +268,12 @@ export default function SendForm() {
 
   const leaveAppSend = () => {
     if (appSendNeedsDriver(appIntent, sendInfo, outcomeOf)) {
+      const tracked = trackedAppSwapPayment(appIntent, sendInfo)
+      if (tracked && paymentEndedWithoutDelivery(outcomeOf(tracked.swapId))) resetFlow()
       navigate(Pages.Wallet)
       return
     }
-    const committed = appIntent?.status === 'send' && appIntent.committedOnchain
+    const committed = appIntent?.status === 'send' && (appIntent.committedSwap || appIntent.committedOnchain)
     const handoff = appIntentHandoff(appIntent, committed ? 'sent' : 'denied')
     resetFlow()
     if (handoff) redirectToCallback(handoff.callback, handoff.params)
@@ -272,6 +298,23 @@ export default function SendForm() {
   )
   const activeAsset = accountAsset ?? selectedAsset
   const isAssetSend = activeAsset !== null
+  const linkedAsset = linkedAssetPayment?.recipient === recipient ? linkedAssetPayment : undefined
+  const assetAmt = linkedAsset?.fixedAmount?.atomic ?? sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? 0n
+  const requestedBalance =
+    availableAssetBalances.find(({ assetId }) => assetId === linkedAsset?.asset.assetId)?.amount ?? 0n
+  const canPayRequestedAsset = Boolean(linkedAsset && requestedBalance > 0n && requestedBalance >= assetAmt)
+  const payRequestedAsset = linkedFunding === 'requested' || (linkedFunding === undefined && canPayRequestedAsset)
+  const requestedAsset = linkedAsset ? { ...linkedAsset.asset, balance: requestedBalance } : null
+  const fundingAsset = linkedAsset ? (payRequestedAsset ? requestedAsset : null) : activeAsset
+  const swapAssetRequest =
+    linkedAsset && !payRequestedAsset
+      ? {
+          address: linkedAsset.address,
+          assetId: linkedAsset.asset.assetId,
+          amount: assetAmt,
+          fromAssetId: 'btc' as const,
+        }
+      : undefined
 
   const RECIPIENT_DEBOUNCE_MS = 800
   const hasAssets = assetBalances.length > 0
@@ -279,6 +322,7 @@ export default function SendForm() {
   // The SDK's `available` already holds back the dust carrier asset change
   // needs, so a BTC spend may take all of it.
   const liquidBalance = availableBalance
+  const linkedFundingAvailable = payRequestedAsset ? canPayRequestedAsset : liquidBalance > 0
 
   // Also used directly as a promise rejection handler, so it can receive an
   // Error; the banner renders its text as a child and cannot take the object.
@@ -302,8 +346,8 @@ export default function SendForm() {
   useEffect(() => {
     if (currencyConversionUseful || entryMode !== 'fiat') return
     setEntryMode('unit')
-    setAmountTextValue(sendInfo.satoshis ? getTextValue(sendInfo.satoshis, false) : '')
-  }, [config.unit, currencyConversionUseful, entryMode, sendInfo.satoshis])
+    if (!linkedAsset) setAmountTextValue(sendInfo.satoshis ? getTextValue(sendInfo.satoshis, false) : '')
+  }, [config.unit, currencyConversionUseful, entryMode, linkedAsset, sendInfo.satoshis])
 
   const getTextValue = (sats: number, fiat = fiatEntry) => textFromSats(sats, fiat, config.unit, toFiat, fiatDecimals)
 
@@ -352,7 +396,6 @@ export default function SendForm() {
 
   // build asset options from balances + metadata
   useEffect(() => {
-    if (!config.apps.assets.enabled) return
     const loadOptions = async () => {
       if (!svcWallet) return
       const options: AssetOption[] = []
@@ -382,7 +425,7 @@ export default function SendForm() {
       setAssetOptions(options)
     }
     loadOptions()
-  }, [svcWallet, assetBalances, availableAssetBalances, config.apps.assets.enabled])
+  }, [svcWallet, assetBalances, availableAssetBalances])
 
   // initialize selected asset from pre-set sendInfo.assets (e.g. from Asset Detail page)
   useEffect(() => {
@@ -390,11 +433,11 @@ export default function SendForm() {
       setSelectedAsset(null)
       return
     }
-    if (!sendInfo.assets?.length || assetOptions.length === 0) return
+    if (linkedAsset || sendInfo.assetPayment || !sendInfo.assets?.length || assetOptions.length === 0) return
     const presetAssetId = sendInfo.assets[0].assetId
     const found = assetOptions.find((a) => a.assetId === presetAssetId)
     if (found && !selectedAsset) setSelectedAsset(found)
-  }, [assetOptions, sendInfo.account, sendInfo.assets])
+  }, [assetOptions, linkedAsset, sendInfo.account, sendInfo.assetPayment, sendInfo.assets])
 
   // parse recipient data
   // repeat when asset changes to re-validate addresses (e.g. if user
@@ -402,7 +445,8 @@ export default function SendForm() {
   // every branch stores `recipient`: sendDestination trusts a payment URI there,
   // so one left over from an earlier parse would name the wrong payee
   useEffect(() => {
-    if (!readyToParse) return
+    if (!readyToParse || !svcWallet || linkedAsset) return
+    let active = true
     setRecipientError('')
     const parseRecipient = async () => {
       if (!recipient) return
@@ -412,59 +456,84 @@ export default function SendForm() {
         return setRecipient(url.searchParams.get('lightning')!)
       }
       if (isBip21(lowerCaseData)) {
-        const { address, arkAddress, invoice, lnUrl, satoshis, assetId, assetAmount } = decodeBip21(recipient.trim())
+        const {
+          address,
+          arkAddress,
+          invoice,
+          lnUrl,
+          satoshis,
+          assetId: rawAssetId,
+          assetAmount,
+        } = decodeBip21(recipient.trim())
         if (!address && !arkAddress && !invoice && !lnUrl) return setRecipientError(t('send.unableToParseBip21'))
-        if (assetId) {
-          let found = assetOptions.find((a) => a.assetId === assetId)
-          if (!found) {
-            let meta: AssetDetails | undefined = assetMetadataCache.get(assetId)
-            if (!meta && svcWallet) {
-              try {
-                const fetched = await svcWallet.assetManager.getAssetDetails(assetId)
-                if (fetched) meta = setCacheEntry(assetId, fetched)
-              } catch (err) {
-                consoleError(err, `error fetching metadata for ${assetId}`)
-              }
-            }
-            const presentation = rawAssetPresentation(meta?.metadata, `${assetId.slice(0, 8)}...`)
-            found = {
-              assetId,
-              balance: BigInt(0),
-              name: presentation.name,
-              ticker: presentation.ticker,
-              icon: presentation.icon,
-              decimals: meta?.metadata?.decimals ?? 0,
-              trusted: isVerifiedAsset(assetId),
+        if (rawAssetId) {
+          if (!arkAddress || !isValidAssetId(rawAssetId)) return setRecipientError(t('send.unableToParseBip21'))
+          const assetId = rawAssetId.toLowerCase()
+          let meta: AssetDetails | undefined = assetMetadataCache.get(assetId)
+          if (!meta) {
+            try {
+              const fetched = await svcWallet.assetManager.getAssetDetails(assetId)
+              if (!active) return
+              if (fetched) meta = setCacheEntry(assetId, fetched)
+            } catch (err) {
+              if (!active) return
+              consoleError(err, `error fetching metadata for ${assetId}`)
             }
           }
-          setSelectedAsset(found)
-          const rawAmount = assetAmount ? unitsToAtomic(assetAmount, found.decimals) : BigInt(0)
-          if (assetAmount) setAmountTextValue(assetAmount)
+          if (!meta) return setRecipientError(t('send.assetLinkMetadataUnavailable'))
+          const decimals = meta.metadata?.decimals ?? 0
+          const units = assetAmount && /[1-9]/.test(assetAmount) ? assetAmount : undefined
+          const fraction = units?.split('.')[1]?.replace(/0+$/, '') ?? ''
+          if (!Number.isInteger(decimals) || decimals < 0 || decimals > 18 || fraction.length > decimals) {
+            return setRecipientError(t('send.invalidAmount'))
+          }
+          const found = {
+            assetId,
+            balance: availableAssetBalances.find((entry) => entry.assetId === assetId)?.amount ?? 0n,
+            ...rawAssetPresentation(meta?.metadata, `${assetId.slice(0, 8)}...`),
+            decimals,
+            trusted: isVerifiedAsset(assetId),
+          }
+          const previous = sendInfoRef.current
+          const savedAsset = previous.assets?.[0]
+          const savedAmount =
+            previous.recipient === recipient && previous.arkAddress === arkAddress && savedAsset?.assetId === assetId
+              ? savedAsset.amount
+              : 0n
+          const fixedAmount = units ? { atomic: unitsToAtomic(units, decimals), units } : undefined
+          const rawAmount = fixedAmount?.atomic ?? savedAmount
+          setLinkedAssetPayment({ recipient, address: arkAddress, asset: found, fixedAmount })
+          setAmountTextValue(units ?? (rawAmount > 0n ? atomicToUnits(rawAmount, decimals) : ''))
+          setAmountIsReadOnly(Boolean(units))
           return setSendInfo((prev) => ({
             ...prev,
-            address,
+            ...noTarget,
+            account: undefined,
             arkAddress,
-            invoice,
-            lnUrl: undefined,
             recipient,
             satoshis: 0,
             assets: [{ assetId, amount: rawAmount }],
-            pendingLnSend: invoice === prev.invoice ? prev.pendingLnSend : undefined,
           }))
         }
-        setSendInfo((prev) => ({
-          ...prev,
-          account: prev.account,
-          address,
-          arkAddress,
-          assets: prev.assets,
-          invoice,
-          lnUrl,
-          recipient,
-          satoshis: satoshis ?? prev.satoshis,
-          pendingLnSend: invoice && invoice === prev.invoice ? prev.pendingLnSend : undefined,
-        }))
-        if (satoshis) setAmountTextValue(getTextValue(satoshis))
+        setSendInfo((prev) => {
+          const lnurlInvoice =
+            lnUrl && prev.lnUrl === lnUrl && prev.recipient === recipient ? prev.lnurlInvoice : undefined
+          return {
+            ...prev,
+            address,
+            arkAddress,
+            invoice: lnurlInvoice?.pr ?? invoice,
+            lnUrl,
+            lnurlInvoice,
+            recipient,
+            satoshis: satoshis ?? prev.satoshis,
+            pendingLnSend: invoice && invoice === prev.invoice ? prev.pendingLnSend : undefined,
+          }
+        })
+        if (satoshis) {
+          setAmountTextValue(getTextValue(satoshis))
+          if (address && !arkAddress && !invoice && !lnUrl) setAmountIsReadOnly(true)
+        }
         return
       }
       if (isValidArkAddress(lowerCaseData)) {
@@ -498,11 +567,11 @@ export default function SendForm() {
         setAmountIsReadOnly(true)
         return
       }
-      if (isBTCAddress(recipient)) {
+      if (isBTCAddress(lowerCaseData)) {
         if (isAssetSend) {
           return setRecipientError(t('send.assetsOnlyToArkade'))
         }
-        return setSendInfo((prev) => ({ ...prev, ...noTarget, recipient, address: recipient }))
+        return setSendInfo((prev) => ({ ...prev, ...noTarget, recipient, address: lowerCaseData }))
       }
       if (isArkNote(lowerCaseData)) {
         try {
@@ -514,13 +583,18 @@ export default function SendForm() {
         }
       }
       if (isValidLnUrl(lowerCaseData)) {
-        return setSendInfo((prev) => ({ ...prev, ...noTarget, recipient, lnUrl: lowerCaseData }))
+        return setSendInfo((prev) =>
+          prev.lnUrl === lowerCaseData && prev.lnurlInvoice ? prev : { ...prev, ...noTarget, lnUrl: lowerCaseData },
+        )
       }
       setRecipientError(t('send.invalidRecipient'))
       setReadyToParse(false)
     }
-    parseRecipient()
-  }, [recipient, isAssetSend, readyToParse])
+    void parseRecipient()
+    return () => {
+      active = false
+    }
+  }, [recipient, isAssetSend, linkedAsset, readyToParse, svcWallet])
 
   // verify the current recipient with branta (the SDK only looks up destinations it can encrypt)
   useEffect(() => {
@@ -597,20 +671,20 @@ export default function SendForm() {
   // check lnurl conditions
   useEffect(() => {
     // Keyed on the target, not the keystroke: re-entering the same LNURL keeps its conditions.
-    if (!sendInfo.lnUrl || sendInfo.arkAddress) return setLnUrlResponse(undefined)
+    const target = sendInfo.lnUrl
+    if (!target || sendInfo.arkAddress) return setResolvedLnurl(undefined)
     if (sendInfo.invoice && lnUrlResponse) return
-    setLnUrlResponse(undefined)
+    setResolvedLnurl(undefined)
     // A BIP21 carrying an address or invoice beside the LNURL still pays that when the LNURL fails.
-    const hasFallback = Boolean(sendInfo.address || sendInfo.invoice)
+    const hasFallback = Boolean(sendInfo.address || (sendInfo.invoice && !sendInfo.lnurlInvoice))
     const lnurlFailed = (message: string) => (hasFallback ? undefined : setRecipientError(message))
     let live = true
     lnurlClient
-      .resolve(sendInfo.lnUrl)
+      .resolve(target)
       .then((conditions) => {
         if (!live) return
-        const legacyArk = (conditions as LnUrlConditions).transferAmounts?.some(
-          (method) => method.method === 'Ark' && method.available,
-        )
+        const payRequest = conditions as LnurlPayRequest
+        const legacyArk = payRequest.transferAmounts?.some((method) => method.method === 'Ark' && method.available)
         // The top-level pair belongs to default Lightning; Arkade can offer a wider range.
         const {
           ranges: sendRanges,
@@ -625,7 +699,7 @@ export default function SendForm() {
           setValueSats(min)
           setAmountIsReadOnly(true)
         }
-        return setLnUrlResponse({ ...conditions, sendRanges, minSendable: min, maxSendable: max })
+        return setResolvedLnurl({ target, payRequest, sendRanges, minSendable: min, maxSendable: max })
       })
       .catch((e) => {
         if (!live) return
@@ -671,7 +745,7 @@ export default function SendForm() {
       }
     }
     // avoid mixed amounts between invoice amount and bip21 amount field
-    if (!arkAddress && invoice) {
+    if (!arkAddress && invoice && !sendInfo.lnurlInvoice) {
       let sats: number | undefined = satoshis
       let invo: string | undefined = invoice
       try {
@@ -701,9 +775,13 @@ export default function SendForm() {
 
   // manage button label and errors
   useEffect(() => {
+    if (linkedAsset) {
+      setLabel(t(linkedFundingAvailable ? 'send.continue' : 'send.insufficientAssetBalance'))
+      return
+    }
     if (isAssetSend && activeAsset) {
       const assetAmount = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
-      setLabel(assetAmount > activeAsset.balance ? t('send.insufficientAssetBalance') : t('send.continue'))
+      setLabel(t(assetAmount > activeAsset.balance ? 'send.insufficientAssetBalance' : 'send.continue'))
       return
     }
     const satoshis = sendInfo.satoshis ?? 0
@@ -730,6 +808,8 @@ export default function SendForm() {
     sendInfo.account,
     liquidBalance,
     activeAsset,
+    linkedAsset,
+    linkedFundingAvailable,
     lnUrlResponse,
     lnurlAmountUnavailable,
   ])
@@ -753,36 +833,7 @@ export default function SendForm() {
   useEffect(() => {
     if (!proceed) return
     if (!sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice && !sendInfo.pendingLnSend) return
-    // Everything except an un-negotiated invoice goes straight through: an ark
-    // address, an on-chain address, and an invoice whose quote is already in
-    // hand all have all they need to be signed on the next screen.
-    if (!sendInfo.invoice || sendInfo.pendingLnSend || sendInfo.arkAddress) return navigate(Pages.SendDetails)
-    // RFQ Lightning send: negotiate a quote over Nostr, derive the covenant
-    // locally, verify, and carry the address+amount to the pay screen. The
-    // negotiation is the only interactive step — funding IS acceptance.
-    const negotiate = async () => {
-      if (!svcWallet) return handleError('Wallet not ready')
-      // For the refusal message only — the rail ranks off the client's own
-      // snapshot; a second read let a cold cache throw on the error path.
-      const markets = await discoverMarkets(aspInfo.network as NetworkName)
-      const router = await sendRouter()
-      const options = await router.options(lnSendRequest(sendInfo.invoice!, sendInfo.satoshis))
-      const route = options.find((option) => option.railId === LIGHTNING_RAIL)
-      if (!route)
-        return handleError(
-          lnSendRefusal(
-            markets.filter((market) =>
-              isSolverEnabled(market, marketCorridor(market, 'base') === 'arkade' ? 'base' : 'quote', aspInfo.network),
-            ),
-            sendInfo.satoshis,
-          ),
-        )
-      // Unguarded: a quote that throws names an unpayable invoice or a
-      // covenant that did not match, and neither reads as "no route".
-      const pendingLnSend = await route.quote()
-      setSendInfo((prev) => ({ ...prev, pendingLnSend }))
-    }
-    negotiate().catch(handleError)
+    navigate(Pages.SendDetails)
   }, [proceed, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.pendingLnSend])
 
   // deal with fees deduction from amount
@@ -791,13 +842,21 @@ export default function SendForm() {
     const onlyBtcAddress = sendInfo.address && !sendInfo.arkAddress && !sendInfo.invoice
     if (sendInfo.arkAddress) {
       setDeductFromAmount(false)
-    } else if (onlyBtcAddress) {
-      const fees = calcOnchainOutputFee()
-      setDeductFromAmount(satoshis + fees > liquidBalance)
+    } else if (onlyBtcAddress && exactBip21Amount(sendInfo.address, sendInfo.recipient) === undefined) {
+      // Only send-max pays its fees out of the amount; any other amount arrives in full.
+      setDeductFromAmount(satoshis > 0 && satoshis === liquidBalance)
     } else {
       setDeductFromAmount(false)
     }
-  }, [liquidBalance, sendInfo.satoshis, sendInfo.address, sendInfo.arkAddress, sendInfo.invoice, sendInfo.lnUrl])
+  }, [
+    liquidBalance,
+    sendInfo.satoshis,
+    sendInfo.address,
+    sendInfo.arkAddress,
+    sendInfo.invoice,
+    sendInfo.lnUrl,
+    sendInfo.recipient,
+  ])
 
   // The same destination rememberSentDestination will save, so the tick can be checked against it.
   const destination = sendDestination(sendInfo)
@@ -818,10 +877,14 @@ export default function SendForm() {
   }
 
   const handleAmountChange = (value: string) => {
+    if (linkedAsset?.fixedAmount) return
     setValueSats(undefined)
     setSendAll(false)
     setAmountTextValue(value)
-    if (isAssetSend) {
+    if (linkedAsset) {
+      const amount = /^\d*(\.\d*)?$/.test(value) ? unitsToAtomic(value, linkedAsset.asset.decimals) : 0n
+      setSendInfo({ ...sendInfo, assets: [{ assetId: linkedAsset.asset.assetId, amount }], satoshis: 0 })
+    } else if (isAssetSend) {
       if (sendInfo.account) {
         const accountAmount = unitsToAtomic(value, sendInfo.account.decimals)
         setSendInfo({
@@ -871,6 +934,10 @@ export default function SendForm() {
 
   const handleSelectAsset = (asset: AssetOption | null) => {
     setShowAssetSelector(false)
+    if (linkedAsset) {
+      setLinkedFunding(asset ? 'requested' : 'btc')
+      return
+    }
     setSelectedAsset(asset)
     if (asset) {
       if (isBTCAddress(recipient)) {
@@ -889,25 +956,35 @@ export default function SendForm() {
     setAmountTextValue('')
   }
 
-  const handleRecipientChange = (recipient: string) => {
+  const updateRecipient = (next: string, parseNow: boolean, scanned = false) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
-    setRecipient(recipient)
-    // A new destination pins no amount until it is parsed.
-    setValueSats(undefined)
-    setAmountIsReadOnly(false)
-    setReadyToParse(false)
-    setRawScanData('')
-    timeoutRef.current = setTimeout(() => setReadyToParse(true), RECIPIENT_DEBOUNCE_MS)
+    if (next !== recipient) {
+      const wasLinked = Boolean(linkedAsset || sendInfo.assetPayment)
+      setRecipient(next)
+      setLinkedAssetPayment(undefined)
+      setLinkedFunding(undefined)
+      setShowAssetSelector(false)
+      setValueSats(undefined)
+      setAmountIsReadOnly(false)
+      setSendAll(false)
+      if (wasLinked) setSelectedAsset(null)
+      if (wasLinked) setAmountTextValue('')
+      setSendInfo((prev) => ({
+        ...prev,
+        ...noTarget,
+        recipient: next,
+        reviewId: undefined,
+        openOffer: undefined,
+        ...(wasLinked ? { assets: undefined, satoshis: 0 } : {}),
+      }))
+    }
+    setRawScanData(scanned ? next : '')
+    setReadyToParse(parseNow)
+    if (!parseNow) timeoutRef.current = setTimeout(() => setReadyToParse(true), RECIPIENT_DEBOUNCE_MS)
   }
 
-  const handleSelectContact = (address: string) => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current)
-    setRecipient(address)
-    setValueSats(undefined)
-    setAmountIsReadOnly(false)
-    setRawScanData('')
-    setReadyToParse(true)
-  }
+  const handleRecipientChange = (recipient: string) => updateRecipient(recipient, false)
+  const handleSelectContact = (address: string) => updateRecipient(address, true)
 
   // Until the field's text is parsed, sendInfo still describes the previous recipient.
   const canSaveRecipient = Boolean(
@@ -931,7 +1008,7 @@ export default function SendForm() {
     setContactSheetFor(undefined)
   }
   const lnUrlArkMethodAvailable = Boolean(
-    lnUrlResponse?.transferAmounts?.some((method) => method.method === 'Ark' && method.available),
+    lnUrlResponse?.payRequest.transferAmounts?.some((method) => method.method === 'Ark' && method.available),
   )
 
   const handleContinue = async () => {
@@ -941,7 +1018,20 @@ export default function SendForm() {
     const target = sendInfo.lnUrl
     const stale = () => sendInfoRef.current.lnUrl !== target || (sendInfoRef.current.satoshis ?? 0) !== satoshis
     try {
-      if (sendInfo.lnUrl && lnUrlResponse) {
+      if (linkedAsset) {
+        setSendInfo({
+          ...sendInfo,
+          ...noTarget,
+          account: undefined,
+          arkAddress: linkedAsset.address,
+          recipient: linkedAsset.recipient,
+          assets: [{ assetId: linkedAsset.asset.assetId, amount: assetAmt }],
+          satoshis: 0,
+          assetPayment: swapAssetRequest,
+          reviewId: sendInfo.reviewId ?? newRequestId(),
+          openOffer: undefined,
+        })
+      } else if (sendInfo.lnUrl && lnUrlResponse) {
         // ?method=ark wins over the router's rails; it pays a plain Arkade send, so no receiver confirmation.
         if (lnUrlArkMethodAvailable) {
           if (!receivingAddresses?.offchainAddr) return setProcessing(false)
@@ -960,8 +1050,30 @@ export default function SendForm() {
           setSendInfo((prev) => ({
             ...prev,
             arkAddress,
+            assetPayment: undefined,
             invoice: undefined,
+            lnurlInvoice: undefined,
             pendingLnSend: undefined,
+          }))
+        } else if (lnUrlResponse.payRequest.paymentOptions === undefined && !sendAll) {
+          if (satoshis < 1) return handleError(t('send.amountTooLow'))
+          const cached = sendInfo.lnurlInvoice
+          const cachedInvoice = cached && decodeInvoice(cached.pr)
+          const result =
+            cached && cachedInvoice && cachedInvoice.milliSats === satoshis * 1_000 && !isInvoiceExpired(cachedInvoice)
+              ? cached
+              : await lnurlClient.requestInvoice(lnUrlResponse.payRequest, { amountSat: satoshis })
+          if (stale()) return setProcessing(false)
+          if (!('pr' in result)) return handleError(t('send.quoteForDifferentPayment'))
+          setSendInfo((prev) => ({
+            ...prev,
+            arkAddress: undefined,
+            assetPayment: undefined,
+            invoice: result.pr,
+            lnurlInvoice: { pr: result.pr, verify: result.verify, verifyBatch: result.verifyBatch },
+            pendingLnSend: undefined,
+            reviewId: prev.reviewId ?? newRequestId(),
+            openOffer: undefined,
           }))
         } else {
           // The client refuses an invoice for any other amount before a solver is asked.
@@ -980,10 +1092,24 @@ export default function SendForm() {
             setValueSats(sent)
             setAmountTextValue(getTextValue(sent))
           }
-          setSendInfo((prev) => ({ ...prev, arkAddress: undefined, invoice: undefined, satoshis: sent, pendingLnSend }))
+          setSendInfo((prev) => ({
+            ...prev,
+            arkAddress: undefined,
+            assetPayment: undefined,
+            invoice: undefined,
+            lnurlInvoice: undefined,
+            satoshis: sent,
+            pendingLnSend,
+          }))
         }
       } else {
-        setSendInfo({ ...sendInfo, satoshis })
+        setSendInfo({
+          ...sendInfo,
+          satoshis,
+          assetPayment: undefined,
+          reviewId: sendInfo.reviewId ?? newRequestId(),
+          openOffer: undefined,
+        })
       }
       setProceed(true)
     } catch (error) {
@@ -1068,65 +1194,88 @@ export default function SendForm() {
 
   const { address, arkAddress, lnUrl, invoice, satoshis } = sendInfo
 
-  const assetAmt = sendInfo.account?.amount ?? sendInfo.assets?.[0]?.amount ?? BigInt(0)
-
   // a partial asset send leaves asset change, and that change needs a second
   // dust carrier; without one the SDK fails with a bare "Insufficient funds".
   // Derived, not stored: the server-status effect owns `error` and would
   // clear this on recovery.
   const carrierError =
     !processing &&
-    activeAsset &&
+    fundingAsset &&
     assetAmt > BigInt(0) &&
-    assetAmt < activeAsset.balance &&
+    assetAmt < fundingAsset.balance &&
     availableBalance < 2 * Number(aspInfo.dust)
       ? t('send.partialSendError')
       : ''
 
-  const buttonDisabled = isAssetSend
-    ? !(arkAddress && assetAmt > 0) ||
-      (activeAsset ? assetAmt > activeAsset.balance : true) ||
+  const buttonDisabled = linkedAsset
+    ? arkAddress !== linkedAsset.address ||
+      assetAmt <= 0n ||
+      !linkedFundingAvailable ||
       Boolean(recipientError) ||
       Boolean(carrierError) ||
       aspInfo.unreachable ||
       Boolean(error) ||
       processing
-    : !((address || arkAddress || lnUrl || invoice) && satoshis && satoshis > 0) ||
-      // Unresolved conditions would strand Continue on a locked recipient field.
-      (lnUrl && !arkAddress && !address && !invoice && !lnUrlResponse) ||
-      (lnUrlArkMethodAvailable && !receivingAddresses?.offchainAddr) ||
-      Boolean(recipientError) ||
-      lnurlAmountUnavailable ||
-      amountIsAboveMaxLimit(satoshis) ||
-      amountIsBelowMinLimit(satoshis) ||
-      satoshis > liquidBalance ||
-      aspInfo.unreachable ||
-      Boolean(error) ||
-      satoshis < 1 ||
-      processing
+    : isAssetSend
+      ? !(arkAddress && assetAmt > 0) ||
+        (activeAsset ? assetAmt > activeAsset.balance : true) ||
+        Boolean(recipientError) ||
+        Boolean(carrierError) ||
+        aspInfo.unreachable ||
+        Boolean(error) ||
+        processing
+      : !((address || arkAddress || lnUrl || invoice) && satoshis && satoshis > 0) ||
+        // Unresolved conditions would strand Continue on a locked recipient field.
+        (lnUrl && !arkAddress && !address && !invoice && !lnUrlResponse) ||
+        (lnUrlArkMethodAvailable && !receivingAddresses?.offchainAddr) ||
+        Boolean(recipientError) ||
+        lnurlAmountUnavailable ||
+        amountIsAboveMaxLimit(satoshis) ||
+        amountIsBelowMinLimit(satoshis) ||
+        satoshis > liquidBalance ||
+        aspInfo.unreachable ||
+        Boolean(error) ||
+        satoshis < 1 ||
+        processing
 
   // unverified assets are never offered in the picker; they can still arrive
   // preselected via sendInfo.assets from the Assets app detail screen
   const verifiedAssetOptions = assetOptions.filter((asset) => isVerifiedAsset(asset.assetId))
+  const fundingOptions = linkedAsset
+    ? requestedAsset && canPayRequestedAsset
+      ? [requestedAsset]
+      : []
+    : verifiedAssetOptions
+  const canChooseBitcoin = Boolean(fundingAsset && (!linkedAsset || liquidBalance > 0))
+  const canChangeFundingAsset =
+    canChooseBitcoin || fundingOptions.some((asset) => asset.assetId !== fundingAsset?.assetId)
 
   // currency designation only (ticker fallback) — the ticker already rides
   // with the amounts on the right, and long asset names collide with the
   // balance column on narrow screens
   const assetLabelFor = (asset: AssetOption) =>
     verifiedDesignatedCurrency(aspInfo.network, asset.assetId, isVerifiedAsset) ?? asset.ticker
-  const selectedAssetLabel = activeAsset ? assetLabelFor(activeAsset) : t('send.bitcoin')
-  const selectedAssetBalance = activeAsset
+  const selectedAssetLabel = fundingAsset ? assetLabelFor(fundingAsset) : t('send.bitcoin')
+  const selectedAssetBalance = fundingAsset
     ? t('send.available', {
-        amount: `${prettyAssetAmount(activeAsset.balance, activeAsset.decimals)} ${activeAsset.ticker}`,
+        amount: `${prettyAssetAmount(fundingAsset.balance, fundingAsset.decimals)} ${fundingAsset.ticker}`,
       })
     : t('send.available', { amount: prettyUnitBalance(liquidBalance) })
+  const recipientAssetLabel = linkedAsset
+    ? walletAssetLabel({
+        name: linkedAsset.asset.name.trim() || linkedAsset.asset.ticker || t('send.unknownAsset'),
+        ticker: linkedAsset.asset.ticker,
+      })
+    : ''
 
   const overlayOpen = scan || (keys && !amountIsReadOnly)
   const sendOverlayStyle = { ...overlayStyle, position: 'fixed' as const, zIndex: 20 }
 
   const Keys = () => (
     <Keyboard
-      asset={activeAsset ?? undefined}
+      asset={linkedAsset?.asset ?? activeAsset ?? undefined}
+      initialValue={linkedAsset ? assetAmt : undefined}
+      hideBalance={Boolean(linkedAsset)}
       back={() => setKeys(false)}
       defaultMode={fiatEntry ? 'fiat' : config.unit === Unit.BTC ? 'btc' : 'sats'}
       onSave={handleKeyboardAmountSave}
@@ -1163,9 +1312,7 @@ export default function SendForm() {
         label={t('send.recipientAddress')}
         onData={(data) => {
           setScan(false)
-          setRecipient(data)
-          setRawScanData(data)
-          setReadyToParse(true)
+          updateRecipient(data, true, true)
         }}
         onError={smartSetError}
       />
@@ -1269,10 +1416,10 @@ export default function SendForm() {
                     )
                   })()
                 : null}
-              {verifiedAssetOptions.length > 0 || selectedAsset ? (
+              {linkedAsset || verifiedAssetOptions.length > 0 || selectedAsset ? (
                 <FlexCol gap='0.5rem' className='send-asset-field'>
                   <Text smaller color='neutral-500'>
-                    {t('send.asset')}
+                    {t(linkedAsset ? 'send.payWith' : 'send.asset')}
                   </Text>
                   <DropdownMenu
                     open={showAssetSelector}
@@ -1285,25 +1432,28 @@ export default function SendForm() {
                     <DropdownMenuTrigger
                       aria-expanded={showAssetSelector}
                       className='send-asset-trigger'
+                      disabled={Boolean(linkedAsset && !canChangeFundingAsset)}
                       data-testid='asset-selector'
                     >
                       <span className='send-asset-trigger__main'>
-                        <AssetIcon asset={activeAsset} />
+                        <AssetIcon asset={fundingAsset} />
                         <span className='send-asset-trigger__copy'>
                           <span className='send-asset-trigger__name'>
                             {selectedAssetLabel}
-                            {activeAsset && !isVerifiedAsset(activeAsset.assetId) ? <UnverifiedBadge /> : null}
+                            {fundingAsset && !isVerifiedAsset(fundingAsset.assetId) ? <UnverifiedBadge /> : null}
                           </span>
                           <span className='send-asset-trigger__balance'>{selectedAssetBalance}</span>
                         </span>
                       </span>
-                      <span className='send-asset-trigger__chevron' aria-hidden='true'>
-                        {showAssetSelector ? '▲' : '▼'}
-                      </span>
+                      {!linkedAsset || canChangeFundingAsset ? (
+                        <span className='send-asset-trigger__chevron' aria-hidden='true'>
+                          {showAssetSelector ? '▲' : '▼'}
+                        </span>
+                      ) : null}
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className='send-asset-menu' align='start' side='bottom' sideOffset={8}>
                       <FlexCol gap='0.25rem'>
-                        {activeAsset ? (
+                        {canChooseBitcoin ? (
                           <DropdownMenuItem className='send-asset-option' onClick={() => handleSelectAsset(null)}>
                             <span className='send-asset-option__main'>
                               <AssetIcon asset={null} />
@@ -1314,10 +1464,10 @@ export default function SendForm() {
                             <span className='send-asset-option__amount'>{prettyUnitBalance(liquidBalance)}</span>
                           </DropdownMenuItem>
                         ) : null}
-                        {verifiedAssetOptions
+                        {fundingOptions
                           .filter(
                             (asset) =>
-                              asset.assetId !== activeAsset?.assetId &&
+                              asset.assetId !== fundingAsset?.assetId &&
                               asset.assetId !== sendInfo.account?.source.assetId,
                           )
                           .map((asset) => (
@@ -1330,7 +1480,10 @@ export default function SendForm() {
                               <span className='send-asset-option__main'>
                                 <AssetIcon asset={asset} />
                                 <span>
-                                  <span className='send-asset-option__name'>{assetLabelFor(asset)}</span>
+                                  <span className='send-asset-option__name'>
+                                    {assetLabelFor(asset)}
+                                    {linkedAsset && !isVerifiedAsset(asset.assetId) ? <UnverifiedBadge /> : null}
+                                  </span>
                                 </span>
                               </span>
                               <span className='send-asset-option__amount'>
@@ -1344,15 +1497,32 @@ export default function SendForm() {
                 </FlexCol>
               ) : null}
               <FlexCol gap='0.5rem'>
+                {linkedAsset ? (
+                  <div className='flex w-full min-w-0 items-center gap-2'>
+                    <AssetIcon asset={linkedAsset.asset} />
+                    <div className='min-w-0 flex-1' id={recipientAssetLabelId}>
+                      <div className='text-xs text-muted-foreground'>{t('send.recipientGets')}</div>
+                      <div
+                        className='truncate text-sm font-semibold'
+                        title={recipientAssetLabel}
+                        data-testid='send-recipient-asset'
+                      >
+                        {recipientAssetLabel}
+                      </div>
+                    </div>
+                    {isVerifiedAsset(linkedAsset.asset.assetId) ? null : <UnverifiedBadge />}
+                  </div>
+                ) : null}
                 <InputAmount
-                  label={t('common.amount')}
+                  label={linkedAsset ? undefined : t('common.amount')}
+                  labelledBy={linkedAsset ? recipientAssetLabelId : undefined}
                   name='send-amount'
                   valueSats={valueSats}
-                  right={<Available />}
+                  right={linkedAsset ? undefined : <Available />}
                   onEnter={handleEnter}
                   onFocus={handleFocus}
-                  onMax={handleSendAll}
-                  value={amountTextValue}
+                  onMax={linkedAsset ? undefined : handleSendAll}
+                  value={linkedAsset?.fixedAmount?.units ?? amountTextValue}
                   readOnly={amountIsReadOnly}
                   onChange={handleAmountChange}
                   onModeChange={handleEntryModeChange}
@@ -1360,7 +1530,7 @@ export default function SendForm() {
                   switchable
                   min={lnUrlResponse?.minSendable}
                   max={lnUrlResponse?.maxSendable}
-                  asset={activeAsset ?? undefined}
+                  asset={linkedAsset?.asset ?? activeAsset ?? undefined}
                   focus={focus === 'amount' && !isMobileBrowser}
                 />
               </FlexCol>

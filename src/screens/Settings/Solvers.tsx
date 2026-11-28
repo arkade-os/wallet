@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect, useRef, useSyncExternalStore, type RefObject } from 'react'
+import { useContext, useState, useEffect, useId, useRef, useSyncExternalStore, type RefObject } from 'react'
 import { AspContext } from '../../providers/asp'
 import Padded from '../../components/Padded'
 import Content from '../../components/Content'
@@ -7,8 +7,6 @@ import Text, { TextSecondary } from '../../components/Text'
 import {
   Card,
   LocalCardInput,
-  legacyMarketCorridor,
-  pairSideLabel,
   sideLimits,
   validateCard,
   Network,
@@ -21,7 +19,6 @@ import { BUNDLED_CARDS, marketLegId } from '@/lib/swapMarkets'
 import FlexRow from '@/components/FlexRow'
 import FlexCol from '@/components/FlexCol'
 import ErrorMessage from '@/components/Error'
-import Shadow from '@/components/Shadow'
 import Modal from '@/components/Modal'
 import Table, { type TableData } from '@/components/Table'
 import { consoleError } from '@/lib/logs'
@@ -32,9 +29,12 @@ import { useRemoteSolverCard } from '@/hooks/useRemoteSolverCard'
 import { BackupContext } from '@/providers/backup'
 import { SwapsContext } from '@/providers/swaps'
 import { useTranslation } from '@/providers/language'
+import { readOpenOfferPolicy, saveOpenOfferPolicy, type OpenOfferPolicy } from '@/lib/openOfferPolicy'
 import SolverRouting, { directionLabelOf, feeLabelOf, useMarketTicker, type TickerOf } from './SolverRouting'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer'
 import { Switch } from '@/components/ui/switch'
+import ArrowIcon from '@/icons/Arrow'
+import { GreenStatusIcon } from '@/icons/Status'
 import {
   carrySolverDirectionPauses,
   isSolverCardEnabled,
@@ -63,10 +63,6 @@ const putSolverCard = (input: LocalCardInput, replacing?: LocalCardInput) => {
 const removeSolverCard = (input: LocalCardInput) => {
   saveSolverCards(readSolverCards().filter((card) => cardIdentity(card) !== cardIdentity(input)))
 }
-
-/** Derived as the registry reducer derives `pair`, but from the wallet's names for the legs. */
-const marketLabel = (market: Market, tickerOf: TickerOf): string =>
-  `${pairSideLabel(legacyMarketCorridor(market, 'base'), tickerOf(market.base_asset))}/${pairSideLabel(legacyMarketCorridor(market, 'quote'), tickerOf(market.quote_asset))}`
 
 /** A registry lists solvers rather than cards: one read-only card per listed solver, keyed by listing. */
 const registryCards = (markets: DiscoveredMarket[], network: string): [string, LocalCardInput][] => {
@@ -108,36 +104,6 @@ function Button({
     <button type='button' className='pill-base' onClick={onClick} ref={buttonRef}>
       {text}
     </button>
-  )
-}
-
-function CardAvailability({ input }: { input: LocalCardInput }) {
-  const { t } = useTranslation()
-  const [error, setError] = useState('')
-  const card = input.card as Card
-  const enabled = isSolverCardEnabled(input)
-  return (
-    <div className='flex shrink-0 flex-col items-end gap-2'>
-      <Switch
-        size='lg'
-        checked={enabled}
-        aria-label={`${t('solvers.cardEnabled', { name: input.label ?? card.name })}${card.discovery_pubkey ? ` (${prettyLongText(card.discovery_pubkey)})` : ''}`}
-        onCheckedChange={(next) => {
-          try {
-            saveSolverCardEnabled(input, next)
-            setError('')
-          } catch {
-            setError(t('solvers.failedSave'))
-          }
-        }}
-      />
-      {!enabled ? <TextSecondary>{t('solvers.paused')}</TextSecondary> : null}
-      {error ? (
-        <div className='max-w-48'>
-          <ErrorMessage error text={error} />
-        </div>
-      ) : null}
-    </div>
   )
 }
 
@@ -346,16 +312,18 @@ function CardInfo({
   input,
   open,
   onOpenChange,
+  triggerRef,
 }: {
   input: LocalCardInput
   open: boolean
   onOpenChange: (open: boolean) => void
+  triggerRef: RefObject<HTMLButtonElement>
 }) {
   const { t } = useTranslation()
   const network = (input.network ?? 'bitcoin') as Network
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent>
+      <DrawerContent finalFocus={() => triggerRef.current}>
         <DrawerHeader className='shrink-0 text-left'>
           <DrawerTitle>{input.label ?? (input.card as Card).name}</DrawerTitle>
           <DrawerDescription>{t('solvers.cardInfo')}</DrawerDescription>
@@ -377,39 +345,70 @@ function CardInfo({
   )
 }
 
-/**
- * A card this wallet did not store: compiled into the build, or listed by the
- * network's registry. Read-only on purpose: it cannot be removed from storage
- * it never lived in, and an edit would silently shadow it with a stored copy —
- * a user who wants different terms adds their own card.
- */
-function ReadOnlyCardLine({ input, badge, pausable }: { input: LocalCardInput; badge: string; pausable: boolean }) {
+function ProviderRow({ input, source, pausable }: { input: LocalCardInput; source: string; pausable: boolean }) {
   const { t } = useTranslation()
   const card = input.card as Card
-  const tickerOf = useMarketTicker(input.network ?? 'bitcoin')
-  const pairs = card.markets?.map((m) => marketLabel(m, tickerOf)).join(', ') ?? t('solvers.publishedMarkets')
+  const name = input.label ?? card.name
+  const count = card.markets?.length
+  const markets =
+    count === undefined
+      ? t('solvers.publishedMarkets')
+      : t(count === 1 ? 'solvers.marketCountSingular' : 'solvers.marketCountPlural', { count })
+  const enabled = isSolverCardEnabled(input)
+  const summaryId = useId()
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const [showInfo, setShowInfo] = useState(false)
+  const [error, setError] = useState(false)
 
   return (
-    <Shadow>
-      <CardInfo input={input} open={showInfo} onOpenChange={setShowInfo} />
-      <FlexCol padding='8px' gap='8px'>
-        <FlexRow between>
-          <FlexCol gap='4px'>
-            <Text wrap>{input.label ?? card.name}</Text>
-            <TextSecondary>{pairs}</TextSecondary>
-            {card.discovery_pubkey ? <TextSecondary>{prettyLongText(card.discovery_pubkey)}</TextSecondary> : null}
-          </FlexCol>
-          {pausable ? <CardAvailability input={input} /> : null}
-        </FlexRow>
-        <FlexRow end minWidth='10rem'>
-          <Button onClick={() => setShowInfo(true)} text={t('solvers.viewInfo')} />
-          <Text small color='neutral-500'>
-            {badge}
-          </Text>
-        </FlexRow>
-      </FlexCol>
-    </Shadow>
+    <>
+      <CardInfo input={input} open={showInfo} onOpenChange={setShowInfo} triggerRef={triggerRef} />
+      <div className='flex items-center'>
+        <button
+          type='button'
+          ref={triggerRef}
+          className='settings-row min-w-0 flex-1 !border-t-0'
+          aria-label={t('solvers.viewInfo', { name })}
+          aria-describedby={summaryId}
+          aria-haspopup='dialog'
+          onClick={() => setShowInfo(true)}
+        >
+          <span className='min-w-0'>
+            <span className='block font-medium wrap-anywhere'>{name}</span>
+            <span id={summaryId} className='block text-sm text-muted-foreground'>
+              <span>{source}</span>
+              <span aria-hidden='true'> · </span>
+              <span>{markets}</span>
+            </span>
+          </span>
+          <span className='settings-row__chevron' aria-hidden='true'>
+            <ArrowIcon />
+          </span>
+        </button>
+        {pausable ? (
+          <div className='flex w-16 shrink-0 flex-col items-center gap-1 px-2'>
+            <Switch
+              checked={enabled}
+              aria-label={`${t('solvers.cardEnabled', { name })}${card.discovery_pubkey ? ` (${prettyLongText(card.discovery_pubkey)})` : ''}`}
+              onCheckedChange={(next) => {
+                try {
+                  saveSolverCardEnabled(input, next)
+                  setError(false)
+                } catch {
+                  setError(true)
+                }
+              }}
+            />
+            {!enabled ? <span className='text-xs text-[var(--neutral-600)]'>{t('solvers.paused')}</span> : null}
+          </div>
+        ) : null}
+      </div>
+      {error ? (
+        <div className='px-3 pb-3'>
+          <ErrorMessage error text={t('solvers.failedSave')} />
+        </div>
+      ) : null}
+    </>
   )
 }
 
@@ -425,13 +424,9 @@ function CardLine({
   const { t } = useTranslation()
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [showEditor, setShowEditor] = useState(false)
-
-  const [showInfo, setShowInfo] = useState(false)
   const [error, setError] = useState<string>('')
 
   const card = input.card as Card
-  const tickerOf = useMarketTicker(input.network ?? 'bitcoin')
-  const pairs = card.markets?.map((m) => marketLabel(m, tickerOf)).join(', ') ?? t('solvers.publishedMarkets')
 
   const handleConfirmRemove = () => {
     setConfirmRemove(true)
@@ -451,13 +446,8 @@ function CardLine({
     }
   }
 
-  const handleShowInfo = () => {
-    setShowInfo((e) => !e)
-    setShowEditor(false)
-  }
-
   return (
-    <Shadow testId='stored-solver-card'>
+    <li data-testid='stored-solver-card'>
       <Modal open={confirmRemove} onOpenChange={setConfirmRemove}>
         {error ? (
           <ErrorMessage error={Boolean(error)} text={error} />
@@ -480,32 +470,119 @@ function CardLine({
           </div>
         )}
       </Modal>
-      <CardInfo input={input} open={showInfo} onOpenChange={setShowInfo} />
-      <FlexCol padding='8px' gap='8px'>
-        <FlexRow between>
-          <FlexCol gap='4px'>
-            <Text wrap>{input.label}</Text>
-            <TextSecondary>{pairs}</TextSecondary>
-            {card.discovery_pubkey ? <TextSecondary>{prettyLongText(card.discovery_pubkey)}</TextSecondary> : null}
-          </FlexCol>
-          <CardAvailability input={input} />
-        </FlexRow>
-        <FlexRow end>
-          <Button onClick={handleShowInfo} text={t('solvers.viewInfo')} />
-          <Button onClick={handleEdit} text={t('solvers.edit')} />
-          <Button onClick={handleConfirmRemove} text={t('solvers.remove')} />
-        </FlexRow>
-        {showEditor ? (
-          <Editor
-            card={card}
-            original={input}
-            toClose={() => setShowEditor(false)}
-            onChange={onChange}
-            fallbackFocus={fallbackFocus}
-          />
-        ) : null}
-      </FlexCol>
-    </Shadow>
+      <ProviderRow input={input} source={t('solvers.customProvider')} pausable />
+      <div className='flex flex-wrap justify-end gap-2 px-3 pb-3'>
+        <Button onClick={handleEdit} text={t('solvers.edit')} />
+        <Button onClick={handleConfirmRemove} text={t('solvers.remove')} />
+      </div>
+      {showEditor ? (
+        <Editor
+          card={card}
+          original={input}
+          toClose={() => setShowEditor(false)}
+          onChange={onChange}
+          fallbackFocus={fallbackFocus}
+        />
+      ) : null}
+    </li>
+  )
+}
+
+function OpenOfferSettings({ network }: { network: string }) {
+  const { t } = useTranslation()
+  const [error, setError] = useState(false)
+  const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const selected = readOpenOfferPolicy(network)
+  const options = {
+    ask: { label: t('solvers.openOffersAsk'), description: t('solvers.openOffersAskHint') },
+    'when-needed': { label: t('solvers.openOffersWhenNeeded'), description: t('solvers.openOffersWhenNeededHint') },
+    off: { label: t('solvers.openOffersOff'), description: t('solvers.openOffersOffHint') },
+  } satisfies Record<OpenOfferPolicy, { label: string; description: string }>
+
+  const select = (policy: OpenOfferPolicy) => {
+    try {
+      saveOpenOfferPolicy(network, policy)
+      setOpen(false)
+      setError(false)
+    } catch {
+      setError(true)
+    }
+  }
+
+  return (
+    <Drawer
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        if (!next) setError(false)
+      }}
+    >
+      <div className='settings-row-group'>
+        <button
+          ref={triggerRef}
+          type='button'
+          className='settings-row'
+          aria-haspopup='dialog'
+          aria-expanded={open}
+          onClick={() => setOpen(true)}
+        >
+          <span className='text-sm font-medium'>{t('swap.openOffers')}</span>
+          <span className='flex min-w-0 items-center gap-2 text-sm text-muted-foreground'>
+            <span className='break-words'>{options[selected].label}</span>
+            <span className='settings-row__chevron' aria-hidden='true'>
+              <ArrowIcon />
+            </span>
+          </span>
+        </button>
+      </div>
+      <DrawerContent finalFocus={() => triggerRef.current}>
+        <DrawerHeader className='shrink-0 text-left'>
+          <DrawerTitle>{t('swap.openOffers')}</DrawerTitle>
+          <DrawerDescription>{t('swap.openOffersPrivacy')}</DrawerDescription>
+        </DrawerHeader>
+        <div className='min-h-0 overflow-y-auto overscroll-contain px-4 pb-4'>
+          <div className='settings-row-group'>
+            {(Object.keys(options) as OpenOfferPolicy[]).map((policy) => (
+              <button
+                key={policy}
+                type='button'
+                className='settings-row'
+                aria-pressed={selected === policy}
+                onClick={() => select(policy)}
+              >
+                <span className='flex min-w-0 flex-col gap-0.5'>
+                  <span className='text-sm font-medium'>{options[policy].label}</span>
+                  <span className='text-sm text-muted-foreground'>{options[policy].description}</span>
+                </span>
+                {selected === policy ? (
+                  <span className='shrink-0' aria-hidden='true'>
+                    <GreenStatusIcon small />
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+          {error ? (
+            <div className='pt-3'>
+              <ErrorMessage error text={t('solvers.failedSave')} />
+            </div>
+          ) : null}
+        </div>
+        <div className='shrink-0 border-t border-[var(--neutral-100)] px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]'>
+          <button
+            type='button'
+            className='pill-base flex min-h-11 w-full items-center justify-center'
+            onClick={() => {
+              setOpen(false)
+              setError(false)
+            }}
+          >
+            {t('common.close')}
+          </button>
+        </div>
+      </DrawerContent>
+    </Drawer>
   )
 }
 
@@ -518,7 +595,7 @@ export default function Solvers() {
   useSyncExternalStore(subscribeSolverRouting, getSolverRoutingVersion, getSolverRoutingVersion)
   const [localCards, setLocalCards] = useState<LocalCardInput[]>()
   const [showEditor, setShowEditor] = useState(false)
-  const [view, setView] = useState('priority')
+  const [view, setView] = useState('routes')
   const addButtonRef = useRef<HTMLButtonElement>(null)
 
   // The card store notifies discovery on write, so this only owes the backup;
@@ -544,35 +621,7 @@ export default function Solvers() {
   const bundledCards = BUNDLED_CARDS.filter((c) => (c.network ?? 'bitcoin') === aspInfo.network)
   const listedCards = registryCards(allMarkets, aspInfo.network)
 
-  const storedCount = localCards?.length ?? 0
-
-  let title = ''
-
-  if (bundledCards.length === 0) {
-    if (storedCount === 0) {
-      title = t('solvers.noStoredCards')
-    } else if (storedCount === 1) {
-      title = t('solvers.storedSingular', { count: storedCount })
-    } else {
-      title = t('solvers.storedPlural', { count: storedCount })
-    }
-  } else if (bundledCards.length === 1) {
-    if (storedCount === 0) {
-      title = t('solvers.buildShipsSingular', { count: bundledCards.length })
-    } else if (storedCount === 1) {
-      title = t('solvers.builtInSingularPlusOwnSingular', { builtIn: bundledCards.length, own: storedCount })
-    } else {
-      title = t('solvers.builtInSingularPlusOwnPlural', { builtIn: bundledCards.length, own: storedCount })
-    }
-  } else {
-    if (storedCount === 0) {
-      title = t('solvers.buildShipsPlural', { count: bundledCards.length })
-    } else if (storedCount === 1) {
-      title = t('solvers.builtInPluralPlusOwnSingular', { builtIn: bundledCards.length, own: storedCount })
-    } else {
-      title = t('solvers.builtInPluralPlusOwnPlural', { builtIn: bundledCards.length, own: storedCount })
-    }
-  }
+  const hasProviders = bundledCards.length + listedCards.length + (localCards?.length ?? 0) > 0
 
   return (
     <>
@@ -580,54 +629,57 @@ export default function Solvers() {
       <Content>
         <Padded>
           <FlexCol>
-            <FlexRow between>
-              <Text wrap>{title}</Text>
-              <Button
-                buttonRef={addButtonRef}
-                onClick={() => {
-                  setView('cards')
-                  setShowEditor(true)
-                }}
-                text={t('solvers.addNew')}
-              />
-            </FlexRow>
             <SegmentedControl
-              options={['priority', 'cards']}
+              options={['routes', 'providers']}
               selected={view}
               onChange={setView}
-              getLabel={(option) => t(option === 'priority' ? 'solvers.priorityTab' : 'solvers.cardsTab')}
+              getLabel={(option) => t(option === 'routes' ? 'solvers.priorityTab' : 'solvers.cardsTab')}
             />
-            {view === 'cards' ? <TextSecondary>{t('solvers.pauseHint')}</TextSecondary> : null}
-            {view === 'priority' ? <SolverRouting network={aspInfo.network} /> : null}
+            {view === 'providers' ? (
+              <>
+                <div className='flex justify-end'>
+                  <Button buttonRef={addButtonRef} onClick={() => setShowEditor(true)} text={t('solvers.addNew')} />
+                </div>
+                {hasProviders ? (
+                  <>
+                    <ul className='settings-row-group divide-y divide-[var(--neutral-100)]'>
+                      {bundledCards.map((input) => (
+                        <li key={cardIdentity(input)}>
+                          <ProviderRow input={input} source={t('solvers.builtIn')} pausable />
+                        </li>
+                      ))}
+                      {listedCards.map(([key, input]) => (
+                        <li key={key}>
+                          <ProviderRow
+                            input={input}
+                            source={t('solvers.fromRegistry')}
+                            pausable={Boolean((input.card as Card).discovery_pubkey)}
+                          />
+                        </li>
+                      ))}
+                      {localCards?.map((input) => (
+                        <CardLine
+                          key={cardIdentity(input)}
+                          input={input}
+                          onChange={handleChange}
+                          fallbackFocus={addButtonRef}
+                        />
+                      ))}
+                    </ul>
+                    <p className='text-sm text-[var(--neutral-600)]'>{t('solvers.pauseHint')}</p>
+                  </>
+                ) : (
+                  <p className='py-6 text-center text-sm text-[var(--neutral-600)]'>{t('solvers.noProviders')}</p>
+                )}
+              </>
+            ) : (
+              <>
+                <SolverRouting network={aspInfo.network} />
+                {aspInfo.network ? <OpenOfferSettings key={aspInfo.network} network={aspInfo.network} /> : null}
+              </>
+            )}
             {showEditor ? (
               <Editor toClose={() => setShowEditor(false)} onChange={handleChange} fallbackFocus={addButtonRef} />
-            ) : null}
-            {view === 'cards' && bundledCards.length + listedCards.length > 0 ? (
-              <FlexCol>
-                {bundledCards.map((input) => (
-                  <ReadOnlyCardLine key={cardIdentity(input)} input={input} badge={t('solvers.builtIn')} pausable />
-                ))}
-                {listedCards.map(([key, input]) => (
-                  <ReadOnlyCardLine
-                    key={key}
-                    input={input}
-                    badge={t('solvers.fromRegistry')}
-                    pausable={Boolean((input.card as Card).discovery_pubkey)}
-                  />
-                ))}
-              </FlexCol>
-            ) : null}
-            {view === 'cards' && localCards && localCards.length > 0 ? (
-              <FlexCol>
-                {localCards.map((input) => (
-                  <CardLine
-                    key={cardIdentity(input)}
-                    input={input}
-                    onChange={handleChange}
-                    fallbackFocus={addButtonRef}
-                  />
-                ))}
-              </FlexCol>
             ) : null}
           </FlexCol>
         </Padded>

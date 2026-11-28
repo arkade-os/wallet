@@ -13,6 +13,7 @@ import {
 } from '../../lib/solverRouting'
 import { btcUsdt } from './swapFixtures'
 import { solverDirectionKey, solverId } from '@arkade-os/solver-discovery'
+import { readOpenOffersFirst, saveOpenOffersFirst } from '../../lib/openOfferPolicy'
 
 describe('solver routing preferences', () => {
   beforeEach(() => localStorage.clear())
@@ -37,6 +38,24 @@ describe('solver routing preferences', () => {
     expect(readSolverRouting('bitcoin', 'give>take')).toEqual({ mode: 'usage', priority: ['a', 'b'] })
     expect(readSolverRouting('mutinynet', 'give>take')).toEqual({ mode: 'manual', priority: [] })
     expect(readSolverRouting('bitcoin', 'take>give')).toEqual({ mode: 'manual', priority: [] })
+  })
+  it('honors an earlier Open offers preference until a new first choice supersedes it', () => {
+    const network = 'mutinynet'
+    const direction = 'give>take'
+    localStorage.setItem(`paymentRoutePolicy:openOffersFirst:${JSON.stringify([network, direction])}`, 'true')
+    expect(readOpenOffersFirst(network, direction)).toBe(true)
+    expect(readOpenOffersFirst(network, 'take>give')).toBe(false)
+
+    saveSolverRouting(network, direction, { mode: 'usage', preferFirst: 'provider', openOffersFirst: false })
+    expect(readOpenOffersFirst(network, direction)).toBe(false)
+    saveSolverRouting(network, direction, { mode: 'cost', preferFirst: 'provider' })
+    expect(readOpenOffersFirst(network, direction)).toBe(false)
+    saveOpenOffersFirst(network, direction, true)
+    expect(readSolverRouting(network, direction)).toMatchObject({
+      mode: 'cost',
+      preferFirst: 'provider',
+      openOffersFirst: true,
+    })
   })
   it('ignores corrupt values and filters duplicate priorities', () => {
     localStorage.setItem('solverRouting', '{')

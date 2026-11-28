@@ -4,7 +4,17 @@ import { fromAtomic, isNetwork, type OfferPlan } from '@arkade-os/solver-discove
 import { btcOn, type OpenRfqOffer, type Quote } from '@arkade-os/swap'
 import type { NetworkName } from '@arkade-os/sdk'
 import { useSolverQuote } from '../../../hooks/useSolverQuote'
-import { type ReactNode, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
+import {
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import AssetAvatar from '../../../components/AssetAvatar'
 import Button from '../../../components/Button'
 import Content from '../../../components/Content'
@@ -19,13 +29,13 @@ import ChevronDownIcon from '../../../icons/ChevronDown'
 import InfoIcon from '../../../icons/Info'
 import SwapIcon from '../../../icons/Swap'
 import { EASE_IN_OUT_QUINT_TUPLE, EASE_OUT_QUINT_TUPLE } from '../../../lib/animations'
-import { atomicToUnits, unitsToAtomic } from '../../../lib/assets'
+import { atomicToUnits, isValidAssetId, unitsToAtomic } from '../../../lib/assets'
 import { extractError } from '../../../lib/error'
 import { formatFiatAmountParts, normalizeBitcoinUnit, prettyFiatAmount, prettyNumber } from '../../../lib/format'
 import { hapticLight, hapticSubtle, hapticTap } from '../../../lib/haptics'
 import { swapRouteTicker } from '../../../lib/swapDisplay'
 import { BTC_ASSET_ID, findMarket, l1ScriptForAddress, validatePlan } from '@arkade-os/swap/protocol'
-import { marketLegId, preFeeDisplayRate } from '../../../lib/swapMarkets'
+import { marketLegId, preFeeDisplayRate, swapAssetId } from '../../../lib/swapMarkets'
 import { type AssetSwapQuoteSnapshot } from '../../../lib/swapRepository'
 import { Currencies, Unit } from '../../../lib/types'
 import { AspContext } from '../../../providers/asp'
@@ -41,7 +51,8 @@ import { verifiedDesignatedCurrency } from '../../../lib/accountAssets'
 import { useTranslation } from '../../../providers/language'
 import { readSolverCards, saveSolverCards } from '../../../lib/solverCards'
 import { l1NetworkOf } from '../../../lib/onchainPayout'
-import { isSolverEnabled } from '../../../lib/solverRouting'
+import { getSolverRoutingVersion, isSolverEnabled, subscribeSolverRouting } from '../../../lib/solverRouting'
+import { readOpenOfferPolicy, readOpenOffersFirst } from '../../../lib/openOfferPolicy'
 import QuoteChoices, { formatQuoteAmount } from './QuoteChoices'
 
 type AssetTarget = 'from' | 'to'
@@ -97,6 +108,8 @@ const validAssetDecimals = (value: unknown): value is number =>
 
 export default function WalletSwap() {
   const { aspInfo } = useContext(AspContext)
+  useSyncExternalStore(subscribeSolverRouting, getSolverRoutingVersion)
+  const openOfferPolicy = readOpenOfferPolicy(aspInfo.network)
   const {
     quoteExchange,
     acceptSwapQuote,
@@ -473,8 +486,31 @@ export default function WalletSwap() {
         return route?.market && isSolverEnabled(market, route.give, aspInfo.network)
       }),
   )
+  const pairedAssetId =
+    fromAsset.assetId === BTC_ASSET_ID
+      ? toAsset?.assetId
+      : toAsset?.assetId === BTC_ASSET_ID
+        ? fromAsset.assetId
+        : undefined
+  const openOffersFirst = Boolean(
+    solverNetwork &&
+      toAsset &&
+      !toAsset.external &&
+      pairedAssetId &&
+      isValidAssetId(pairedAssetId) &&
+      readOpenOffersFirst(
+        solverNetwork,
+        JSON.stringify([
+          solverNetwork,
+          swapAssetId(solverNetwork, fromAsset.assetId),
+          swapAssetId(solverNetwork, toAsset.assetId),
+        ]),
+      ),
+  )
   const searchOpenByDefault = Boolean(
-    discoveryReady && canViewQuotes && (!hasSavedSolver || (currentPlan && solvable === false)),
+    openOfferPolicy === 'when-needed' &&
+      canViewQuotes &&
+      (openOffersFirst || (discoveryReady && (!hasSavedSolver || (currentPlan && solvable === false)))),
   )
   // The market's pre-fee rate beside the firm fee (spread plus any unreturned carrier) and amount.
   const firmDisplay = (estimate: OfferPlan, firm: Quote): SwapQuote => {
@@ -877,7 +913,9 @@ export default function WalletSwap() {
                   ) : null}
                   <Keypad amount={amount} onPress={pressKey} />
                   {searchOpenByDefault ? (
-                    <p className='text-sm text-muted-foreground'>{t('swap.noSavedSolverOffers')}</p>
+                    <p className='text-sm text-muted-foreground'>
+                      {t(openOffersFirst ? 'swap.openOffersPrivacy' : 'swap.noSavedSolverOffers')}
+                    </p>
                   ) : null}
                   <Button label={t('swap.viewQuotes')} disabled={!canViewQuotes} onClick={() => openDrawer('quotes')} />
                 </motion.section>
@@ -909,6 +947,7 @@ export default function WalletSwap() {
           destination={toAsset.external ? destination.trim() : undefined}
           automaticAmount={canContinue ? currentPlan?.receive.atomic : undefined}
           autoSearch={drawer === 'quotes' && searchOpenByDefault}
+          allowOpenOffers={openOfferPolicy !== 'off'}
           allowSmartRouting={!toAsset.external}
           onOpenChange={(open) => {
             if (!open) setDrawer(null)

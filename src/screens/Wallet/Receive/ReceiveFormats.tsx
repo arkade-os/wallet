@@ -13,6 +13,7 @@ export interface FormatRow {
   subtitle?: string
   badge?: string
   compact?: boolean
+  details?: ReactNode
 }
 
 const CARD = 'w-full rounded-3xl bg-neutral-50 px-4'
@@ -96,27 +97,33 @@ function Row({
   ...button
 }: { row: FormatRow; trailing: ReactNode } & ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <button
-      type='button'
-      {...button}
-      className='flex w-full cursor-pointer items-center gap-3 border-b border-neutral-100 py-3.5 text-left last:border-b-0 focus-visible:outline-2 focus-visible:outline-purple-700'
-    >
-      <span className='flex size-10 shrink-0 items-center justify-center rounded-full bg-background' aria-hidden='true'>
-        {row.icon}
-      </span>
-      <span className='flex min-w-0 flex-1 flex-col'>
-        <span className='flex items-center gap-2 font-semibold'>
-          {row.title}
-          {row.badge ? (
-            <span className='rounded-full bg-background px-2 py-0.5 text-xs font-medium'>{row.badge}</span>
+    <div className='border-b border-neutral-100 last:border-b-0'>
+      <button
+        type='button'
+        {...button}
+        className={`flex w-full cursor-pointer items-center gap-3 text-left focus-visible:outline-2 focus-visible:outline-purple-700 ${row.details ? 'pt-3' : 'py-3.5'}`}
+      >
+        <span
+          className='flex size-10 shrink-0 items-center justify-center rounded-full bg-background'
+          aria-hidden='true'
+        >
+          {row.icon}
+        </span>
+        <span className='flex min-w-0 flex-1 flex-col'>
+          <span className='flex items-center gap-2 font-semibold'>
+            {row.title}
+            {row.badge ? (
+              <span className='rounded-full bg-background px-2 py-0.5 text-xs font-medium'>{row.badge}</span>
+            ) : null}
+          </span>
+          {row.subtitle ? (
+            <span className={`text-sm text-neutral-500 ${row.compact ? 'truncate' : ''}`}>{row.subtitle}</span>
           ) : null}
         </span>
-        {row.subtitle ? (
-          <span className={`text-sm text-neutral-500 ${row.compact ? 'truncate' : ''}`}>{row.subtitle}</span>
-        ) : null}
-      </span>
-      {trailing}
-    </button>
+        {trailing}
+      </button>
+      {row.details ? <div className='ml-13 flex items-center gap-2 pb-2'>{row.details}</div> : null}
+    </div>
   )
 }
 

@@ -227,7 +227,7 @@ export default function AppAssetMint() {
           },
         )
         setRecovery({ pending: null, error: '' })
-        pendingNav.current = () => replace(Pages.AppAssetMintSuccess, Pages.AppAssets)
+        pendingNav.current = () => replace(Pages.AppAssetMintSuccess, Pages.AppAssetsSettings)
         setMintDone(true)
         return
       }
@@ -258,7 +258,7 @@ export default function AppAssetMint() {
       }
       setCacheEntry(newAssetId, assetDetails)
       setAssetInfo(assetDetails)
-      pendingNav.current = () => replace(Pages.AppAssetMintSuccess, Pages.AppAssets)
+      pendingNav.current = () => replace(Pages.AppAssetMintSuccess, Pages.AppAssetsSettings)
       setMintDone(true)
     } catch (err) {
       consoleError(err, 'error minting asset')

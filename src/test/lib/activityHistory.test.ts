@@ -82,6 +82,7 @@ describe('activitiesToTxs', () => {
       redeemTxid: 'fill-txid',
       assetSwap: { toAmount: BigInt(54_321), status: 'completed', fundingTxid: 'funding-txid', fillTxid: 'fill-txid' },
     })
+    expect(txs[0].assetSwap?.paymentDestination).toBeUndefined()
   })
 
   it('emits one row per member for a group it does not collapse, with distinct keys', () => {
@@ -143,6 +144,26 @@ describe('activitiesToTxs', () => {
     })
 
     expect(tx).toMatchObject({ networkFee: 12, destination: 'tark1dest' })
+  })
+
+  it('keeps a directed asset payment recipient when only the fill reached history', () => {
+    const fulfilled = swap({ status: 'fulfilled', spentTxid: 'fill-txid', paymentDestination: 'tark1recipient' })
+    const group = activity('swap:swap-1', [arkTx('fill-txid')], swapIntent('swap-1'))
+
+    const [tx] = activitiesToTxs([group], {
+      swaps: [fulfilled],
+      metadata: {
+        'fill-txid': { networkFee: 99, savedAt: 0 },
+        'funding-txid': { networkFee: 12, destination: fulfilled.swapAddress, savedAt: 0 },
+      },
+    })
+
+    expect(tx).toMatchObject({
+      type: 'swap',
+      destination: 'tark1recipient',
+      networkFee: 12,
+      assetSwap: { paymentDestination: 'tark1recipient' },
+    })
   })
 
   it('re-sorts the produced rows rather than trusting the builder order', () => {
@@ -443,7 +464,11 @@ describe('lightning send activities', () => {
     expect(row.lnurl).toBeUndefined()
   })
 
-  const lnurlSendIntent: Activity['intent'] = { kind: 'lnurl-send', label: '→ alice@pay.example' }
+  const lnurlSendIntent: Activity['intent'] = {
+    kind: 'lnurl-send',
+    label: '→ alice@pay.example',
+    metadata: { target: 'alice@pay.example', rail: 'lightning' },
+  }
 
   it('shows an LNURL send over Lightning once, as the swap it funded', () => {
     const rows = activitiesToTxs(
@@ -455,8 +480,12 @@ describe('lightning send activities', () => {
     )
 
     expect(rows).toHaveLength(1)
-    expect(rows[0]).toMatchObject({ historyKey: `swap:${RFQ_ID}`, lnSwap: { label: 'Lightning send' } })
-    expect(rows[0].lnurl).toBeUndefined()
+    expect(rows[0]).toMatchObject({
+      historyKey: `swap:${RFQ_ID}`,
+      destination: 'alice@pay.example',
+      lnSwap: { label: 'Lightning send' },
+      lnurl: { address: 'alice@pay.example', rail: 'lightning' },
+    })
   })
 
   it('still shows an LNURL send no other group covers', () => {
@@ -531,6 +560,21 @@ describe('lightning send activities', () => {
     })
 
     expect(row).toMatchObject({ destination: 'lnbc10u1p...', networkFee: 30 })
+  })
+
+  it('uses the recorded endpoint on grouped and ungrouped sends when local metadata is missing', () => {
+    const destination = 'lnbc1recipient'
+    const options = { ...empty, lnSends: [view({ destination })] }
+    const grouped = { ...activity(`swap:${RFQ_ID}`, [funding], lnIntent('pending')), amount: -1_030 }
+
+    expect(activitiesToTxs([grouped], options)[0].destination).toBe(destination)
+    expect(activitiesToTxs([], options)[0].destination).toBe(destination)
+    expect(
+      activitiesToTxs([], {
+        ...options,
+        metadata: { 'funding-txid': { destination: 'alice@pay.example', savedAt: 0 } },
+      })[0].destination,
+    ).toBe('alice@pay.example')
   })
 
   it('grafts the metadata under the txid the wallet funded, not the group’s sent member', () => {

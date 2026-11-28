@@ -2,7 +2,8 @@ import { useContext } from 'react'
 import { ConfigContext } from '../providers/config'
 import { FiatContext } from '../providers/fiat'
 import { Tx } from '../lib/types'
-import { swapRouteLabel, swapUnitOfAccountAmount } from '../lib/swapDisplay'
+import { isCompletedAssetPayment, swapRouteLabel, swapUnitOfAccountAmount } from '../lib/swapDisplay'
+import { useTranslation } from '../providers/language'
 import { PrivacyAmount } from './PrivacyAmount'
 import SwapRouteIcon from './SwapRouteIcon'
 
@@ -15,6 +16,7 @@ interface SwapTransactionSummaryProps {
 export default function SwapTransactionSummary({ fromIcon, toIcon, tx }: SwapTransactionSummaryProps) {
   const { config } = useContext(ConfigContext)
   const { toFiatAmount } = useContext(FiatContext)
+  const { t } = useTranslation()
   const swap = tx.assetSwap
 
   if (!swap) return null
@@ -33,7 +35,7 @@ export default function SwapTransactionSummary({ fromIcon, toIcon, tx }: SwapTra
         to={{ assetId: swap.toAssetId, icon: toIcon, ticker: swap.toTicker }}
       />
       <div className='swap-transaction-summary__identity'>
-        <h2 id='swap-transaction-title'>Swap</h2>
+        <h2 id='swap-transaction-title'>{t(isCompletedAssetPayment(tx) ? 'send.paymentSent' : 'transaction.swap')}</h2>
         <p>{swapRouteLabel(tx)}</p>
       </div>
       {amount ? (

@@ -357,12 +357,7 @@ test.skip('should send usds (some and max) to onchain address with chain swap', 
   await page.waitForSelector('text=$0.00', { timeout: 10000 })
 })
 
-// wallet balance is 5000 sats,
-// wants to send 1000 sats onchain,
-// wallet will deliver 1000 sats on final UTXO,
-// which means user must pay more for output
-// since 1000 sats is below the minimum for chain swap,
-// wallet will use collaborative exit to send onchain
+// Collaborative exit adds fees to a fixed amount and deducts them from Max.
 test('should send sats (some and max) to onchain address with collaborative exit', async ({ page, isMobile }) => {
   // set fees
   execSync('docker exec -t arkd arkd fees intent --onchain-output "200.0"')
@@ -374,27 +369,30 @@ test('should send sats (some and max) to onchain address with collaborative exit
 
     const someOnchainAddress = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
 
-    // send page
-    await prePay(page, someOnchainAddress, isMobile, 900)
+    // A BIP21 request fixes what the recipient gets.
+    await prePay(page, `bitcoin:${someOnchainAddress}?amount=0.000009`, isMobile)
 
     // details page
-    await expect(page.getByTestId('primary-amount')).toContainText('700 sats')
+    await expect(page.getByTestId('primary-amount')).toHaveText('900 sats')
+    await expect(page.getByTestId('Rail')).toHaveText(tr.solvers.onchainMethodExit)
     const fees = await page.getByTestId('Network fees').textContent()
     expect(fees).not.toBeNull()
     const feesNumber = parseInt(fees!.replace(/[^0-9]/g, ''), 10)
     expect(feesNumber).toBeGreaterThan(0)
-    const totalSent = 700 + feesNumber
+    const totalSent = 900 + feesNumber
+    const total = `${prettyNumber(totalSent)} sats`
+    await expect(page.getByTestId('Total')).toHaveText(total)
 
     await page.getByText(tr.send.tapToSign).click()
     await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })
     await page.waitForSelector(`text=${tr.send.paymentSent}`, { timeout: 30000 })
-    await expect(page.getByText(successMessage(`${totalSent} sats`))).toBeVisible()
+    await expect(page.getByText(successMessage(total))).toBeVisible()
 
     // main page
     await dismissPaymentSuccess(page)
     await expect(page.getByText(tr.transaction.received)).toBeVisible()
     await page.waitForSelector(`text=${tr.transaction.sent}`, { timeout: 10000 })
-    await expect(page.getByText(`- ${totalSent} sats`)).toBeVisible()
+    await expect(page.getByText(`- ${total}`)).toBeVisible()
 
     const balance = 1800 - totalSent
 
@@ -416,6 +414,7 @@ test('should send sats (some and max) to onchain address with collaborative exit
 
     // details page
     await expect(page.getByTestId('Total')).toContainText(`${balance} sats`)
+    await expect(page.getByTestId('primary-amount')).toHaveText(`${balance - feesNumber} sats`)
 
     await page.getByText(tr.send.tapToSign).click()
     await page.getByTestId('loading-logo').waitFor({ timeout: 3000 })

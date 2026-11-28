@@ -70,6 +70,7 @@ export interface LnSendView {
   /** The tx that ended it, when that tx is one of ours. */
   spendTxid?: string
   corridor?: string
+  destination?: string
   /** Sats the RECIPIENT gets; `amount` is what left the wallet. */
   takeAmount?: number
   feeAmount?: number
@@ -101,6 +102,17 @@ export const displayAssetOf = (id: AssetId): string => {
   }
 }
 
+const offerPaymentDestination = (record: OfferSwapRecord): string | undefined => {
+  const target = record.route.take
+  if (
+    target?.corridor === 'arkade' &&
+    target.instrument?.kind === 'address' &&
+    target.instrument.address === record.assetPayment?.receiveAddress
+  ) {
+    return target.instrument.address
+  }
+}
+
 /**
  * A v2 offer record as the activity list reads it.
  *
@@ -124,6 +136,7 @@ const offerViewOf = (record: OfferSwapRecord): WalletAssetSwap => ({
   status: record.status,
   createdAt: record.createdAt * 1000,
   completedAt: record.completedAt === undefined ? undefined : record.completedAt * 1000,
+  paymentDestination: offerPaymentDestination(record),
   // Quote-time display facts the client does not own; absent for a restored or
   // pre-migration swap, and every consumer falls back per field.
   quote: quoteSnapshotOf(record.id),
@@ -137,6 +150,14 @@ const sendViewOf = (record: CorridorSwapRecord): LnSendView | undefined => {
   if (record.kind !== 'lightning_send' && record.kind !== 'onchain_send') return undefined
   const fundingTxid = record.fundingTxid
   if (!fundingTxid) return undefined
+  const target = record.route?.take
+  const instrument = target?.instrument
+  const destination =
+    record.kind === 'lightning_send' && target?.corridor === 'lightning' && instrument?.kind === 'invoice'
+      ? instrument.bolt11
+      : record.kind === 'onchain_send' && target?.corridor === 'onchain' && instrument?.kind === 'address'
+        ? instrument.address
+        : undefined
   return {
     rfqId: record.rfqId,
     fundingTxid,
@@ -146,7 +167,8 @@ const sendViewOf = (record: CorridorSwapRecord): LnSendView | undefined => {
     amount: Number(record.give.amount),
     createdAt: record.createdAt,
     spendTxid: record.refundTxid ?? record.lockupSpendTxids?.[0],
-    corridor: record.route?.take?.corridor,
+    corridor: target?.corridor,
+    destination,
     // A restored record's take and fee are stand-ins: v1 stored only the funded amount.
     ...(record.market?.kind === 'restored'
       ? {}

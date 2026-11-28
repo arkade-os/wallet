@@ -2,7 +2,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { useContext, useLayoutEffect, useRef, useState } from 'react'
 import { WalletContext } from '../providers/wallet'
 import { Currencies, Tx } from '../lib/types'
-import { isBurn, isIssuance, prettyDate } from '../lib/format'
+import { isBurn, isIssuance, prettyDate, prettyLongText } from '../lib/format'
 import AssetAvatar from './AssetAvatar'
 import ReceivedIcon from '../icons/Received'
 import SentIcon from '../icons/Sent'
@@ -18,6 +18,7 @@ import TokenLogo, { tokenLogoTickerForTicker, trustedAssetTickers } from './Toke
 import { PrivacyAmount } from './PrivacyAmount'
 import SwapRouteIcon from './SwapRouteIcon'
 import {
+  isCompletedAssetPayment,
   lnSwapLabel,
   lnurlLabel,
   swapRouteLabel,
@@ -56,6 +57,7 @@ const TransactionLine = ({
       ? t('transaction.unconfirmed')
       : t('common.unknown')
   const swap = tx.type === 'swap'
+  const swapPayment = (swap || Boolean(tx.lnSwap)) && Boolean(contactAddress)
   const swapStatus = swap ? swapStatusForTx(tx) : undefined
   const issuance = isIssuance(tx)
   const burn = isBurn(tx)
@@ -112,9 +114,10 @@ const TransactionLine = ({
   }
 
   const kind =
-    (contactName ? t('settings.contactSent', { name: contactName }) : undefined) ??
+    (contactName && !swapPayment ? t('settings.contactSent', { name: contactName }) : undefined) ??
     lnSwapKind ??
     lnurlLabel(tx, t) ??
+    (isCompletedAssetPayment(tx) ? t('send.paymentSent') : undefined) ??
     (swap
       ? swapStatus === 'pending'
         ? t('transaction.swapPending')
@@ -137,7 +140,11 @@ const TransactionLine = ({
   const Kind = () => <span className='activity-row__kind'>{kind}</span>
 
   const swapRoute = swap ? swapRouteLabel(tx) : ''
-  const When = () => <span className='activity-row__meta'>{swapRoute ? `${swapRoute} · ${date}` : date}</span>
+  const payee = swapPayment ? contactName || prettyLongText(contactAddress, 7) : ''
+  const recipient = swap && payee ? t('transaction.toRecipient', { recipient: payee }) : payee
+  const When = () => (
+    <span className='activity-row__meta'>{[recipient, swapRoute, date].filter(Boolean).join(' · ')}</span>
+  )
 
   const RawAmounts = () => {
     const configured = amountDisplay?.configured

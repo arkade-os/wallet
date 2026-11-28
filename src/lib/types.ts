@@ -17,6 +17,7 @@ export type Config = {
   /** Board deposits and renew them through the network's Executor while the wallet is offline. Not exposed in the UI: VITE_EXECUTOR_ENABLED sets it. */
   executor: boolean
   importedAssets: string[]
+  homeAssetVisibility?: Record<string, boolean>
   language?: Language
   haptics: boolean
   nostrBackup: boolean
@@ -174,6 +175,7 @@ export type Tx = {
   settled: boolean
   type: TxKind
   assetSwap?: {
+    paymentDestination?: string
     fromAssetId?: string
     fromTicker: string
     fromDecimals?: number

@@ -12,6 +12,14 @@ import { WalletContext } from '../providers/wallet'
 import { OptionsContext } from '../providers/options'
 import UsersRound from '../icons/UsersRound'
 
+const settingsPages = new Set([
+  Pages.Settings,
+  Pages.Vtxos,
+  Pages.AppAssetMint,
+  Pages.AppAssetMintSuccess,
+  Pages.AppAssetsSettings,
+])
+
 interface DesktopWalletShellProps {
   logoVisible: boolean
   page: Pages
@@ -27,7 +35,7 @@ export default function DesktopWalletShell({ logoVisible, page }: DesktopWalletS
   const { t } = useTranslation()
 
   const activityActive = page === Pages.Activity || page === Pages.Transaction
-  const settingsActive = page === Pages.Settings || page === Pages.Vtxos
+  const settingsActive = settingsPages.has(page)
   const homeActive = !activityActive && !settingsActive
 
   const goHome = () => {
