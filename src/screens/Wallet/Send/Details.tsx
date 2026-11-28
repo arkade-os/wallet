@@ -20,6 +20,7 @@ import {
   LNURL_ARKADE_RAIL,
   ONCHAIN_ROUTE_LOG,
   ONCHAIN_SWAP_RAIL,
+  WALLET_EXIT_RAIL,
   fundedResult,
   isLnurlRail,
   previewOnchainCost,
@@ -147,8 +148,12 @@ export default function SendDetails() {
 
     // The RFQ lockup carries exactly the invoice amount (exact-out, fee_bps
     // from the card; 0 today), so total == satoshis on the Lightning path.
-    const total = pendingLnSend ? pendingLnSend.total : satoshis
-    const amount = destinationType === 'mainnet' ? satoshis - calcOnchainOutputFee() : satoshis
+    // Onchain, the amount typed arrives and the output fee goes on top; send-max pays it out of the amount.
+    // Both are provisional until the router prices the send below.
+    const outputFee = destinationType === 'mainnet' ? calcOnchainOutputFee() : 0
+    const sendMax = satoshis === availableBalance
+    const total = pendingLnSend ? pendingLnSend.total : satoshis + (sendMax ? 0 : outputFee)
+    const amount = sendMax ? satoshis - outputFee : satoshis
     const fees = total - amount > 0 ? total - amount : 0
     setDetails({
       destination,
@@ -183,11 +188,16 @@ export default function SendDetails() {
     }
     const priced = sendRouter({ outputFee: calcOnchainOutputFee, intentFee })
       .then(async (router): Promise<Priced | undefined> => {
-        const cost = await previewOnchainCost(router, details.destination!, asked)
+        // Send-max is priced on the exit alone: a solver charging more than the balance must not block it.
+        const rail = satoshis === availableBalance ? WALLET_EXIT_RAIL : undefined
+        const cost = await previewOnchainCost(router, details.destination!, asked, rail)
         if (cost || !svcWallet) return cost && { cost }
         const most = (await maxCollaborativeExit(svcWallet, intentFee(), Number(aspInfo.dust))) - calcOnchainOutputFee()
+        // `most` is what the exit can deliver, so the exit prices it.
         const atMost =
-          most > 0 && most < asked ? await previewOnchainCost(router, details.destination!, most) : undefined
+          most > 0 && most < asked
+            ? await previewOnchainCost(router, details.destination!, most, WALLET_EXIT_RAIL)
+            : undefined
         if (!atMost) return undefined
         // Max asks for the whole balance, so the fees can only come out of the amount, as the exit fee does.
         if (satoshis === availableBalance) return { cost: atMost }
@@ -319,7 +329,7 @@ export default function SendDetails() {
    *  quote exists to go stale. A rail that cannot quote is skipped. */
   const payOnchain = async (address: string, shown: DetailsProps): Promise<void> => {
     const router = await sendRouter({ outputFee: calcOnchainOutputFee, intentFee })
-    // Receiver-exact: "what leaves" was subtracted when `details` was built.
+    // Receiver-exact: `details` shows what arrives.
     const options = await router.options({ raw: address, amount: shown.satoshis! })
     let repriced: RouteQuote | undefined
     let insufficient = false
