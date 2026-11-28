@@ -759,7 +759,7 @@ describe('reviewing a solver payment', () => {
         { railId: 'onchain', quote: exit },
       ],
     })
-    render(review({ address, satoshis: 10_500, reviewId }))
+    render(review({ address, satoshis: 10_000, reviewId }))
 
     expect(await screen.findByText('Collaborative exit')).toBeVisible()
     expect(screen.getByTestId('Total')).toHaveTextContent('10,500')

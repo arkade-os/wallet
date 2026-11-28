@@ -118,9 +118,9 @@ const failingSolverOption = (reason: string) => ({
   railId: 'onchain-swap',
   quote: async () => ({
     railId: 'onchain-swap',
-    amount: 9_500,
+    amount: 10_000,
     fee: 500,
-    total: 10_000,
+    total: 10_500,
     send: async () =>
       makeHandle('onchain-swap', async () => {
         throw new Error(reason)
@@ -221,9 +221,9 @@ describe('signing an on-chain send', () => {
         railId: 'onchain-swap',
         quote: async () => ({
           railId: 'onchain-swap',
-          amount: 9_500,
+          amount: 10_000,
           fee: 500,
-          total: 10_000,
+          total: 10_500,
           send: async () => {
             sent()
             return fundedHandle({ railId: 'onchain-swap', swapId: 'rfq:owned', txid: 'funding-txid' })
@@ -258,9 +258,9 @@ describe('signing an on-chain send', () => {
           railId: 'onchain-swap',
           quote: async () => ({
             railId: 'onchain-swap',
-            amount: 9_500,
+            amount: 10_000,
             fee: 500,
-            total: 10_000,
+            total: 10_500,
             send: async () => fundedHandle({ railId: 'onchain-swap', swapId: 'rfq:owned', txid: 'funding-txid' }),
           }),
         },
@@ -331,8 +331,8 @@ describe('signing an on-chain send', () => {
     await sign()
 
     await waitFor(() => expect(collaborativeExitWithFees).toHaveBeenCalledTimes(1))
-    // 10_000 typed = what LEAVES; the recipient gets it less the output fee.
-    expect(collaborativeExitWithFees).toHaveBeenCalledWith(expect.anything(), 10_000, 9_500, ADDRESS)
+    // 10_000 typed = what ARRIVES; the output fee goes on top.
+    expect(collaborativeExitWithFees).toHaveBeenCalledWith(expect.anything(), 10_500, 10_000, ADDRESS)
   })
 
   it('never funds a rail quoting a different recipient amount than the screen showed', async () => {
@@ -363,7 +363,7 @@ describe('signing an on-chain send', () => {
   it('remembers the exit picked in Change route after the wallet funds it', async () => {
     const network = mockAspContextValue.aspInfo.network
     const sent = vi.fn()
-    optionsFor = (req) => [solverOption({ amount: 9_500, total: 10_030 }, sent), exitOption(req)]
+    optionsFor = (req) => [solverOption({ amount: 10_000, total: 10_530 }, sent), exitOption(req)]
     let settleExit!: (txid: string) => void
     collaborativeExitWithFees.mockImplementationOnce(
       () =>
@@ -401,8 +401,8 @@ describe('signing an on-chain send', () => {
     const selectedSent = vi.fn()
     const consulted = vi.fn((req: { raw: string; amount?: number }, onchainSolverId?: string) => [
       onchainSolverId === selected.providerId
-        ? solverOption({ amount: 9_500, total: 10_060, meta: selected }, selectedSent)
-        : solverOption({ amount: 9_500, total: 10_030, meta: original }, originalSent),
+        ? solverOption({ amount: 10_000, total: 10_560, meta: selected }, selectedSent)
+        : solverOption({ amount: 10_000, total: 10_530, meta: original }, originalSent),
       exitOption(req),
     ])
     optionsFor = consulted
@@ -425,8 +425,8 @@ describe('signing an on-chain send', () => {
     fireEvent.click(await picker.findByRole('button', { name: selected.providerName }))
 
     expect(await screen.findByTestId('Solver')).toHaveTextContent(selected.providerName)
-    expect(screen.getByTestId('Total')).toHaveTextContent(/10.?060/)
-    expect(consulted).toHaveBeenLastCalledWith({ raw: ADDRESS, amount: 9_500 }, selected.providerId)
+    expect(screen.getByTestId('Total')).toHaveTextContent(/10.?560/)
+    expect(consulted).toHaveBeenLastCalledWith({ raw: ADDRESS, amount: 10_000 }, selected.providerId)
     expect(readOnchainSendPreference(network)).toBe('exit')
     expect(readSolverRouting(network, direction).preferFirst).toBeUndefined()
 
@@ -493,8 +493,9 @@ describe('signing an on-chain send', () => {
       createdAt: new Date(),
       expiresAt: new Date(Date.now() + 7 * 86_400_000),
     }
-    const renderBoarded = (satoshis: number, availableBalance: number) => {
+    const renderBoarded = (satoshis: number, availableBalance: number, before: typeof optionsFor = () => []) => {
       optionsFor = (req) => [
+        ...before(req),
         {
           railId: 'onchain',
           quote: async () => {
@@ -527,6 +528,42 @@ describe('signing an on-chain send', () => {
       )
     })
 
+    it('prices a send-max on the exit, not on a solver charging more than the balance', async () => {
+      const sent = vi.fn()
+      renderBoarded(100_000, 100_000, (req) => [
+        solverOption({ amount: req.amount!, total: req.amount! + 5_000 }, sent),
+      ])
+
+      expect(await screen.findByText(/deducted from the amount/i)).toBeTruthy()
+      expect(screen.getByTestId('Total')).toHaveTextContent(/100.?000/)
+      await sign()
+
+      await waitFor(() =>
+        expect(collaborativeExitWithFees).toHaveBeenCalledWith(expect.anything(), 100_000, 99_800, ADDRESS),
+      )
+      expect(sent).not.toHaveBeenCalled()
+    })
+
+    it("takes a picked solver's fee out of a send-max", async () => {
+      const sent = vi.fn()
+      const harbor = { providerName: 'Harbor', providerId: 'harbor' }
+      onchainPaymentRouteCandidates.mockResolvedValue([{ id: harbor.providerId, name: harbor.providerName }])
+      renderBoarded(100_000, 100_000, (req) => [
+        solverOption({ amount: req.amount!, total: req.amount! + 5_000, meta: harbor }, sent),
+      ])
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Change route' }))
+      const picker = within(await screen.findByRole('dialog', { name: 'Change route' }))
+      fireEvent.click(await picker.findByRole('button', { name: harbor.providerName }))
+
+      await waitFor(() => expect(screen.getByTestId('Network fees')).toHaveTextContent(/5.?000/))
+      expect(screen.getByTestId('Total')).toHaveTextContent(/100.?000/)
+      await sign()
+
+      await waitFor(() => expect(sent).toHaveBeenCalledOnce())
+      expect(collaborativeExitWithFees).not.toHaveBeenCalled()
+    })
+
     it('refuses a specific amount before signing, with the fee and the most it can send', async () => {
       renderBoarded(99_999, 100_000)
 
@@ -541,7 +578,7 @@ describe('signing an on-chain send', () => {
 
   it('funds the solver when its quote is the send the screen is showing', async () => {
     const sent = vi.fn()
-    optionsFor = (req) => [solverOption({ amount: 9_500, total: 10_000 }, sent), exitOption(req)]
+    optionsFor = (req) => [solverOption({ amount: 10_000, total: 10_500 }, sent), exitOption(req)]
     renderSign({ address: ADDRESS, satoshis: 10_000 })
     await sign()
 
@@ -603,6 +640,6 @@ describe('signing an on-chain send', () => {
     await sign()
 
     await waitFor(() => expect(collaborativeExitWithFees).toHaveBeenCalledTimes(1))
-    expect(collaborativeExitWithFees).toHaveBeenCalledWith(expect.anything(), 10_000, 9_500, OTHER)
+    expect(collaborativeExitWithFees).toHaveBeenCalledWith(expect.anything(), 10_500, 10_000, OTHER)
   })
 })

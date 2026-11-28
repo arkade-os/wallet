@@ -86,6 +86,19 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('wallet LNURL destination refresh', () => {
+  it('binds the own address, not the Executor twin getAddress() answers', async () => {
+    const service = mocks.service as typeof mocks.service & { getOwnAddress?: () => Promise<string> }
+    service.getAddress.mockResolvedValue('ark1twin')
+    service.getOwnAddress = vi.fn().mockResolvedValue('ark1own')
+    try {
+      await renderWallet()
+      await vi.waitFor(() => expect(mocks.syncLnurl).toHaveBeenCalled())
+      expect(mocks.syncLnurl.mock.calls.map(([, address]) => address)).toEqual(['ark1own'])
+    } finally {
+      delete service.getOwnAddress
+    }
+  })
+
   it('reads current destinations in order when another sync starts during a held address read', async () => {
     let release!: (address: string) => void
     mocks.service.getAddress.mockImplementationOnce(() => new Promise<string>((resolve) => (release = resolve)))

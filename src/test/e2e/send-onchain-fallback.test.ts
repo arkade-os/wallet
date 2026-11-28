@@ -14,8 +14,10 @@ const UNREACHABLE_RELAY = 'wss://localhost:65534/'
 const SOLVER = '79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798'
 const RECIPIENT = 'bcrt1qv9zftxjdep9x3sq85aguvd3d4n7dj4ytnf4ez7'
 const FUNDED = 5000
-const TOTAL = 2000
+const SENT = 2000
 const FEE = 200
+/** What leaves: SENT arrives, and the exit's output fee goes on top. */
+const TOTAL = SENT + FEE
 
 const cardWithRelays = (relays: string[]) => ({
   version: 0,
@@ -49,9 +51,9 @@ const pinSolver = (page: Page, relays: string[]) =>
 const fundedWalletOnDetails = async (page: Page, isMobile: boolean) => {
   await createWallet(page)
   await fundWallet(page, FUNDED)
-  await prePay(page, RECIPIENT, isMobile, TOTAL)
+  await prePay(page, RECIPIENT, isMobile, SENT)
   await expect(page.getByTestId('Rail')).toHaveText(tr.solvers.onchainMethodExit, { timeout: 60_000 })
-  await expect(page.getByTestId('primary-amount')).toHaveText(`${prettyNumber(TOTAL - FEE)} sats`)
+  await expect(page.getByTestId('primary-amount')).toHaveText(`${prettyNumber(SENT)} sats`)
   await expect(page.getByTestId('Network fees')).toHaveText(`${FEE} sats`)
   await expect(page.getByTestId('Total')).toHaveText(`${prettyNumber(TOTAL)} sats`)
 }

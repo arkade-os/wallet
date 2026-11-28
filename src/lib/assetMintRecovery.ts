@@ -1,4 +1,11 @@
-import type { IssuanceParams, IssuanceResult, KnownMetadata, ServiceWorkerWallet } from '@arkade-os/sdk'
+import {
+  ArkAddress,
+  type IssuanceParams,
+  type IssuanceResult,
+  type KnownMetadata,
+  type ServiceWorkerWallet,
+} from '@arkade-os/sdk'
+import { hex } from '@scure/base'
 import { translations } from './i18n'
 import { getActiveLanguage } from './language'
 
@@ -13,7 +20,7 @@ export class ControlAssetTimeoutError extends Error {
   }
 }
 
-type Wallet = Pick<ServiceWorkerWallet, 'assetManager' | 'getAddress' | 'getSpendableVtxos'>
+type Wallet = Pick<ServiceWorkerWallet, 'assetManager' | 'getAddress' | 'getContractManager' | 'getSpendableVtxos'>
 
 export type PendingAssetMint = {
   walletAddress: string
@@ -25,6 +32,19 @@ export type PendingAssetMint = {
   stage: 'issuing-control' | 'control-ready' | 'issuing-asset' | 'asset-ready'
   control?: IssuanceResult
   asset?: IssuanceResult
+}
+
+/** Whether `address` pays to one of this wallet's contracts. `getAddress()` has answered the own receive key, an
+ * Executor twin and a rotated HD key over time, so a record's address is matched by contract, not by string. */
+async function ownsAddress(wallet: Wallet, address: string): Promise<boolean> {
+  let script: string
+  try {
+    script = hex.encode(ArkAddress.decode(address).pkScript)
+  } catch {
+    return false
+  }
+  const manager = await wallet.getContractManager()
+  return (await manager.getContracts({ script })).length > 0
 }
 
 export function readPendingAssetMint(): PendingAssetMint | null {
@@ -121,7 +141,7 @@ export async function runNewAssetMint(
   return withAssetMintLock(async () => {
     const walletAddress = await wallet.getAddress()
     let pending = readPendingAssetMint()
-    if (pending && (pending.walletAddress !== walletAddress || pending.server !== server)) {
+    if (pending && (!(await ownsAddress(wallet, pending.walletAddress)) || pending.server !== server)) {
       throw new Error('A pending asset mint belongs to another wallet or server. Restore it before minting.')
     }
     if (pending && create) {
