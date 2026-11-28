@@ -155,6 +155,10 @@ export function fakeLnurlServer(opts: {
   paymentURI?: string
   payRequestFail?: boolean
   registrationError?: string
+  /** Quotes this solver fee beside a Lightning invoice, which pays the receiver that much less. */
+  solverFeeSat?: number
+  /** Echoes this paymentOption on a Lightning invoice, which the payer then refuses. */
+  lightningOption?: string
 }) {
   const addresses = [...(opts.addresses ?? [])]
   let rejected = 0
@@ -242,7 +246,22 @@ export function fakeLnurlServer(opts: {
         return json(200, { status: 'OK', paymentOption: rail, paymentDestination: destinations[rail] })
       }
       if (opts.invoiceError) return json(200, { status: 'ERROR', reason: opts.invoiceError })
-      return json(200, { pr: fakeInvoice(Number(url.searchParams.get('amount'))), routes: [] })
+      const amountMsat = Number(url.searchParams.get('amount'))
+      const feeMsat = (opts.solverFeeSat ?? 0) * 1000
+      const msat = (amount: number) => ({ amount: String(amount), unit: 'msat' })
+      return json(200, {
+        pr: fakeInvoice(amountMsat),
+        routes: [],
+        ...(opts.lightningOption && { paymentOption: opts.lightningOption }),
+        ...(feeMsat && {
+          paymentQuote: {
+            requested: msat(amountMsat),
+            payment: msat(amountMsat),
+            receive: msat(amountMsat - feeMsat),
+            fees: [{ name: 'solver', amount: msat(feeMsat) }],
+          },
+        }),
+      })
     }
     if (path.endsWith('/arkade') && method === 'POST') {
       if (bindsFailed < (opts.bindFails ?? 0)) {

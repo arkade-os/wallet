@@ -520,13 +520,15 @@ export default function ReceiveQRCode() {
   // Whether an amount is currently requested. Keyed off assetMeta to match how
   // handleAmountConfirm/handleAmountClear decide between asset units and sats.
   const hasAmount = assetMeta ? assetAmount > BigInt(0) : satoshis > 0
+  const prettySats = (sats: number) =>
+    useFiat && currencyConversionUseful
+      ? prettyFiatAmount(toFiat(sats), config.currency, { bitcoinUnit: config.unit })
+      : prettyAmount(sats)
   const amountHeadline = !hasAmount
     ? ''
     : assetMeta
       ? `${atomicToUnits(assetAmount, assetOption.decimals)} ${assetPresentation.ticker}`
-      : useFiat && currencyConversionUseful
-        ? prettyFiatAmount(toFiat(satoshis), config.currency, { bitcoinUnit: config.unit })
-        : prettyAmount(satoshis)
+      : prettySats(satoshis)
 
   // Mobile keyboard — bypass sheet on save, go straight to QR
   if (showKeys) {
@@ -640,6 +642,11 @@ export default function ReceiveQRCode() {
         btc: t('receive.bitcoinSub'),
         token: '',
       }[shown]
+  // Where a Lightning wallet can pay, the fee follows the caption on the same line.
+  const feeNote =
+    lnurlRails.lightningFee && lnurlRails.lightningFee > 0 && (shown === 'lightning' || shown === 'full')
+      ? t('receive.lightningDepositFee', { fee: prettySats(lnurlRails.lightningFee) })
+      : ''
   // Only a registered asset gets an official logo: a self-reported ticker could claim any.
   const assetRow = (id: string): FormatRow => {
     const p = id
@@ -834,7 +841,7 @@ export default function ReceiveQRCode() {
                     <TokenQuoteNote rail={activeToken} quote={tokenRails.quote} copied={copied} onCopy={handleCopy} />
                   ) : caption ? (
                     <Text small color='neutral-500' wrap centered>
-                      {caption}
+                      {feeNote ? `${caption}. ${feeNote}` : caption}
                     </Text>
                   ) : null}
                 </div>

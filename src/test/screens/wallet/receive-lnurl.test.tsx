@@ -447,6 +447,19 @@ describe('Receive screen, rail composition', () => {
     expect(copyToClipboard).toHaveBeenLastCalledWith(invoice)
   })
 
+  it('adds the deposit fee the server quotes to the caption, and keeps the invoice at the amount', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], solverFeeSat: 30 })
+    renderReceive(10_000)
+
+    // The screen shows amounts in fiat here, at one euro a sat.
+    expect(
+      await screen.findByText(
+        'Anyone can pay this from a Bitcoin or Lightning wallet. Lightning deposit fee is €30.00',
+      ),
+    ).toBeInTheDocument()
+    expect(await qrLightning()).toBe(fakeInvoice(10_000_000))
+  })
+
   it.each([
     ['named', namedAddress('alice')],
     ['nameless', namelessAddress()],

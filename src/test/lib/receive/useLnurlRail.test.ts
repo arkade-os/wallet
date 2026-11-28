@@ -489,4 +489,16 @@ describe('useLnurlRails', () => {
     await waitFor(() => expect(result.current.targets).toEqual(expect.objectContaining(LNURL_DESTINATIONS)))
     expect(result.current.errors).toEqual({})
   })
+
+  it('shows no fee for a quoted Lightning answer it refuses', async () => {
+    serve({ modes: ['self'], addresses: [namedAddress('alice')], solverFeeSat: 30, lightningOption: 'arkade' })
+    const rail = renderRail()
+    await waitFor(() => expect(rail.result.current.status).toBe('ready'))
+    const receiver = rail.result.current.receiver
+    const { result } = renderHook(() => useLnurlRails(receiver, 20_000, false, { arkade: '', onchain: '' }))
+
+    await waitFor(() => expect(result.current.errors.lightning).toBeDefined())
+    expect(result.current.targets.lightning).toBeUndefined()
+    expect(result.current.lightningFee).toBeUndefined()
+  })
 })
